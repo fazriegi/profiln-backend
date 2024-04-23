@@ -1,6 +1,8 @@
 package libs
 
 import (
+	"regexp"
+
 	"github.com/go-playground/validator"
 )
 
@@ -14,6 +16,7 @@ func ValidateRequest(data any) []ValidationErrResponse {
 	var validationErrors []ValidationErrResponse
 
 	validate := validator.New()
+	validate.RegisterValidation("password", Password) // register custom validator
 
 	err := validate.Struct(data)
 	if err != nil {
@@ -28,4 +31,19 @@ func ValidateRequest(data any) []ValidationErrResponse {
 	}
 
 	return validationErrors
+}
+
+func Password(fl validator.FieldLevel) bool {
+	password := fl.Field().String()
+
+	if password != "" {
+		hasDigit := regexp.MustCompile(`\d`).MatchString(password)
+		hasSpecialChar := regexp.MustCompile(`[^\w\s]`).MatchString(password)
+		hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+		hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+
+		return hasDigit && hasSpecialChar && hasLower && hasUpper
+	}
+
+	return true
 }

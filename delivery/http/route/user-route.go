@@ -14,4 +14,5 @@ func NewUserRoute(app *gin.RouterGroup, db *sql.DB) {
 	userController := http.NewUserController(userUsecase)
 
 	app.POST("/login", userController.Login)
+	app.POST("/reset-password", userController.ResetPassword)
 }

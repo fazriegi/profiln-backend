@@ -59,3 +59,42 @@ func (u *UserUsecase) Login(props *model.UserLoginRequest) (resp model.Response)
 
 	return resp
 }
+
+func (u *UserUsecase) ResetPassword(props *model.UserResetPasswordRequest) (resp model.Response) {
+	user, err := u.repository.GetUserByEmail(context.Background(), props.Email)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusOK, "Success")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		log.Printf("repository.GetUserByEmail: %v", err)
+		return
+	}
+
+	hashedPassword, err := libs.HashPassword(props.Password)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		log.Printf("libs.HashPassword: %v", err)
+		return
+	}
+
+	arg := repository.UpdateUserPasswordParams{
+		ID:       user.ID,
+		Password: sql.NullString{String: hashedPassword, Valid: true},
+	}
+
+	err = u.repository.UpdateUserPassword(context.Background(), arg)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		log.Printf("repository.UpdateUserPassword: %v", err)
+		return
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success reset password")
+
+	return
+}
