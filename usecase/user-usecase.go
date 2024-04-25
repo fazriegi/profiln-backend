@@ -44,7 +44,7 @@ func (u *UserUsecase) Login(props *model.UserLoginRequest) (resp model.Response)
 		return resp
 	}
 
-	token, err := libs.GenerateJWTToken(int(user.ID), user.Email)
+	token, err := libs.GenerateJWTToken(user.Email)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 
