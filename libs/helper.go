@@ -1,6 +1,8 @@
 package libs
 
 import (
+	"bytes"
+	"html/template"
 	"profiln-be/model"
 )
 
@@ -24,4 +26,21 @@ func CustomResponse(code int, message string) model.Status {
 	status.IsSuccess = isSuccess
 
 	return status
+}
+
+func HTMLToString(filepath string, data any) (string, error) {
+	// get email template
+	t, err := template.ParseFiles(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	buff := new(bytes.Buffer)
+
+	err = t.Execute(buff, data)
+	if err != nil {
+		return "", err
+	}
+
+	return buff.String(), nil
 }
