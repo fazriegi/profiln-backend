@@ -13,5 +13,6 @@ CREATE TABLE "user_otps" (
 );
 
 CREATE INDEX ON "users" ("email");
+CREATE INDEX idx_users_id ON "users" ("id");
 
 ALTER TABLE "user_otps" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");

@@ -16,6 +16,7 @@ func main() {
 	godotenv.Load(".env")
 
 	db := config.NewDatabase()
+	config.NewMailDialer()
 	app := gin.Default()
 	port := os.Getenv("PORT")
 	route.NewRoute(app, db)
