@@ -62,3 +62,16 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 	)
 	return i, err
 }
+
+const updateVerifiedEmailByOTP = `-- name: UpdateVerifiedEmailByOTP :exec
+UPDATE users
+SET verified_email = TRUE
+FROM user_otps 
+WHERE users.id = user_otps.id AND user_otps.otp = $1
+RETURNING user_otps.id, user_id, otp, users.id, email, password, full_name, verified_email
+`
+
+func (q *Queries) UpdateVerifiedEmailByOTP(ctx context.Context, otp sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, updateVerifiedEmailByOTP, otp)
+	return err
+}

@@ -10,3 +10,10 @@ RETURNING *;
 SELECT * FROM users
 WHERE email = $1
 LIMIT 1;
+
+-- name: UpdateVerifiedEmailByOTP :exec
+UPDATE users
+SET verified_email = TRUE
+FROM user_otps 
+WHERE users.id = user_otps.id AND user_otps.otp = $1
+RETURNING *;
