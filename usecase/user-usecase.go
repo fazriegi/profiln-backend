@@ -3,8 +3,10 @@ package usecase
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -61,6 +63,7 @@ func (u *UserUsecase) Login(props *model.UserLoginRequest) (resp model.Response)
 }
 
 func (u *UserUsecase) Register(props *model.UserRegisterRequest) (resp model.Response) {
+	subject := "OTP Regristation Profiln"
 	user, _ := u.repository.GetUserByEmail(context.Background(), props.Email)
 
 	if user.Email != "" {
@@ -76,9 +79,8 @@ func (u *UserUsecase) Register(props *model.UserRegisterRequest) (resp model.Res
 	}
 
 	registerUserParams := repository.InsertUserParams{
-		Email:    props.Email,
-		Password: sql.NullString{String: hashedPassword, Valid: true},
-		// Password:      libs.GetValidString(hashedPassword, user.Password),
+		Email:         props.Email,
+		Password:      sql.NullString{String: hashedPassword, Valid: true},
 		FullName:      props.Fullname,
 		VerifiedEmail: sql.NullBool{Bool: false, Valid: true},
 	}
@@ -109,7 +111,51 @@ func (u *UserUsecase) Register(props *model.UserRegisterRequest) (resp model.Res
 		return resp
 	}
 
-	// todo: buat kirim email ke client
+	DigitOne := string([]rune(otp)[0])
+	DigitTwo := string([]rune(otp)[1])
+	DigitThree := string([]rune(otp)[2])
+	DigitFour := string([]rune(otp)[3])
+	DigitFive := string([]rune(otp)[4])
+	DigitSix := string([]rune(otp)[5])
+
+	dataEmail := struct {
+		Email      string
+		DigitOne   string
+		DigitTwo   string
+		DigitThree string
+		DigitFour  string
+		DigitFive  string
+		DigitSix   string
+	}{
+		Email:      props.Email,
+		DigitOne:   DigitOne,
+		DigitTwo:   DigitTwo,
+		DigitThree: DigitThree,
+		DigitFour:  DigitFour,
+		DigitFive:  DigitFive,
+		DigitSix:   DigitSix,
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Printf("os.Getwd: %v", err)
+		return
+	}
+
+	filepath := fmt.Sprintf("%s/template/%s", dir, "otp.html")
+
+	body, err := libs.HTMLToString(filepath, dataEmail)
+	if err != nil {
+		log.Printf("libs.HTMLToString: %v", err)
+		return
+	}
+
+	go func() {
+		err := libs.SendEmail(subject, []string{props.Email}, body)
+		if err != nil {
+			log.Printf("libs.SendMail: %v", err)
+		}
+	}()
 
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to register")
 	userResponse := model.RegisterResponse{

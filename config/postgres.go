@@ -17,7 +17,7 @@ func NewDatabase() *sql.DB {
 	name := os.Getenv("DBNAME")
 
 	dbDriver := "postgres"
-	dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
+	dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s",
 		username,
 		password,
 		host,

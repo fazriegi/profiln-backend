@@ -104,8 +104,6 @@ func (c *UserController) VerifiedEmail(ctx *gin.Context) {
 		return
 	}
 
-	// todo : throw error if len otp not 6
-
 	validationErr := libs.ValidateRequest(reqBody)
 
 	if len(validationErr) > 0 {

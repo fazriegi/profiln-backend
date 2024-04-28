@@ -1,7 +1,9 @@
 package libs
 
 import (
+	"bytes"
 	"crypto/rand"
+	"html/template"
 	"io"
 	"profiln-be/model"
 )
@@ -40,4 +42,21 @@ func GenerateOTP(max int) (string, error) {
 		b[i] = table[int(b[i])%len(table)]
 	}
 	return string(b), nil
+}
+
+func HTMLToString(filepath string, data any) (string, error) {
+	// get email template
+	t, err := template.ParseFiles(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	buff := new(bytes.Buffer)
+
+	err = t.Execute(buff, data)
+	if err != nil {
+		return "", err
+	}
+
+	return buff.String(), nil
 }
