@@ -23,7 +23,7 @@ func NewUserUsecase(db *sql.DB) *UserUsecase {
 	}
 }
 
-func (u *UserUsecase) Login(props *model.UserLoginRequest) (resp model.Response) {
+func (u *UserUsecase) Login(loginType string, props *model.UserLoginRequest) (resp model.Response) {
 
 	user, err := u.repository.GetUserByEmail(context.Background(), props.Email)
 
@@ -38,10 +38,12 @@ func (u *UserUsecase) Login(props *model.UserLoginRequest) (resp model.Response)
 		return resp
 	}
 
-	if !libs.CheckPasswordHash(props.Password, user.Password.String) {
-		resp.Status = libs.CustomResponse(http.StatusUnauthorized, "Incorrect email or password!")
+	if loginType == "app" {
+		if !libs.CheckPasswordHash(props.Password, user.Password.String) {
+			resp.Status = libs.CustomResponse(http.StatusUnauthorized, "Incorrect email or password!")
 
-		return resp
+			return resp
+		}
 	}
 
 	token, err := libs.GenerateJWTToken(user.Email)
