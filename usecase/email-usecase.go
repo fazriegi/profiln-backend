@@ -31,10 +31,10 @@ func (u *EmailUsecase) SendResetPasswordMail(props *model.SendResetPassEmailRequ
 	// data for template html
 	data := struct {
 		Email string
-		Link  string
+		URL   string
 	}{
 		Email: props.Email,
-		Link:  redirectLink,
+		URL:   redirectLink,
 	}
 
 	// get working directory
