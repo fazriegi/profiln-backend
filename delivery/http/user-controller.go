@@ -26,6 +26,16 @@ func (c *UserController) Login(ctx *gin.Context) {
 		response model.Response
 	)
 
+	loginType := ctx.Query("type")
+
+	if loginType != "sso" && loginType != "app" {
+		status := libs.CustomResponse(http.StatusBadRequest, "Login type is not valid")
+		response.Status = status
+
+		ctx.JSON(status.Code, response)
+		return
+	}
+
 	if err := ctx.ShouldBind(&reqBody); err != nil {
 		status := libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
 		response.Status = status
@@ -49,7 +59,7 @@ func (c *UserController) Login(ctx *gin.Context) {
 		return
 	}
 
-	response = c.UserUsecase.Login(&reqBody)
+	response = c.UserUsecase.Login(loginType, &reqBody)
 
 	ctx.JSON(response.Status.Code, response)
 }
