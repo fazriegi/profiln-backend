@@ -16,3 +16,10 @@ UPDATE users
 SET password = $2
 WHERE id = $1
 RETURNING *;
+
+-- name: UpdateVerifiedEmailByOTP :exec
+UPDATE users
+SET verified_email = TRUE
+FROM user_otps 
+WHERE users.id = user_otps.id AND user_otps.otp = $1
+RETURNING *;

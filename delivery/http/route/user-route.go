@@ -15,4 +15,6 @@ func NewUserRoute(app *gin.RouterGroup, db *sql.DB) {
 
 	app.POST("/login", userController.Login)
 	app.POST("/reset-password", userController.ResetPassword)
+	app.POST("/register", userController.Register)
+	app.POST("/user-otp", userController.VerifiedEmail)
 }
