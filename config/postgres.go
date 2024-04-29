@@ -6,6 +6,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
 
@@ -17,7 +20,7 @@ func NewDatabase() *sql.DB {
 	name := os.Getenv("DBNAME")
 
 	dbDriver := "postgres"
-	dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s",
+	dbSource := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=disable",
 		username,
 		password,
 		host,
@@ -29,6 +32,21 @@ func NewDatabase() *sql.DB {
 	if err != nil {
 		log.Fatal("failed to connect to database:", err)
 	}
+
+	driver, err := postgres.WithInstance(conn, &postgres.Config{})
+	if err != nil {
+		log.Fatal("postgres.WithInstance", err)
+	}
+
+	// automate db migration
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://db/migrations",
+		"postgres", driver)
+	if err != nil {
+		log.Fatal("migrate.NewWithDatabaseInstance", err)
+	}
+
+	m.Up()
 
 	return conn
 }

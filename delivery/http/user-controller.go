@@ -69,6 +69,8 @@ func (c *UserController) Register(ctx *gin.Context) {
 		return
 	}
 
+	isOAuth := ctx.Query("oauth")
+
 	validationErr := libs.ValidateRequest(reqBody)
 
 	if len(validationErr) > 0 {
@@ -84,7 +86,7 @@ func (c *UserController) Register(ctx *gin.Context) {
 		return
 	}
 
-	response = c.UserUsecase.Register(&reqBody)
+	response = c.UserUsecase.Register(&reqBody, isOAuth)
 
 	ctx.JSON(response.Status.Code, response)
 }
