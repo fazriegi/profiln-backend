@@ -2,7 +2,6 @@ package libs
 
 import (
 	"bytes"
-	"html/template"
 	"crypto/rand"
 	"html/template"
 	"io"

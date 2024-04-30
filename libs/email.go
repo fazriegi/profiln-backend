@@ -3,13 +3,14 @@ package libs
 import (
 	"os"
 	"strconv"
+
 	"gopkg.in/gomail.v2"
 )
 
 func SendEmail(subject string, to []string, body string) error {
-	senderMail := os.Getenv("AUTH_EMAIL")
+	senderMail := os.Getenv("SENDER_NAME")
 	CONFIG_SMTP_HOST := os.Getenv("SMTP_HOST")
-	CONFIG_SMTP_PORT,_ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	CONFIG_SMTP_PORT, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
 	CONFIG_AUTH_EMAIL := os.Getenv("AUTH_EMAIL")
 	CONFIG_AUTH_PASSWORD := os.Getenv("AUTH_PASSWORD")
 
@@ -30,6 +31,6 @@ func SendEmail(subject string, to []string, body string) error {
 	if err != nil {
 		return err
 	}
->>>>>>> feature/registerandotp
+
 	return nil
 }
