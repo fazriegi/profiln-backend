@@ -56,7 +56,7 @@ func (u *EmailUsecase) SendResetPasswordMail(props *model.SendResetPassEmailRequ
 	// no matter it's success or not,
 	// it always returns success to the client
 	go func() {
-		err := libs.SendMail(subject, []string{props.Email}, body)
+		err := libs.SendEmail(subject, []string{props.Email}, body)
 		if err != nil {
 			log.Printf("libs.SendMail: %v", err)
 		}
