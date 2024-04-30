@@ -12,6 +12,7 @@ func CustomResponse(code int, message string) model.Status {
 	statuses := map[int]string{
 		500: "internal server error",
 		422: "unprocessable content",
+		404: "not found",
 		401: "unauthorized",
 		400: "bad request",
 		303: "redirect",
