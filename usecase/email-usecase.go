@@ -1,21 +1,43 @@
 package usecase
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"profiln-be/libs"
 	"profiln-be/model"
+	"profiln-be/repository"
 )
 
-type EmailUsecase struct{}
+type EmailUsecase struct {
+	db         *sql.DB
+	repository *repository.Queries
+}
 
-func NewEmailUsecase() *EmailUsecase {
-	return &EmailUsecase{}
+func NewEmailUsecase(db *sql.DB) *EmailUsecase {
+	return &EmailUsecase{
+		db:         db,
+		repository: repository.New(db),
+	}
 }
 
 func (u *EmailUsecase) SendResetPasswordMail(props *model.SendResetPassEmailRequest) (resp model.Response) {
+	_, err := u.repository.GetUserByEmail(context.Background(), props.Email)
+
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Email not found")
+
+		return resp
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		log.Printf("repository.GetUserByEmail: %v", err)
+		return resp
+	}
+
 	resp.Status = libs.CustomResponse(http.StatusOK, "success")
 	subject := "Permintaan Reset Password"
 	resetPasswordUrl := os.Getenv("FRONTEND_RESET_PASSWORD_URL")
