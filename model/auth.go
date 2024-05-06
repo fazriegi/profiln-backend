@@ -1,18 +1,22 @@
 package model
 
-type UserLoginRequest struct {
+type LoginRequest struct {
 	Email    string `validate:"required,email"`
 	Password string
 }
 
-type UserResetPasswordRequest struct {
+type ResetPasswordRequest struct {
 	Email    string `validate:"required,email"`
 	Password string `validate:"required,min=8,password"`
 }
 
-type UserRegisterRequest struct {
+type ResetPasswordEmailRequest struct {
+	Email string `validate:"required,email"`
+}
+
+type RegisterRequest struct {
 	Email    string `validate:"required,email"`
-	Password string `validate:"required,min=8"`
+	Password string `validate:"required,min=8,password"`
 	Fullname string `validate:"required"`
 }
 
