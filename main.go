@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"profiln-be/config"
@@ -18,9 +17,12 @@ func main() {
 	db := config.NewDatabase()
 	defer db.Close()
 
+	log, file := config.NewLogger()
+	defer file.Close()
+
 	app := gin.Default()
+	route.NewRoute(app, db, log)
 	port := os.Getenv("PORT")
-	route.NewRoute(app, db)
 
 	log.Fatal(app.Run(fmt.Sprintf(":%s", port)))
 }
