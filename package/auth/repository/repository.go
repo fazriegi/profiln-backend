@@ -10,9 +10,10 @@ type IAuthRepository interface {
 	GetUserByEmail(email string) (authSqlc.User, error)
 	UpdateUserPassword(id int64, hashedPassword string) error
 	InsertUser(arg authSqlc.InsertUserParams) (authSqlc.User, error)
-	UpdateVerifiedEmailByOTP(otp string) error
+	UpdateVerifiedEmailByOTP(otp string, email string) error
 	InsertOtp(id int64, otp string) (authSqlc.UserOtp, error)
 	GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error)
+	DeleteOtp(otp string) error
 }
 
 type AuthRepository struct {
@@ -62,8 +63,12 @@ func (r *AuthRepository) InsertUser(arg authSqlc.InsertUserParams) (authSqlc.Use
 	return user, nil
 }
 
-func (r *AuthRepository) UpdateVerifiedEmailByOTP(otp string) error {
-	err := r.query.UpdateVerifiedEmailByOTP(context.Background(), sql.NullString{String: otp, Valid: true})
+func (r *AuthRepository) UpdateVerifiedEmailByOTP(otp string, email string) error {
+	updateVerfiedEmailParams := authSqlc.UpdateVerifiedEmailByOTPParams{
+		Otp:   sql.NullString{String: otp, Valid: true},
+		Email: email,
+	}
+	err := r.query.UpdateVerifiedEmailByOTP(context.Background(), updateVerfiedEmailParams)
 
 	if err != nil {
 		return err
@@ -96,4 +101,15 @@ func (r *AuthRepository) GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error) {
 	}
 
 	return userOtp, nil
+}
+
+func (r *AuthRepository) DeleteOtp(otp string) error {
+	arg := sql.NullString{String: otp, Valid: true}
+	err := r.query.DeleteOtp(context.Background(), arg)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

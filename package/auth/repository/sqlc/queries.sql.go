@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const deleteOtp = `-- name: DeleteOtp :exec
+DELETE FROM user_otps WHERE otp = $1
+`
+
+func (q *Queries) DeleteOtp(ctx context.Context, otp sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, deleteOtp, otp)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, password, full_name, verified_email FROM users
 WHERE email = $1
@@ -119,11 +128,16 @@ const updateVerifiedEmailByOTP = `-- name: UpdateVerifiedEmailByOTP :exec
 UPDATE users
 SET verified_email = TRUE
 FROM user_otps 
-WHERE users.id = user_otps.id AND user_otps.otp = $1
+WHERE users.id = user_otps.id AND user_otps.otp = $1 AND users.email = $2
 RETURNING user_otps.id, user_id, otp, users.id, email, password, full_name, verified_email
 `
 
-func (q *Queries) UpdateVerifiedEmailByOTP(ctx context.Context, otp sql.NullString) error {
-	_, err := q.db.ExecContext(ctx, updateVerifiedEmailByOTP, otp)
+type UpdateVerifiedEmailByOTPParams struct {
+	Otp   sql.NullString
+	Email string
+}
+
+func (q *Queries) UpdateVerifiedEmailByOTP(ctx context.Context, arg UpdateVerifiedEmailByOTPParams) error {
+	_, err := q.db.ExecContext(ctx, updateVerifiedEmailByOTP, arg.Otp, arg.Email)
 	return err
 }

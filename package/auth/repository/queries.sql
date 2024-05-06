@@ -21,7 +21,7 @@ RETURNING *;
 UPDATE users
 SET verified_email = TRUE
 FROM user_otps 
-WHERE users.id = user_otps.id AND user_otps.otp = $1
+WHERE users.id = user_otps.id AND user_otps.otp = $1 AND users.email = $2
 RETURNING *;
 
 -- name: InsertOtp :one
@@ -37,3 +37,6 @@ SELECT *
 FROM user_otps 
 WHERE otp = $1 
 LIMIT 1;
+
+-- name: DeleteOtp :exec
+DELETE FROM user_otps WHERE otp = $1;

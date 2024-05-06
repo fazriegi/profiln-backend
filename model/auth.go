@@ -28,5 +28,6 @@ type RegisterResponse struct {
 }
 
 type VerifiedEmailOTPRequest struct {
-	Otp string `validate:"required"`
+	Otp   string `validate:"required"`
+	Email string `validate:"required,email"`
 }

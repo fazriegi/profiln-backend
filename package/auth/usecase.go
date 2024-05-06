@@ -229,11 +229,19 @@ func (u *AuthUsecase) UpdateVerifiedEmailByOTP(props *model.VerifiedEmailOTPRequ
 		return resp
 	}
 
-	err = u.repository.UpdateVerifiedEmailByOTP(props.Otp)
+	err = u.repository.UpdateVerifiedEmailByOTP(props.Otp, props.Email)
 
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed updated verify email")
 		u.log.Errorf("repository.UpdateVerifiedEmailByOTP %v", err)
+		return resp
+	}
+
+	err = u.repository.DeleteOtp(props.Otp)
+
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed updated verify email")
+		u.log.Errorf("repository.DeleteOtp %v", err)
 		return resp
 	}
 
