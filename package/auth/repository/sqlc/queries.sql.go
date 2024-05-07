@@ -124,20 +124,22 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 	return err
 }
 
-const updateVerifiedEmailByOTP = `-- name: UpdateVerifiedEmailByOTP :exec
+const updateVerifiedEmail = `-- name: UpdateVerifiedEmail :one
 UPDATE users
 SET verified_email = TRUE
 FROM user_otps 
-WHERE users.id = user_otps.id AND user_otps.otp = $1 AND users.email = $2
-RETURNING user_otps.id, user_id, otp, users.id, email, password, full_name, verified_email
+WHERE users.id = user_otps.user_id AND user_otps.otp = $1 AND users.email = $2
+RETURNING users.id
 `
 
-type UpdateVerifiedEmailByOTPParams struct {
+type UpdateVerifiedEmailParams struct {
 	Otp   sql.NullString
 	Email string
 }
 
-func (q *Queries) UpdateVerifiedEmailByOTP(ctx context.Context, arg UpdateVerifiedEmailByOTPParams) error {
-	_, err := q.db.ExecContext(ctx, updateVerifiedEmailByOTP, arg.Otp, arg.Email)
-	return err
+func (q *Queries) UpdateVerifiedEmail(ctx context.Context, arg UpdateVerifiedEmailParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, updateVerifiedEmail, arg.Otp, arg.Email)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
