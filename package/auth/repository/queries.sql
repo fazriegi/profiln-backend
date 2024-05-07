@@ -17,12 +17,12 @@ SET password = $2
 WHERE id = $1
 RETURNING *;
 
--- name: UpdateVerifiedEmailByOTP :exec
+-- name: UpdateVerifiedEmail :one
 UPDATE users
 SET verified_email = TRUE
 FROM user_otps 
-WHERE users.id = user_otps.id AND user_otps.otp = $1 AND users.email = $2
-RETURNING *;
+WHERE users.id = user_otps.user_id AND user_otps.otp = $1 AND users.email = $2
+RETURNING users.id;
 
 -- name: InsertOtp :one
 INSERT INTO user_otps (

@@ -20,7 +20,7 @@ type IAuthUsecase interface {
 	Login(loginType string, props *model.LoginRequest) (resp model.Response)
 	ResetPassword(props *model.ResetPasswordRequest) (resp model.Response)
 	Register(props *model.RegisterRequest, oauth string) (resp model.Response)
-	UpdateVerifiedEmailByOTP(props *model.VerifiedEmailOTPRequest) (resp model.Response)
+	UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) (resp model.Response)
 	SendResetPasswordEmail(props *model.ResetPasswordEmailRequest) (resp model.Response)
 }
 
@@ -201,52 +201,40 @@ func (u *AuthUsecase) Register(props *model.RegisterRequest, oauth string) (resp
 	return resp
 }
 
-// func (u *AuthUsecase) UpdateVerifiedEmailByOTP(props *model.VerifiedEmailOTPRequest) (resp model.Response) {
-// 	_, err := u.repository.GetUserOtpByOtp(props.Otp)
-// 	if err != nil {
-// 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "OTP doesnt exist")
-// 		u.log.Errorf("repository.GetUserOtpByOtp %v", err)
-// 		return resp
-// 	}
-
-// 	err = u.repository.UpdateVerifiedEmailByOTP(props.Otp)
-
-// 	if err != nil {
-// 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed updated verify email")
-// 		u.log.Errorf("repository.UpdateVerifiedEmailByOTP %v", err)
-// 		return resp
-// 	}
-
-// 	resp.Status = libs.CustomResponse(http.StatusOK, "Success verified email")
-// 	return resp
-// }
-
-func (u *AuthUsecase) UpdateVerifiedEmailByOTP(props *model.VerifiedEmailOTPRequest) (resp model.Response) {
+func (u *AuthUsecase) UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) (resp model.Response) {
 	_, err := u.repository.GetUserOtpByOtp(props.Otp)
-	if err != nil {
+	if err != nil && err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "OTP doesnt exist")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.GetUserOtpByOtp %v", err)
-		return resp
+		return
 	}
 
-	err = u.repository.UpdateVerifiedEmailByOTP(props.Otp, props.Email)
+	err = u.repository.UpdateVerifiedEmail(props.Otp, props.Email)
 
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed updated verify email")
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed verify email")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed verify email")
 		u.log.Errorf("repository.UpdateVerifiedEmailByOTP %v", err)
-		return resp
+		return
 	}
 
 	err = u.repository.DeleteOtp(props.Otp)
 
 	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed updated verify email")
+		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed verify email")
 		u.log.Errorf("repository.DeleteOtp %v", err)
-		return resp
+		return
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success verified email")
-	return resp
+	return
 }
 
 func (u *AuthUsecase) SendResetPasswordEmail(props *model.ResetPasswordEmailRequest) (resp model.Response) {

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	authSqlc "profiln-be/package/auth/repository/sqlc"
 )
 
@@ -10,7 +11,7 @@ type IAuthRepository interface {
 	GetUserByEmail(email string) (authSqlc.User, error)
 	UpdateUserPassword(id int64, hashedPassword string) error
 	InsertUser(arg authSqlc.InsertUserParams) (authSqlc.User, error)
-	UpdateVerifiedEmailByOTP(otp string, email string) error
+	UpdateVerifiedEmail(otp string, email string) error
 	InsertOtp(id int64, otp string) (authSqlc.UserOtp, error)
 	GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error)
 	DeleteOtp(otp string) error
@@ -63,12 +64,13 @@ func (r *AuthRepository) InsertUser(arg authSqlc.InsertUserParams) (authSqlc.Use
 	return user, nil
 }
 
-func (r *AuthRepository) UpdateVerifiedEmailByOTP(otp string, email string) error {
-	updateVerfiedEmailParams := authSqlc.UpdateVerifiedEmailByOTPParams{
+func (r *AuthRepository) UpdateVerifiedEmail(otp string, email string) error {
+	updateVerfiedEmailParams := authSqlc.UpdateVerifiedEmailParams{
 		Otp:   sql.NullString{String: otp, Valid: true},
 		Email: email,
 	}
-	err := r.query.UpdateVerifiedEmailByOTP(context.Background(), updateVerfiedEmailParams)
+	fmt.Println(updateVerfiedEmailParams)
+	_, err := r.query.UpdateVerifiedEmail(context.Background(), updateVerfiedEmailParams)
 
 	if err != nil {
 		return err

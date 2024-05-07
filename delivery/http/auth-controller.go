@@ -170,7 +170,7 @@ func (c *AuthController) VerifiedEmail(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.UpdateVerifiedEmailByOTP(&reqBody)
+	response = c.usecase.UpdateVerifiedEmail(&reqBody)
 
 	ctx.JSON(response.Status.Code, response)
 }
