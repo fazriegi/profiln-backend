@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	authSqlc "profiln-be/package/auth/repository/sqlc"
 )
 
@@ -69,7 +68,7 @@ func (r *AuthRepository) UpdateVerifiedEmail(otp string, email string) error {
 		Otp:   sql.NullString{String: otp, Valid: true},
 		Email: email,
 	}
-	fmt.Println(updateVerfiedEmailParams)
+
 	_, err := r.query.UpdateVerifiedEmail(context.Background(), updateVerfiedEmailParams)
 
 	if err != nil {
