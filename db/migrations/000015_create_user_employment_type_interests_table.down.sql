@@ -1,0 +1,1 @@
+DROP TABLE "user_employment_type_interests";
