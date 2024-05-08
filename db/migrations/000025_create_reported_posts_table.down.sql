@@ -1,0 +1,1 @@
+DROP TABLE "reposted_posts";
