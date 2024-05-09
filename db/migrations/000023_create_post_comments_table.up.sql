@@ -4,8 +4,8 @@ CREATE TABLE "post_comments" (
   "post_id" BIGINT,
   "content" TEXT,
   "image_url" TEXT,
-  "like_count" INTEGER,
-  "reply_count" INTEGER,
+  "like_count" INTEGER DEFAULT 0,
+  "reply_count" INTEGER DEFAULT 0,
   "is_post_author" BOOL DEFAULT FALSE,
   "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
