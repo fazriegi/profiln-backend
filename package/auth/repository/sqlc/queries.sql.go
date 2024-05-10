@@ -119,6 +119,73 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 	return i, err
 }
 
+const insertUserAvatar = `-- name: InsertUserAvatar :exec
+UPDATE users
+SET avatar_url = $1
+WHERE email = $2
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+`
+
+type InsertUserAvatarParams struct {
+	AvatarUrl sql.NullString
+	Email     string
+}
+
+func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarParams) error {
+	_, err := q.db.ExecContext(ctx, insertUserAvatar, arg.AvatarUrl, arg.Email)
+	return err
+}
+
+const insertUserDetail = `-- name: InsertUserDetail :one
+INSERT INTO user_details (
+  user_id, phone_number, gender
+) VALUES (
+  $1, $2, $3
+)
+RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
+`
+
+type InsertUserDetailParams struct {
+	UserID      sql.NullInt64
+	PhoneNumber sql.NullString
+	Gender      sql.NullString
+}
+
+func (q *Queries) InsertUserDetail(ctx context.Context, arg InsertUserDetailParams) (UserDetail, error) {
+	row := q.db.QueryRowContext(ctx, insertUserDetail, arg.UserID, arg.PhoneNumber, arg.Gender)
+	var i UserDetail
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+		&i.HidePhoneNumber,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const insertUserDetailAbout = `-- name: InsertUserDetailAbout :exec
+UPDATE user_details
+SET about = $1
+WHERE user_id = $2
+RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
+`
+
+type InsertUserDetailAboutParams struct {
+	About  sql.NullString
+	UserID sql.NullInt64
+}
+
+func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) error {
+	_, err := q.db.ExecContext(ctx, insertUserDetailAbout, arg.About, arg.UserID)
+	return err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2

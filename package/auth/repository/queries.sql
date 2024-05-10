@@ -40,3 +40,23 @@ LIMIT 1;
 
 -- name: DeleteOtp :exec
 DELETE FROM user_otps WHERE otp = $1;
+
+-- name: InsertUserDetail :one
+INSERT INTO user_details (
+  user_id, phone_number, gender
+) VALUES (
+  $1, $2, $3
+)
+RETURNING *;
+
+-- name: InsertUserAvatar :exec
+UPDATE users
+SET avatar_url = $1
+WHERE email = $2
+RETURNING *;
+
+-- name: InsertUserDetailAbout :exec
+UPDATE user_details
+SET about = $1
+WHERE user_id = $2
+RETURNING *;

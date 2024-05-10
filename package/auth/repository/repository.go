@@ -14,6 +14,8 @@ type IAuthRepository interface {
 	InsertOtp(id int64, otp string) (authSqlc.UserOtp, error)
 	GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error)
 	DeleteOtp(otp string) error
+	InsertUserDetail(arg authSqlc.InsertUserDetailParams) (authSqlc.UserDetail, error)
+	InsertUserDetailAbout(arg authSqlc.InsertUserDetailAboutParams) error
 }
 
 type AuthRepository struct {
@@ -107,6 +109,36 @@ func (r *AuthRepository) GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error) {
 func (r *AuthRepository) DeleteOtp(otp string) error {
 	arg := sql.NullString{String: otp, Valid: true}
 	err := r.query.DeleteOtp(context.Background(), arg)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *AuthRepository) InsertUserDetail(arg authSqlc.InsertUserDetailParams) (authSqlc.UserDetail, error) {
+	userDetail, err := r.query.InsertUserDetail(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.UserDetail{}, err
+	}
+
+	return userDetail, nil
+}
+
+func (r *AuthRepository) InsertUserAvatar(arg authSqlc.InsertUserAvatarParams) error {
+	err := r.query.InsertUserAvatar(context.Background(), arg)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *AuthRepository) InsertUserDetailAbout(arg authSqlc.InsertUserDetailAboutParams) error {
+	err := r.query.InsertUserDetailAbout(context.Background(), arg)
 
 	if err != nil {
 		return err

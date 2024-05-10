@@ -69,15 +69,17 @@ type LocationType struct {
 }
 
 type Post struct {
-	ID           int64
-	UserID       sql.NullInt64
-	Content      sql.NullString
-	ImageUrl     sql.NullString
-	LikeCount    sql.NullInt32
-	CommentCount sql.NullInt32
-	RepostCount  sql.NullInt32
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	ID             int64
+	UserID         sql.NullInt64
+	Content        sql.NullString
+	ImageUrl       sql.NullString
+	LikeCount      sql.NullInt32
+	CommentCount   sql.NullInt32
+	RepostCount    sql.NullInt32
+	Repost         sql.NullBool
+	OriginalPostID sql.NullInt64
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
 }
 
 type PostComment struct {
