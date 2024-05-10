@@ -108,3 +108,35 @@ INSERT INTO schools (
   $1
 )
 RETURNING *;
+
+-- name: InsertCertificate :one
+INSERT INTO certificates (
+  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url
+) VALUES (
+   $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING *;
+
+-- name: InsertIssuingOrganization :one
+INSERT INTO issuing_organizations (
+  name
+) VALUES (
+  $1
+)
+RETURNING *;
+
+-- name: InsertUserSkill :one
+INSERT INTO user_skills (
+  user_id, skill_id, main_skill
+) VALUES (
+   $1, $2, $3
+)
+RETURNING *;
+
+-- name: InsertSkill :one
+INSERT INTO skills (
+  name
+) VALUES (
+  $1
+)
+RETURNING *;

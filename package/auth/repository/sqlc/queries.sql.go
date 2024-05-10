@@ -58,6 +58,51 @@ func (q *Queries) GetUserOtpByOtp(ctx context.Context, otp sql.NullString) (User
 	return i, err
 }
 
+const insertCertificate = `-- name: InsertCertificate :one
+INSERT INTO certificates (
+  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url
+) VALUES (
+   $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url, created_at, updated_at
+`
+
+type InsertCertificateParams struct {
+	UserID                sql.NullInt64
+	Name                  sql.NullString
+	IssuingOrganizationID sql.NullInt64
+	IssueDate             sql.NullTime
+	ExpirationDate        sql.NullTime
+	CredentialID          sql.NullString
+	Url                   sql.NullString
+}
+
+func (q *Queries) InsertCertificate(ctx context.Context, arg InsertCertificateParams) (Certificate, error) {
+	row := q.db.QueryRowContext(ctx, insertCertificate,
+		arg.UserID,
+		arg.Name,
+		arg.IssuingOrganizationID,
+		arg.IssueDate,
+		arg.ExpirationDate,
+		arg.CredentialID,
+		arg.Url,
+	)
+	var i Certificate
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.IssuingOrganizationID,
+		&i.IssueDate,
+		&i.ExpirationDate,
+		&i.CredentialID,
+		&i.Url,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertCompany = `-- name: InsertCompany :one
 INSERT INTO companies (
   name
@@ -137,6 +182,22 @@ func (q *Queries) InsertEmploymentType(ctx context.Context, name sql.NullString)
 	return i, err
 }
 
+const insertIssuingOrganization = `-- name: InsertIssuingOrganization :one
+INSERT INTO issuing_organizations (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertIssuingOrganization(ctx context.Context, name sql.NullString) (IssuingOrganization, error) {
+	row := q.db.QueryRowContext(ctx, insertIssuingOrganization, name)
+	var i IssuingOrganization
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const insertLocationType = `-- name: InsertLocationType :one
 INSERT INTO location_types (
   name
@@ -186,6 +247,22 @@ RETURNING id, name
 func (q *Queries) InsertSchool(ctx context.Context, name sql.NullString) (School, error) {
 	row := q.db.QueryRowContext(ctx, insertSchool, name)
 	var i School
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const insertSkill = `-- name: InsertSkill :one
+INSERT INTO skills (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertSkill(ctx context.Context, name sql.NullString) (Skill, error) {
+	row := q.db.QueryRowContext(ctx, insertSkill, name)
+	var i Skill
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
@@ -295,6 +372,33 @@ type InsertUserDetailAboutParams struct {
 func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) error {
 	_, err := q.db.ExecContext(ctx, insertUserDetailAbout, arg.About, arg.UserID)
 	return err
+}
+
+const insertUserSkill = `-- name: InsertUserSkill :one
+INSERT INTO user_skills (
+  user_id, skill_id, main_skill
+) VALUES (
+   $1, $2, $3
+)
+RETURNING id, user_id, skill_id, main_skill
+`
+
+type InsertUserSkillParams struct {
+	UserID    sql.NullInt64
+	SkillID   sql.NullInt64
+	MainSkill sql.NullBool
+}
+
+func (q *Queries) InsertUserSkill(ctx context.Context, arg InsertUserSkillParams) (UserSkill, error) {
+	row := q.db.QueryRowContext(ctx, insertUserSkill, arg.UserID, arg.SkillID, arg.MainSkill)
+	var i UserSkill
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SkillID,
+		&i.MainSkill,
+	)
+	return i, err
 }
 
 const insertWorkExperience = `-- name: InsertWorkExperience :one

@@ -21,6 +21,10 @@ type IAuthRepository interface {
 	InsertEmploymentType(name string) (authSqlc.EmploymentType, error)
 	InsertLocationType(name string) (authSqlc.LocationType, error)
 	InsertSchool(name string) (authSqlc.School, error)
+	InsertCertificate(arg authSqlc.InsertCertificateParams) (authSqlc.Certificate, error)
+	InsertIssuingOrganization(name string) (authSqlc.IssuingOrganization, error)
+	InsertUserSkill(arg authSqlc.InsertUserSkillParams) (authSqlc.UserSkill, error)
+	InsertSkill(name string) (authSqlc.Skill, error)
 }
 
 type AuthRepository struct {
@@ -214,4 +218,48 @@ func (r *AuthRepository) InsertWorkExperience(arg authSqlc.InsertWorkExperienceP
 	}
 
 	return workExperience, nil
+}
+
+func (r *AuthRepository) InsertCertificate(arg authSqlc.InsertCertificateParams) (authSqlc.Certificate, error) {
+	certificate, err := r.query.InsertCertificate(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.Certificate{}, err
+	}
+
+	return certificate, nil
+}
+
+func (r *AuthRepository) InsertIssuingOrganization(name string) (authSqlc.IssuingOrganization, error) {
+	arg := sql.NullString{String: name, Valid: true}
+
+	issueOrganization, err := r.query.InsertIssuingOrganization(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.IssuingOrganization{}, err
+	}
+
+	return issueOrganization, nil
+}
+
+func (r *AuthRepository) InsertUserSkill(arg authSqlc.InsertUserSkillParams) (authSqlc.UserSkill, error) {
+	userSkill, err := r.query.InsertUserSkill(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.UserSkill{}, err
+	}
+
+	return userSkill, nil
+}
+
+func (r *AuthRepository) InsertSkill(name string) (authSqlc.Skill, error) {
+	arg := sql.NullString{String: name, Valid: true}
+
+	skill, err := r.query.InsertSkill(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.Skill{}, err
+	}
+
+	return skill, nil
 }
