@@ -60,7 +60,7 @@ func (u *AuthUsecase) Login(loginType string, props *model.LoginRequest) (resp m
 		}
 	}
 
-	token, err := libs.GenerateJWTToken(user.Email, time.Hour*24)
+	token, err := libs.GenerateJWTToken(user.ID, user.Email, time.Hour*24)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 
@@ -239,7 +239,7 @@ func (u *AuthUsecase) UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) 
 
 func (u *AuthUsecase) SendResetPasswordEmail(props *model.ResetPasswordEmailRequest) (resp model.Response) {
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success")
-	_, err := u.repository.GetUserByEmail(props.Email)
+	user, err := u.repository.GetUserByEmail(props.Email)
 
 	if err != nil && err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusNotFound, "Email not found")
@@ -254,7 +254,7 @@ func (u *AuthUsecase) SendResetPasswordEmail(props *model.ResetPasswordEmailRequ
 
 	subject := "Permintaan Reset Password"
 	resetPasswordUrl := os.Getenv("FRONTEND_RESET_PASSWORD_URL")
-	jwtToken, err := libs.GenerateJWTToken(props.Email, time.Minute*30)
+	jwtToken, err := libs.GenerateJWTToken(user.ID, props.Email, time.Minute*30)
 
 	if err != nil {
 		u.log.Errorf("libs.GenerateJWTToken: %v", err)
