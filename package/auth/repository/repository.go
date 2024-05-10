@@ -16,6 +16,11 @@ type IAuthRepository interface {
 	DeleteOtp(otp string) error
 	InsertUserDetail(arg authSqlc.InsertUserDetailParams) (authSqlc.UserDetail, error)
 	InsertUserDetailAbout(arg authSqlc.InsertUserDetailAboutParams) error
+	InsertCompany(name string) (authSqlc.Company, error)
+	InsertEducation(arg authSqlc.InsertEducationParams) (authSqlc.Education, error)
+	InsertEmploymentType(name string) (authSqlc.EmploymentType, error)
+	InsertLocationType(name string) (authSqlc.LocationType, error)
+	InsertSchool(name string) (authSqlc.School, error)
 }
 
 type AuthRepository struct {
@@ -145,4 +150,68 @@ func (r *AuthRepository) InsertUserDetailAbout(arg authSqlc.InsertUserDetailAbou
 	}
 
 	return nil
+}
+
+func (r *AuthRepository) InsertCompany(name string) (authSqlc.Company, error) {
+	arg := sql.NullString{String: name, Valid: true}
+	company, err := r.query.InsertCompany(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.Company{}, err
+	}
+
+	return company, nil
+}
+
+func (r *AuthRepository) InsertEducation(arg authSqlc.InsertEducationParams) (authSqlc.Education, error) {
+	education, err := r.query.InsertEducation(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.Education{}, err
+	}
+
+	return education, nil
+}
+
+func (r *AuthRepository) InsertEmploymentType(name string) (authSqlc.EmploymentType, error) {
+	arg := sql.NullString{String: name, Valid: true}
+	employmentType, err := r.query.InsertEmploymentType(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.EmploymentType{}, err
+	}
+
+	return employmentType, nil
+}
+
+func (r *AuthRepository) InsertLocationType(name string) (authSqlc.LocationType, error) {
+	arg := sql.NullString{String: name, Valid: true}
+	locationType, err := r.query.InsertLocationType(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.LocationType{}, err
+	}
+
+	return locationType, nil
+}
+
+func (r *AuthRepository) InsertSchool(name string) (authSqlc.School, error) {
+	arg := sql.NullString{String: name, Valid: true}
+	school, err := r.query.InsertSchool(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.School{}, err
+	}
+
+	return school, nil
+}
+
+func (r *AuthRepository) InsertWorkExperience(arg authSqlc.InsertWorkExperienceParams) (authSqlc.WorkExperience, error) {
+	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
+
+	if err != nil {
+		return authSqlc.WorkExperience{}, err
+	}
+
+	return workExperience, nil
 }

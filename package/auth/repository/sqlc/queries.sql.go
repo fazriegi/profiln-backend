@@ -58,6 +58,101 @@ func (q *Queries) GetUserOtpByOtp(ctx context.Context, otp sql.NullString) (User
 	return i, err
 }
 
+const insertCompany = `-- name: InsertCompany :one
+INSERT INTO companies (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertCompany(ctx context.Context, name sql.NullString) (Company, error) {
+	row := q.db.QueryRowContext(ctx, insertCompany, name)
+	var i Company
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const insertEducation = `-- name: InsertEducation :one
+INSERT INTO educations (
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at
+`
+
+type InsertEducationParams struct {
+	UserID       sql.NullInt64
+	SchoolID     sql.NullInt64
+	Degree       sql.NullString
+	FieldOfStudy sql.NullString
+	Gpa          sql.NullString
+	StartDate    sql.NullTime
+	FinishDate   sql.NullTime
+}
+
+func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams) (Education, error) {
+	row := q.db.QueryRowContext(ctx, insertEducation,
+		arg.UserID,
+		arg.SchoolID,
+		arg.Degree,
+		arg.FieldOfStudy,
+		arg.Gpa,
+		arg.StartDate,
+		arg.FinishDate,
+	)
+	var i Education
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SchoolID,
+		&i.Degree,
+		&i.FieldOfStudy,
+		&i.Gpa,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.DocumentUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const insertEmploymentType = `-- name: InsertEmploymentType :one
+INSERT INTO employment_types (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertEmploymentType(ctx context.Context, name sql.NullString) (EmploymentType, error) {
+	row := q.db.QueryRowContext(ctx, insertEmploymentType, name)
+	var i EmploymentType
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const insertLocationType = `-- name: InsertLocationType :one
+INSERT INTO location_types (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertLocationType(ctx context.Context, name sql.NullString) (LocationType, error) {
+	row := q.db.QueryRowContext(ctx, insertLocationType, name)
+	var i LocationType
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const insertOtp = `-- name: InsertOtp :one
 INSERT INTO user_otps (
   user_id, otp
@@ -76,6 +171,22 @@ func (q *Queries) InsertOtp(ctx context.Context, arg InsertOtpParams) (UserOtp, 
 	row := q.db.QueryRowContext(ctx, insertOtp, arg.UserID, arg.Otp)
 	var i UserOtp
 	err := row.Scan(&i.ID, &i.UserID, &i.Otp)
+	return i, err
+}
+
+const insertSchool = `-- name: InsertSchool :one
+INSERT INTO schools (
+  name
+) VALUES (
+  $1
+)
+RETURNING id, name
+`
+
+func (q *Queries) InsertSchool(ctx context.Context, name sql.NullString) (School, error) {
+	row := q.db.QueryRowContext(ctx, insertSchool, name)
+	var i School
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
@@ -184,6 +295,57 @@ type InsertUserDetailAboutParams struct {
 func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) error {
 	_, err := q.db.ExecContext(ctx, insertUserDetailAbout, arg.About, arg.UserID)
 	return err
+}
+
+const insertWorkExperience = `-- name: InsertWorkExperience :one
+INSERT INTO work_experiences (
+  user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
+RETURNING id, user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description, created_at, updated_at
+`
+
+type InsertWorkExperienceParams struct {
+	UserID           sql.NullInt64
+	JobTitle         sql.NullString
+	CompanyID        sql.NullInt64
+	EmploymentTypeID sql.NullInt16
+	Location         sql.NullString
+	LocationTypeID   sql.NullInt16
+	StartDate        sql.NullTime
+	FinishDate       sql.NullTime
+	Description      sql.NullString
+}
+
+func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperienceParams) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, insertWorkExperience,
+		arg.UserID,
+		arg.JobTitle,
+		arg.CompanyID,
+		arg.EmploymentTypeID,
+		arg.Location,
+		arg.LocationTypeID,
+		arg.StartDate,
+		arg.FinishDate,
+		arg.Description,
+	)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.JobTitle,
+		&i.CompanyID,
+		&i.EmploymentTypeID,
+		&i.Location,
+		&i.LocationTypeID,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
