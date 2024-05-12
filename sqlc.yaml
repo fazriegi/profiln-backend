@@ -2,10 +2,9 @@ version: "2"
 sql:
   # auth sqlc
   - engine: "postgresql"
-    queries: "package/auth/repository/queries.sql"
+    queries: "package/profile/repository/queries.sql"
     schema: "db/migrations"
     gen:
       go:
-        package: "auth"
-        out: "package/auth/repository/sqlc"
-
+        package: "profile"
+        out: "package/profile/repository/sqlc"
