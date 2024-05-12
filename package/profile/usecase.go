@@ -36,7 +36,7 @@ func (u *ProfileUsecase) InsertCompany(props *model.CompanyRequest) (resp model.
 	return resp
 }
 
-func (u *ProfileUsecase) InsertIssuingOrganization(props *model.CompanyRequest) (resp model.Response) {
+func (u *ProfileUsecase) InsertIssuingOrganization(props *model.IssuingOrganizationRequest) (resp model.Response) {
 	issueOriganization, err := u.repository.InsertIssuingOrganization(props.Name)
 
 	if err != nil {
@@ -49,7 +49,7 @@ func (u *ProfileUsecase) InsertIssuingOrganization(props *model.CompanyRequest) 
 	return resp
 }
 
-func (u *ProfileUsecase) InsertEmploymentType(props *model.CompanyRequest) (resp model.Response) {
+func (u *ProfileUsecase) InsertEmploymentType(props *model.EmploymentTypeRequest) (resp model.Response) {
 	employmentType, err := u.repository.InsertEmploymentType(props.Name)
 
 	if err != nil {
@@ -62,7 +62,7 @@ func (u *ProfileUsecase) InsertEmploymentType(props *model.CompanyRequest) (resp
 	return resp
 }
 
-func (u *ProfileUsecase) InsertLocationType(props *model.CompanyRequest) (resp model.Response) {
+func (u *ProfileUsecase) InsertLocationType(props *model.LocationTypeRequest) (resp model.Response) {
 	locationType, err := u.repository.InsertLocationType(props.Name)
 
 	if err != nil {
@@ -75,7 +75,7 @@ func (u *ProfileUsecase) InsertLocationType(props *model.CompanyRequest) (resp m
 	return resp
 }
 
-func (u *ProfileUsecase) InsertSchool(props *model.CompanyRequest) (resp model.Response) {
+func (u *ProfileUsecase) InsertSchool(props *model.SchoolRequest) (resp model.Response) {
 	school, err := u.repository.InsertSchool(props.Name)
 
 	if err != nil {
@@ -88,7 +88,7 @@ func (u *ProfileUsecase) InsertSchool(props *model.CompanyRequest) (resp model.R
 	return resp
 }
 
-func (u *ProfileUsecase) InsertSkill(props *model.CompanyRequest) (resp model.Response) {
+func (u *ProfileUsecase) InsertSkill(props *model.SkillRequest) (resp model.Response) {
 	skill, err := u.repository.InsertSkill(props.Name)
 
 	if err != nil {
