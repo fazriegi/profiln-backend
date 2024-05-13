@@ -107,7 +107,7 @@ type PostCommentReply struct {
 	UpdatedAt     sql.NullTime
 }
 
-type RepostedPost struct {
+type ReportedPost struct {
 	ID      int64
 	UserID  sql.NullInt64
 	PostID  sql.NullInt64
