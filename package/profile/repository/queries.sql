@@ -9,7 +9,7 @@ RETURNING *;
 -- name: InsertUserAvatar :exec
 UPDATE users
 SET avatar_url = $1
-WHERE email = $2
+WHERE id = $2
 RETURNING *;
 
 -- name: InsertUserDetailAbout :exec

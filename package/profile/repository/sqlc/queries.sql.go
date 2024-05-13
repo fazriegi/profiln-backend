@@ -201,17 +201,17 @@ func (q *Queries) InsertSkill(ctx context.Context, name sql.NullString) (Skill, 
 const insertUserAvatar = `-- name: InsertUserAvatar :exec
 UPDATE users
 SET avatar_url = $1
-WHERE email = $2
+WHERE id = $2
 RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
 `
 
 type InsertUserAvatarParams struct {
 	AvatarUrl sql.NullString
-	Email     string
+	ID        int64
 }
 
 func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarParams) error {
-	_, err := q.db.ExecContext(ctx, insertUserAvatar, arg.AvatarUrl, arg.Email)
+	_, err := q.db.ExecContext(ctx, insertUserAvatar, arg.AvatarUrl, arg.ID)
 	return err
 }
 

@@ -18,6 +18,8 @@ type IProfileRepository interface {
 	InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error)
 	InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error)
 	InsertSkill(name string) (profileSqlc.Skill, error)
+	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
+	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
 }
 
 type ProfileRepository struct {
