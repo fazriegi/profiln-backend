@@ -44,6 +44,53 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserOtpByEmail = `-- name: GetUserOtpByEmail :one
+SELECT users.id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, user_otps.id, user_id, otp
+FROM users
+INNER JOIN user_otps ON users.id = user_otps.user_id
+WHERE users.email = $1 AND users.verified_email = FALSE
+LIMIT 1
+`
+
+type GetUserOtpByEmailRow struct {
+	ID            int64
+	Email         string
+	Password      sql.NullString
+	FullName      string
+	VerifiedEmail sql.NullBool
+	AvatarUrl     sql.NullString
+	Bio           sql.NullString
+	OpenToWork    sql.NullBool
+	CreatedAt     sql.NullTime
+	UpdatedAt     sql.NullTime
+	DeletedAt     sql.NullTime
+	ID_2          int64
+	UserID        sql.NullInt64
+	Otp           sql.NullString
+}
+
+func (q *Queries) GetUserOtpByEmail(ctx context.Context, email string) (GetUserOtpByEmailRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserOtpByEmail, email)
+	var i GetUserOtpByEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.FullName,
+		&i.VerifiedEmail,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.OpenToWork,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ID_2,
+		&i.UserID,
+		&i.Otp,
+	)
+	return i, err
+}
+
 const getUserOtpByOtp = `-- name: GetUserOtpByOtp :one
 SELECT id, user_id, otp 
 FROM user_otps 

@@ -14,6 +14,7 @@ type IAuthRepository interface {
 	InsertOtp(id int64, otp string) (authSqlc.UserOtp, error)
 	GetUserOtpByOtp(otp string) (authSqlc.UserOtp, error)
 	DeleteOtp(otp string) error
+	GetUserOtpByEmail(email string) (authSqlc.GetUserOtpByEmailRow, error)
 }
 
 type AuthRepository struct {
@@ -113,4 +114,14 @@ func (r *AuthRepository) DeleteOtp(otp string) error {
 	}
 
 	return nil
+}
+
+func (r *AuthRepository) GetUserOtpByEmail(email string) (authSqlc.GetUserOtpByEmailRow, error) {
+	otpByEmail, err := r.query.GetUserOtpByEmail(context.Background(), email)
+
+	if err != nil {
+		return authSqlc.GetUserOtpByEmailRow{}, nil
+	}
+
+	return otpByEmail, nil
 }

@@ -30,4 +30,6 @@ func NewAuthRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	app.POST("/register", authController.Register)
 	app.POST("/user-otp", authController.VerifiedEmail)
 	app.POST("/email/reset-password", authController.SendResetPasswordEmail)
+	app.GET("/user-otp/:email", authController.GetUserOtpByEmail)
+	app.POST("resend-otp", authController.ResendOTP)
 }
