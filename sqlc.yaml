@@ -9,3 +9,21 @@ sql:
         package: "auth"
         out: "package/auth/repository/sqlc"
 
+  # homepage sqlc
+  - engine: "postgresql"
+    queries: "package/homepage/repository/queries.sql"
+    schema: "db/migrations"
+    gen:
+      go:
+        package: "homepage"
+        out: "package/homepage/repository/sqlc"
+
+  # posts sqlc
+  - engine: "postgresql"
+    queries: "package/posts/repository/queries.sql"
+    schema: "db/migrations"
+    gen:
+      go:
+        package: "posts"
+        out: "package/posts/repository/sqlc"
+
