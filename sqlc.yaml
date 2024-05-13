@@ -18,3 +18,12 @@ sql:
         package: "homepage"
         out: "package/homepage/repository/sqlc"
 
+  # posts sqlc
+  - engine: "postgresql"
+    queries: "package/posts/repository/queries.sql"
+    schema: "db/migrations"
+    gen:
+      go:
+        package: "posts"
+        out: "package/posts/repository/sqlc"
+

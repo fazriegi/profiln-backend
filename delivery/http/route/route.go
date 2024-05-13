@@ -17,4 +17,5 @@ func NewRoute(app *gin.Engine, db *sql.DB, log *logrus.Logger) {
 
 	NewAuthRoute(v1, db, log)
 	NewHomepageRoute(v1, db, log)
+	NewPostsRoute(v1, db, log)
 }
