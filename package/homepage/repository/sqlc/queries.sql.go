@@ -36,20 +36,23 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 }
 
 const listPopularPosts = `-- name: ListPopularPosts :many
-SELECT id, user_id, content, image_url, like_count, comment_count, repost_count, repost, original_post_id, created_at, updated_at, COUNT(id) OVER () AS total_rows,
+SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, COUNT(p.id) OVER () AS total_rows,
        CASE
-           WHEN created_at >= NOW() - INTERVAL '30 days' THEN true
+           WHEN p.created_at >= NOW() - INTERVAL '30 days' THEN true
            ELSE false
        END AS recent_post
-FROM posts
+FROM posts p
+LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
+WHERE rp.post_id IS NULL
 ORDER BY
     recent_post DESC,
-    (like_count + comment_count + repost_count) DESC
-OFFSET $1
-LIMIT $2
+    (p.like_count + p.comment_count + p.repost_count) DESC
+OFFSET $2
+LIMIT $3
 `
 
 type ListPopularPostsParams struct {
+	UserID sql.NullInt64
 	Offset int32
 	Limit  int32
 }
@@ -71,7 +74,7 @@ type ListPopularPostsRow struct {
 }
 
 func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsParams) ([]ListPopularPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPopularPosts, arg.Offset, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listPopularPosts, arg.UserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +111,17 @@ func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsPara
 }
 
 const listPosts = `-- name: ListPosts :many
-SELECT id, user_id, content, image_url, like_count, comment_count, repost_count, repost, original_post_id, created_at, updated_at, COUNT(id) OVER () AS total_rows FROM posts 
+SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, COUNT(p.id) OVER () AS total_rows 
+FROM posts p
+LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
+WHERE rp.post_id IS NULL
 ORDER BY updated_at DESC
-OFFSET $1
-LIMIT $2
+OFFSET $2
+LIMIT $3
 `
 
 type ListPostsParams struct {
+	UserID sql.NullInt64
 	Offset int32
 	Limit  int32
 }
@@ -135,7 +142,7 @@ type ListPostsRow struct {
 }
 
 func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPosts, arg.Offset, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listPosts, arg.UserID, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +180,9 @@ func (q *Queries) ListPosts(ctx context.Context, arg ListPostsParams) ([]ListPos
 const listPostsByFollowing = `-- name: ListPostsByFollowing :many
 SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, COUNT(p.id) OVER () AS total_rows
 FROM posts p
+LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN followings f ON p.user_id = f.follow_user_id
-WHERE f.user_id = $1
+WHERE f.user_id = $1 AND rp.post_id IS NULL
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3

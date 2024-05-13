@@ -7,9 +7,9 @@ import (
 )
 
 type IHomepageRepository interface {
-	ListPosts(offset, limit int32) ([]homepageSqlc.Post, int64, error)
+	ListPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error)
 	ListPostsByFollowing(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error)
-	ListPopularPosts(offset, limit int32) ([]homepageSqlc.Post, int64, error)
+	ListPopularPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error)
 	GetUserById(id int64) (homepageSqlc.User, error)
 }
 
@@ -25,9 +25,10 @@ func NewHomepageRepository(db *sql.DB) IHomepageRepository {
 	}
 }
 
-func (r *HomepageRepository) ListPosts(offset, limit int32) ([]homepageSqlc.Post, int64, error) {
+func (r *HomepageRepository) ListPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error) {
 	posts := []homepageSqlc.Post{}
 	arg := homepageSqlc.ListPostsParams{
+		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
 	}
@@ -100,9 +101,10 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 	return posts, count, nil
 }
 
-func (r *HomepageRepository) ListPopularPosts(offset, limit int32) ([]homepageSqlc.Post, int64, error) {
+func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error) {
 	posts := []homepageSqlc.Post{}
 	arg := homepageSqlc.ListPopularPostsParams{
+		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
 	}

@@ -36,7 +36,7 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 	)
 
 	if pagination.OrderBy == "newest" {
-		posts, totalRows, err = u.repository.ListPosts(int32(offset), int32(pagination.Limit))
+		posts, totalRows, err = u.repository.ListPosts(userId, int32(offset), int32(pagination.Limit))
 
 		if err != nil {
 			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
@@ -55,7 +55,7 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 			return
 		}
 	} else if pagination.OrderBy == "popular" {
-		posts, totalRows, err = u.repository.ListPopularPosts(int32(offset), int32(pagination.Limit))
+		posts, totalRows, err = u.repository.ListPopularPosts(userId, int32(offset), int32(pagination.Limit))
 
 		if err != nil {
 			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
