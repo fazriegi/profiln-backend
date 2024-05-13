@@ -1,1 +1,1 @@
-DROP TABLE "reposted_posts";
+DROP TABLE "reported_posts";
