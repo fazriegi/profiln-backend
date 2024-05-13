@@ -36,13 +36,15 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 }
 
 const listPopularPosts = `-- name: ListPopularPosts :many
-SELECT id, user_id, content, image_url, like_count, comment_count, repost_count, repost, original_post_id, created_at, updated_at, COUNT(id) OVER () AS total_rows
+SELECT id, user_id, content, image_url, like_count, comment_count, repost_count, repost, original_post_id, created_at, updated_at, COUNT(id) OVER () AS total_rows,
+       CASE
+           WHEN created_at >= NOW() - INTERVAL '30 days' THEN true
+           ELSE false
+       END AS recent_post
 FROM posts
-ORDER BY 
-	like_count DESC,
-	repost_count DESC,
-	comment_count DESC,
-	updated_at DESC
+ORDER BY
+    recent_post DESC,
+    (like_count + comment_count + repost_count) DESC
 OFFSET $1
 LIMIT $2
 `
@@ -65,6 +67,7 @@ type ListPopularPostsRow struct {
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
 	TotalRows      int64
+	RecentPost     bool
 }
 
 func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsParams) ([]ListPopularPostsRow, error) {
@@ -89,6 +92,7 @@ func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsPara
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TotalRows,
+			&i.RecentPost,
 		); err != nil {
 			return nil, err
 		}

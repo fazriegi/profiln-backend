@@ -14,13 +14,15 @@ OFFSET $2
 LIMIT $3;
 
 -- name: ListPopularPosts :many
-SELECT *, COUNT(id) OVER () AS total_rows
+SELECT *, COUNT(id) OVER () AS total_rows,
+       CASE
+           WHEN created_at >= NOW() - INTERVAL '30 days' THEN true
+           ELSE false
+       END AS recent_post
 FROM posts
-ORDER BY 
-	like_count DESC,
-	repost_count DESC,
-	comment_count DESC,
-	updated_at DESC
+ORDER BY
+    recent_post DESC,
+    (like_count + comment_count + repost_count) DESC
 OFFSET $1
 LIMIT $2;
 
