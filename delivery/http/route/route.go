@@ -16,4 +16,5 @@ func NewRoute(app *gin.Engine, db *sql.DB, log *logrus.Logger) {
 	v1 := app.Group("/api/v1")
 
 	NewAuthRoute(v1, db, log)
+	NewProfileRoute(v1, db, log)
 }

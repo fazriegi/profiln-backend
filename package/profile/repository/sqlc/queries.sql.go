@@ -10,6 +10,114 @@ import (
 	"database/sql"
 )
 
+const getProfile = `-- name: GetProfile :many
+SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
+    SELECT COUNT(*) 
+    FROM users 
+    INNER JOIN followings 
+    ON users.id = followings.user_id
+    GROUP BY users.id
+  ) AS count_following
+FROM users
+LEFT JOIN user_social_links
+ON users.id = user_social_links.user_id
+LEFT JOIN social_links
+ON user_social_links.social_link_id = social_links.id
+LEFT JOIN user_skills
+ON users.id = user_skills.user_id
+LEFT JOIN skills
+ON user_skills.skill_id = skills.id
+WHERE user_skills.main_skill = TRUE AND users.id = $1
+`
+
+type GetProfileRow struct {
+	FullName       string
+	Bio            sql.NullString
+	Url            sql.NullString
+	Name           sql.NullString
+	MainSkill      sql.NullBool
+	Name_2         sql.NullString
+	CountFollowing int64
+}
+
+func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, error) {
+	rows, err := q.db.QueryContext(ctx, getProfile, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProfileRow
+	for rows.Next() {
+		var i GetProfileRow
+		if err := rows.Scan(
+			&i.FullName,
+			&i.Bio,
+			&i.Url,
+			&i.Name,
+			&i.MainSkill,
+			&i.Name_2,
+			&i.CountFollowing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserAbout = `-- name: GetUserAbout :one
+SELECT users.id, user_details.about
+FROM users
+LEFT JOIN user_details
+ON users.id = user_details.user_id
+WHERE users.id = $1
+LIMIT 1
+`
+
+type GetUserAboutRow struct {
+	ID    int64
+	About sql.NullString
+}
+
+func (q *Queries) GetUserAbout(ctx context.Context, id int64) (GetUserAboutRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserAbout, id)
+	var i GetUserAboutRow
+	err := row.Scan(&i.ID, &i.About)
+	return i, err
+}
+
+const getUserById = `-- name: GetUserById :one
+SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+FROM users
+WHERE users.id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserById, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.FullName,
+		&i.VerifiedEmail,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.OpenToWork,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const insertCertificate = `-- name: InsertCertificate :one
 INSERT INTO certificates (
   user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url
@@ -248,21 +356,36 @@ func (q *Queries) InsertUserDetail(ctx context.Context, arg InsertUserDetailPara
 	return i, err
 }
 
-const insertUserDetailAbout = `-- name: InsertUserDetailAbout :exec
-UPDATE user_details
-SET about = $1
-WHERE user_id = $2
+const insertUserDetailAbout = `-- name: InsertUserDetailAbout :one
+INSERT INTO user_details (
+  user_id, about
+) VALUES (
+  $1, $2
+)
 RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
 `
 
 type InsertUserDetailAboutParams struct {
-	About  sql.NullString
 	UserID sql.NullInt64
+	About  sql.NullString
 }
 
-func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) error {
-	_, err := q.db.ExecContext(ctx, insertUserDetailAbout, arg.About, arg.UserID)
-	return err
+func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) (UserDetail, error) {
+	row := q.db.QueryRowContext(ctx, insertUserDetailAbout, arg.UserID, arg.About)
+	var i UserDetail
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+		&i.HidePhoneNumber,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const insertUserSkill = `-- name: InsertUserSkill :one
@@ -341,4 +464,21 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec
+UPDATE user_details
+SET about = $1
+WHERE user_id = $2
+RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
+`
+
+type UpdateUserDetailAboutParams struct {
+	About  sql.NullString
+	UserID sql.NullInt64
+}
+
+func (q *Queries) UpdateUserDetailAbout(ctx context.Context, arg UpdateUserDetailAboutParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserDetailAbout, arg.About, arg.UserID)
+	return err
 }

@@ -12,10 +12,24 @@ SET avatar_url = $1
 WHERE id = $2
 RETURNING *;
 
--- name: InsertUserDetailAbout :exec
+-- name: GetUserById :one
+SELECT *
+FROM users
+WHERE users.id = $1
+LIMIT 1;
+
+-- name: UpdateUserDetailAbout :exec
 UPDATE user_details
 SET about = $1
 WHERE user_id = $2
+RETURNING *;
+
+-- name: InsertUserDetailAbout :one
+INSERT INTO user_details (
+  user_id, about
+) VALUES (
+  $1, $2
+)
 RETURNING *;
 
 -- name: InsertWorkExperience :one
@@ -97,3 +111,30 @@ INSERT INTO skills (
   $1
 )
 RETURNING *;
+
+-- name: GetUserAbout :one
+SELECT users.id, user_details.about
+FROM users
+LEFT JOIN user_details
+ON users.id = user_details.user_id
+WHERE users.id = $1
+LIMIT 1;
+
+-- name: GetProfile :many
+SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
+    SELECT COUNT(*) 
+    FROM users 
+    INNER JOIN followings 
+    ON users.id = followings.user_id
+    GROUP BY users.id
+  ) AS count_following
+FROM users
+LEFT JOIN user_social_links
+ON users.id = user_social_links.user_id
+LEFT JOIN social_links
+ON user_social_links.social_link_id = social_links.id
+LEFT JOIN user_skills
+ON users.id = user_skills.user_id
+LEFT JOIN skills
+ON user_skills.skill_id = skills.id
+WHERE user_skills.main_skill = TRUE AND users.id = $1;

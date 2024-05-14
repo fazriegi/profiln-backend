@@ -4,11 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	// "os"
-	// "time"
-
 	"profiln-be/libs"
-	email "profiln-be/libs/email"
 	"profiln-be/model"
 	repository "profiln-be/package/profile/repository"
 
@@ -17,10 +13,27 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type IProfileUsecase interface {
+	InsertCompany(props *model.CompanyRequest) (resp model.Response)
+	InsertIssuingOrganization(props *model.IssuingOrganizationRequest) (resp model.Response)
+	InsertUserDetail(props *model.UserDetailRequest, id int64) (resp model.Response)
+	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
+	InsertEducation(props *model.EducationRequest, id int64) (resp model.Response)
+	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
+	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
+	InsertUserSkill(props *model.UserSkillRequest, id int64) (resp model.Response)
+}
+
 type ProfileUsecase struct {
 	repository repository.IProfileRepository
-	email      email.IEmail
 	log        *logrus.Logger
+}
+
+func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Logger) IProfileUsecase {
+	return &ProfileUsecase{
+		repository,
+		log,
+	}
 }
 
 func (u *ProfileUsecase) InsertCompany(props *model.CompanyRequest) (resp model.Response) {
@@ -199,19 +212,32 @@ func (u *ProfileUsecase) InsertEducation(props *model.EducationRequest, id int64
 }
 
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
-	aboutParams := profileSqlc.InsertUserDetailAboutParams{
+	insertAboutParams := profileSqlc.InsertUserDetailAboutParams{
 		About:  sql.NullString{String: props.About, Valid: true},
 		UserID: sql.NullInt64{Int64: id, Valid: true},
 	}
 
-	err := u.repository.InsertUserDetailAbout(aboutParams)
+	_, err := u.repository.GetUserById(id)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		u.log.Errorf("repository.GetUserById: %v", err)
+		return
+	}
+
+	about, err := u.repository.InsertUserDetailAbout(insertAboutParams)
 
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertEducation %v", err)
+		u.log.Errorf("repository.InsertUserDetailAbout %v", err)
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
+	resp.Data = about.About.String
 	return resp
 }
 

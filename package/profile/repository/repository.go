@@ -8,7 +8,7 @@ import (
 
 type IProfileRepository interface {
 	InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error)
-	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) error
+	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error)
 	InsertCompany(name string) (profileSqlc.Company, error)
 	InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error)
 	InsertEmploymentType(name string) (profileSqlc.EmploymentType, error)
@@ -20,6 +20,8 @@ type IProfileRepository interface {
 	InsertSkill(name string) (profileSqlc.Skill, error)
 	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
 	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
+	GetUserById(id int64) (profileSqlc.User, error)
+	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
 }
 
 type ProfileRepository struct {
@@ -54,8 +56,18 @@ func (r *ProfileRepository) InsertUserAvatar(arg profileSqlc.InsertUserAvatarPar
 	return nil
 }
 
-func (r *ProfileRepository) InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) error {
-	err := r.query.InsertUserDetailAbout(context.Background(), arg)
+func (r *ProfileRepository) InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error) {
+	userAbout, err := r.query.InsertUserDetailAbout(context.Background(), arg)
+
+	if err != nil {
+		return profileSqlc.UserDetail{}, err
+	}
+
+	return userAbout, nil
+}
+
+func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error {
+	err := r.query.UpdateUserDetailAbout(context.Background(), arg)
 
 	if err != nil {
 		return err
@@ -170,4 +182,24 @@ func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) 
 	}
 
 	return skill, nil
+}
+
+func (r *ProfileRepository) GetUserAbout(id int64) (profileSqlc.GetUserAboutRow, error) {
+	about, err := r.query.GetUserAbout(context.Background(), id)
+
+	if err != nil {
+		return profileSqlc.GetUserAboutRow{}, err
+	}
+
+	return about, nil
+}
+
+func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
+	user, err := r.query.GetUserById(context.Background(), id)
+
+	if err != nil {
+		return profileSqlc.User{}, err
+	}
+
+	return user, nil
 }
