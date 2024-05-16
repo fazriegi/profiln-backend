@@ -70,30 +70,30 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 	if err != nil && err != sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 
-		u.log.Errorf("repository.ListPopularPosts: %v", err)
+		u.log.Errorf("repository.GetUserById: %v", err)
 		return
 	}
 
 	userData := model.User{
-		ID:        user.ID,
-		AvatarUrl: user.AvatarUrl.String,
-		Fullname:  user.FullName,
-		Bio:       user.Bio.String,
+		ID:         user.ID,
+		AvatarUrl:  user.AvatarUrl.String,
+		Fullname:   user.FullName,
+		Bio:        user.Bio.String,
+		OpenToWork: user.OpenToWork.Bool,
 	}
 
-	data := []model.ListPostsResponse{}
-	for _, v := range posts {
-		post := model.ListPostsResponse{}
-		post.ID = int(v.ID)
-		post.User = userData
-		post.Content = v.Content.String
-		post.ImageUrl = v.ImageUrl.String
-		post.LikeCount = int(v.LikeCount.Int32)
-		post.CommentCount = int(v.CommentCount.Int32)
-		post.RepostCount = int(v.RepostCount.Int32)
-		post.UpdatedAt = v.UpdatedAt.Time
-
-		data = append(data, post)
+	data := make([]model.ListPostsResponse, len(posts))
+	for i, v := range posts {
+		data[i] = model.ListPostsResponse{
+			ID:           v.ID,
+			User:         userData,
+			Content:      v.Content.String,
+			ImageUrl:     v.ImageUrl.String,
+			LikeCount:    v.LikeCount.Int32,
+			CommentCount: v.CommentCount.Int32,
+			RepostCount:  v.RepostCount.Int32,
+			UpdatedAt:    v.UpdatedAt.Time,
+		}
 	}
 
 	totalPages := int(totalRows / int64(pagination.Limit))
@@ -119,7 +119,7 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 
 func (u *HomepageUsecase) ListFollowsRecommendation(userId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err :=
+	users, totalRows, err :=
 		u.repository.GetFollowsRecommendationForUserId(userId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
@@ -129,10 +129,9 @@ func (u *HomepageUsecase) ListFollowsRecommendation(userId int64, pagination mod
 		}
 	}
 
-	users := make([]model.User, len(data))
-	for i, v := range data {
-		users[i] = model.User{
-
+	data := make([]model.User, len(users))
+	for i, v := range users {
+		data[i] = model.User{
 			ID:         v.ID,
 			AvatarUrl:  v.AvatarUrl.String,
 			Fullname:   v.FullName,
@@ -153,7 +152,7 @@ func (u *HomepageUsecase) ListFollowsRecommendation(userId int64, pagination mod
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success get follows recommendations")
 	resp.Data = map[string]any{
 		"pagination": paginate,
-		"data":       users,
+		"data":       data,
 	}
 	return
 }

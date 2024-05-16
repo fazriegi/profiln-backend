@@ -27,7 +27,6 @@ func NewHomepageRepository(db *sql.DB) IHomepageRepository {
 }
 
 func (r *HomepageRepository) ListPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error) {
-	posts := []homepageSqlc.Post{}
 	arg := homepageSqlc.ListPostsParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
@@ -39,33 +38,33 @@ func (r *HomepageRepository) ListPosts(userId int64, offset, limit int32) ([]hom
 		return []homepageSqlc.Post{}, 0, err
 	}
 
+	// get total rows for pagination
 	var count int64
 	if len(data) > 0 {
 		count = data[0].TotalRows
 	}
 
-	for _, v := range data {
-		post := homepageSqlc.Post{}
-		post.ID = v.ID
-		post.UserID = v.UserID
-		post.Content = v.Content
-		post.ImageUrl = v.ImageUrl
-		post.LikeCount = v.LikeCount
-		post.CommentCount = v.CommentCount
-		post.RepostCount = v.RepostCount
-		post.Repost = v.Repost
-		post.OriginalPostID = v.OriginalPostID
-		post.CreatedAt = v.CreatedAt
-		post.UpdatedAt = v.UpdatedAt
-
-		posts = append(posts, post)
+	posts := make([]homepageSqlc.Post, len(data))
+	for i, v := range data {
+		posts[i] = homepageSqlc.Post{
+			ID:             v.ID,
+			UserID:         v.UserID,
+			Content:        v.Content,
+			ImageUrl:       v.ImageUrl,
+			LikeCount:      v.LikeCount,
+			CommentCount:   v.CommentCount,
+			RepostCount:    v.RepostCount,
+			Repost:         v.Repost,
+			OriginalPostID: v.OriginalPostID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
+		}
 	}
 
 	return posts, count, nil
 }
 
 func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error) {
-	posts := []homepageSqlc.Post{}
 	arg := homepageSqlc.ListPostsByFollowingParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
@@ -77,33 +76,33 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 		return []homepageSqlc.Post{}, 0, err
 	}
 
+	// get total rows for pagination
 	var count int64
 	if len(data) > 0 {
 		count = data[0].TotalRows
 	}
 
-	for _, v := range data {
-		post := homepageSqlc.Post{}
-		post.ID = v.ID
-		post.UserID = v.UserID
-		post.Content = v.Content
-		post.ImageUrl = v.ImageUrl
-		post.LikeCount = v.LikeCount
-		post.CommentCount = v.CommentCount
-		post.RepostCount = v.RepostCount
-		post.Repost = v.Repost
-		post.OriginalPostID = v.OriginalPostID
-		post.CreatedAt = v.CreatedAt
-		post.UpdatedAt = v.UpdatedAt
-
-		posts = append(posts, post)
+	posts := make([]homepageSqlc.Post, len(data))
+	for i, v := range data {
+		posts[i] = homepageSqlc.Post{
+			ID:             v.ID,
+			UserID:         v.UserID,
+			Content:        v.Content,
+			ImageUrl:       v.ImageUrl,
+			LikeCount:      v.LikeCount,
+			CommentCount:   v.CommentCount,
+			RepostCount:    v.RepostCount,
+			Repost:         v.Repost,
+			OriginalPostID: v.OriginalPostID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
+		}
 	}
 
 	return posts, count, nil
 }
 
 func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error) {
-	posts := []homepageSqlc.Post{}
 	arg := homepageSqlc.ListPopularPostsParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
@@ -115,26 +114,27 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 		return []homepageSqlc.Post{}, 0, err
 	}
 
+	// get total rows for pagination
 	var count int64
 	if len(data) > 0 {
 		count = data[0].TotalRows
 	}
 
-	for _, v := range data {
-		post := homepageSqlc.Post{}
-		post.ID = v.ID
-		post.UserID = v.UserID
-		post.Content = v.Content
-		post.ImageUrl = v.ImageUrl
-		post.LikeCount = v.LikeCount
-		post.CommentCount = v.CommentCount
-		post.RepostCount = v.RepostCount
-		post.Repost = v.Repost
-		post.OriginalPostID = v.OriginalPostID
-		post.CreatedAt = v.CreatedAt
-		post.UpdatedAt = v.UpdatedAt
-
-		posts = append(posts, post)
+	posts := make([]homepageSqlc.Post, len(data))
+	for i, v := range data {
+		posts[i] = homepageSqlc.Post{
+			ID:             v.ID,
+			UserID:         v.UserID,
+			Content:        v.Content,
+			ImageUrl:       v.ImageUrl,
+			LikeCount:      v.LikeCount,
+			CommentCount:   v.CommentCount,
+			RepostCount:    v.RepostCount,
+			Repost:         v.Repost,
+			OriginalPostID: v.OriginalPostID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
+		}
 	}
 
 	return posts, count, nil

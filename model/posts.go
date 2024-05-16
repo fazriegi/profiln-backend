@@ -15,14 +15,16 @@ type ReportPostResponse struct {
 }
 
 type Post struct {
-	ID           int64     `json:"id"`
-	User         User      `json:"user"`
-	Content      string    `json:"content"`
-	ImageUrl     string    `json:"image_url"`
-	LikeCount    int32     `json:"like_count"`
-	CommentCount int32     `json:"comment_count"`
-	RepostCount  int32     `json:"repost_count"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	User           User      `json:"user"`
+	Content        string    `json:"content"`
+	ImageUrl       string    `json:"image_url"`
+	LikeCount      int32     `json:"like_count"`
+	CommentCount   int32     `json:"comment_count"`
+	RepostCount    int32     `json:"repost_count"`
+	IsRepost       bool      `json:"is_repost"`
+	OriginalPostID int64     `json:"original_post_id"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type PostComment struct {
