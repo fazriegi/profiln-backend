@@ -13,6 +13,10 @@ import (
 
 type IPostsController interface {
 	ReportPost(ctx *gin.Context)
+	GetDetailPost(ctx *gin.Context)
+	GetPostComments(ctx *gin.Context)
+	GetPostCommentReplies(ctx *gin.Context)
+	UpdatePostLikeCount(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -68,5 +72,140 @@ func (c *PostsController) ReportPost(ctx *gin.Context) {
 	reqBody.PostId = int64(postId)
 
 	response = c.usecase.InsertReportedPost(userId, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) GetDetailPost(ctx *gin.Context) {
+	var response model.Response
+
+	postId, err := strconv.Atoi(ctx.Param("postId"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.GetDetailPost(int64(postId))
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) GetPostComments(ctx *gin.Context) {
+	var response model.Response
+
+	postId, err := strconv.Atoi(ctx.Param("postId"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+
+	response = c.usecase.GetPostComments(int64(postId), pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
+	var response model.Response
+
+	postId, err := strconv.Atoi(ctx.Param("postId"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	postCommentId, err := strconv.Atoi(ctx.Param("postCommentId"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+
+	response = c.usecase.GetPostCommentReplies(int64(postId), int64(postCommentId), pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UpdatePostLikeCount(ctx *gin.Context) {
+	var response model.Response
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UpdatePostLikeCount(postId)
 	ctx.JSON(response.Status.Code, response)
 }

@@ -3,3 +3,45 @@ INSERT INTO reported_posts
 (user_id, post_id, reason, message)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
+
+-- name: GetDetailPost :one
+SELECT p.*, 
+    pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work
+FROM posts p
+JOIN users pu ON p.user_id = pu.id
+WHERE p.id = $1;
+
+-- name: GetPostComments :many
+SELECT pc.*,
+    pcu.id, pcu.avatar_url, pcu.full_name, pcu.bio, pcu.open_to_work,
+    COUNT(pc.id) OVER () AS total_rows
+FROM post_comments pc 
+LEFT JOIN users pcu ON pc.user_id = pcu.id
+WHERE pc.post_id = $1
+ORDER BY pc.updated_at DESC
+OFFSET $2
+LIMIT $3;
+
+-- name: GetPostCommentReplies :many
+SELECT pcr.*, 
+    pcr_user.id, pcr_user.avatar_url, pcr_user.full_name, pcr_user.bio, pcr_user.open_to_work,
+    COUNT(pcr.id) OVER () AS total_rows
+FROM post_comment_replies pcr 
+LEFT JOIN users pcr_user ON pcr.user_id = pcr_user.id
+LEFT JOIN post_comments pc ON pc.id = pcr.post_comment_id
+WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
+ORDER BY pcr.updated_at DESC
+OFFSET $3
+LIMIT $4;
+
+-- name: LockPostForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostLikeCount :one
+UPDATE posts
+SET like_count = like_count + 1
+WHERE id = $1
+RETURNING id, like_count;
