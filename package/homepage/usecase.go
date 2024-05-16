@@ -1,12 +1,10 @@
 package homepage
 
 import (
-	"database/sql"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
 	repository "profiln-be/package/homepage/repository"
-	homepage "profiln-be/package/homepage/repository/sqlc"
 
 	"github.com/sirupsen/logrus"
 )
@@ -30,14 +28,14 @@ func NewHomepageUsecase(repository repository.IHomepageRepository, log *logrus.L
 
 func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	posts := []homepage.Post{}
 	var (
+		posts     []model.Post
 		totalRows int64
 		err       error
 	)
 
 	if pagination.OrderBy == "newest" {
-		posts, totalRows, err = u.repository.ListPosts(userId, int32(offset), int32(pagination.Limit))
+		posts, totalRows, err = u.repository.ListNewestPosts(userId, int32(offset), int32(pagination.Limit))
 
 		if err != nil {
 			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
@@ -66,36 +64,6 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 		}
 	}
 
-	user, err := u.repository.GetUserById(userId)
-	if err != nil && err != sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserById: %v", err)
-		return
-	}
-
-	userData := model.User{
-		ID:         user.ID,
-		AvatarUrl:  user.AvatarUrl.String,
-		Fullname:   user.FullName,
-		Bio:        user.Bio.String,
-		OpenToWork: user.OpenToWork.Bool,
-	}
-
-	data := make([]model.ListPostsResponse, len(posts))
-	for i, v := range posts {
-		data[i] = model.ListPostsResponse{
-			ID:           v.ID,
-			User:         userData,
-			Content:      v.Content.String,
-			ImageUrl:     v.ImageUrl.String,
-			LikeCount:    v.LikeCount.Int32,
-			CommentCount: v.CommentCount.Int32,
-			RepostCount:  v.RepostCount.Int32,
-			UpdatedAt:    v.UpdatedAt.Time,
-		}
-	}
-
 	totalPages := int(totalRows / int64(pagination.Limit))
 	if totalRows%int64(pagination.Limit) > 0 {
 		totalPages++
@@ -105,13 +73,13 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 		Page:             pagination.Page,
 		TotalRows:        totalRows,
 		TotalPages:       totalPages,
-		CurrentRowsCount: len(data),
+		CurrentRowsCount: len(posts),
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success fetch posts")
 	resp.Data = map[string]any{
 		"pagination": paginate,
-		"data":       data,
+		"data":       posts,
 	}
 
 	return

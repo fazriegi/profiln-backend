@@ -59,6 +59,14 @@ func (c *HomepageController) ListPosts(ctx *gin.Context) {
 		return
 	}
 
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
 	pagination := model.PaginationRequest{
 		Page:    page,
 		Limit:   limit,
