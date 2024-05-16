@@ -71,33 +71,6 @@ func (q *Queries) GetFollowsRecommendationForUserId(ctx context.Context, arg Get
 	return items, nil
 }
 
-const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count FROM users
-WHERE id = $1
-LIMIT 1
-`
-
-func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserById, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Password,
-		&i.FullName,
-		&i.VerifiedEmail,
-		&i.AvatarUrl,
-		&i.Bio,
-		&i.OpenToWork,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-		&i.FollowersCount,
-		&i.FollowingsCount,
-	)
-	return i, err
-}
-
 const listNewestPosts = `-- name: ListNewestPosts :many
 SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 

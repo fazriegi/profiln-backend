@@ -11,7 +11,6 @@ type IHomepageRepository interface {
 	ListNewestPosts(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListPostsByFollowing(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListPopularPosts(userId int64, offset, limit int32) ([]model.Post, int64, error)
-	GetUserById(id int64) (homepageSqlc.User, error)
 	GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error)
 }
 
@@ -154,15 +153,6 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 	}
 
 	return posts, count, nil
-}
-
-func (r *HomepageRepository) GetUserById(id int64) (homepageSqlc.User, error) {
-	user, err := r.query.GetUserById(context.Background(), id)
-	if err != nil {
-		return homepageSqlc.User{}, err
-	}
-
-	return user, nil
 }
 
 func (r *HomepageRepository) GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error) {

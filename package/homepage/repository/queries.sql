@@ -41,11 +41,6 @@ ORDER BY
 OFFSET $2
 LIMIT $3;
 
--- name: GetUserById :one
-SELECT * FROM users
-WHERE id = $1
-LIMIT 1;
-
 -- name: GetFollowsRecommendationForUserId :many
 SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
     COUNT(u.id) OVER () AS total_rows
