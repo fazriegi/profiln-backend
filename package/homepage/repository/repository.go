@@ -11,6 +11,7 @@ type IHomepageRepository interface {
 	ListPostsByFollowing(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error)
 	ListPopularPosts(userId int64, offset, limit int32) ([]homepageSqlc.Post, int64, error)
 	GetUserById(id int64) (homepageSqlc.User, error)
+	GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error)
 }
 
 type HomepageRepository struct {
@@ -146,4 +147,25 @@ func (r *HomepageRepository) GetUserById(id int64) (homepageSqlc.User, error) {
 	}
 
 	return user, nil
+}
+
+func (r *HomepageRepository) GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error) {
+	arg := homepageSqlc.GetFollowsRecommendationForUserIdParams{
+		UserID: sql.NullInt64{Int64: userId, Valid: true},
+		Offset: offset,
+		Limit:  limit,
+	}
+
+	data, err := r.query.GetFollowsRecommendationForUserId(context.Background(), arg)
+	if err != nil {
+		return []homepageSqlc.GetFollowsRecommendationForUserIdRow{}, 0, err
+	}
+
+	// get total rows for pagination
+	var count int64
+	if len(data) > 0 {
+		count = data[0].TotalRows
+	}
+
+	return data, count, nil
 }

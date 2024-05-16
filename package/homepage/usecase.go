@@ -13,6 +13,7 @@ import (
 
 type IHomepageUsecase interface {
 	ListPosts(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListFollowsRecommendation(userId int64, pagination model.PaginationRequest) (resp model.Response)
 }
 
 type HomepageUsecase struct {
@@ -113,5 +114,46 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 		"data":       data,
 	}
 
+	return
+}
+
+func (u *HomepageUsecase) ListFollowsRecommendation(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+	offset := (pagination.Page - 1) * pagination.Limit
+	data, totalRows, err :=
+		u.repository.GetFollowsRecommendationForUserId(userId, int32(offset), int32(pagination.Limit))
+
+	if err != nil {
+		u.log.Errorf("repository.GetFollowsRecommendationForUserId: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	users := make([]model.User, len(data))
+	for i, v := range data {
+		users[i] = model.User{
+
+			ID:         v.ID,
+			AvatarUrl:  v.AvatarUrl.String,
+			Fullname:   v.FullName,
+			Bio:        v.Bio.String,
+			OpenToWork: v.OpenToWork.Bool,
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success get follows recommendations")
+	resp.Data = map[string]any{
+		"pagination": paginate,
+		"data":       users,
+	}
 	return
 }

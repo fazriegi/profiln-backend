@@ -36,3 +36,18 @@ LIMIT $3;
 SELECT * FROM users
 WHERE id = $1
 LIMIT 1;
+
+-- name: GetFollowsRecommendationForUserId :many
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+    COUNT(u.id) OVER () AS total_rows
+FROM users u
+JOIN (
+    SELECT DISTINCT f.follow_user_id
+    FROM followings f
+    JOIN followings f2 ON f.user_id = f2.follow_user_id
+    WHERE f2.user_id = $1
+) AS users_reccomendation ON u.id = users_reccomendation.follow_user_id
+WHERE u.id != $1
+ORDER BY u.followers_count DESC
+OFFSET $2
+LIMIT $3;

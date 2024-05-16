@@ -10,8 +10,69 @@ import (
 	"database/sql"
 )
 
+const getFollowsRecommendationForUserId = `-- name: GetFollowsRecommendationForUserId :many
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+    COUNT(u.id) OVER () AS total_rows
+FROM users u
+JOIN (
+    SELECT DISTINCT f.follow_user_id
+    FROM followings f
+    JOIN followings f2 ON f.user_id = f2.follow_user_id
+    WHERE f2.user_id = $1
+) as users_reccomendation ON u.id = users_reccomendation.follow_user_id
+WHERE u.id != $1
+ORDER BY u.followers_count DESC
+OFFSET $2
+LIMIT $3
+`
+
+type GetFollowsRecommendationForUserIdParams struct {
+	UserID sql.NullInt64
+	Offset int32
+	Limit  int32
+}
+
+type GetFollowsRecommendationForUserIdRow struct {
+	ID         int64
+	FullName   string
+	AvatarUrl  sql.NullString
+	Bio        sql.NullString
+	OpenToWork sql.NullBool
+	TotalRows  int64
+}
+
+func (q *Queries) GetFollowsRecommendationForUserId(ctx context.Context, arg GetFollowsRecommendationForUserIdParams) ([]GetFollowsRecommendationForUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFollowsRecommendationForUserId, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFollowsRecommendationForUserIdRow
+	for rows.Next() {
+		var i GetFollowsRecommendationForUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FullName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.OpenToWork,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at FROM users
+SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count FROM users
 WHERE id = $1
 LIMIT 1
 `
@@ -31,6 +92,8 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
