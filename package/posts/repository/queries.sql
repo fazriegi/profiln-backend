@@ -33,3 +33,15 @@ WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
 ORDER BY pcr.updated_at DESC
 OFFSET $3
 LIMIT $4;
+
+-- name: LockPostForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostLikeCount :one
+UPDATE posts
+SET like_count = like_count + 1
+WHERE id = $1
+RETURNING id, like_count;

@@ -15,6 +15,7 @@ type IPostsUsecase interface {
 	GetDetailPost(postId int64) (resp model.Response)
 	GetPostComments(postId int64, pagination model.PaginationRequest) (resp model.Response)
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
+	UpdatePostLikeCount(postId int64) (resp model.Response)
 }
 
 type PostsUsecase struct {
@@ -178,6 +179,27 @@ func (u *PostsUsecase) GetPostCommentReplies(postId, postCommentId int64, pagina
 	resp.Data = map[string]any{
 		"pagination": paginate,
 		"data":       postCommentReplies,
+	}
+	return
+}
+
+func (u *PostsUsecase) UpdatePostLikeCount(postId int64) (resp model.Response) {
+	data, err := u.repository.UpdatePostLikeCount(postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UpdatePostLikeCount: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success update post like count")
+	resp.Data = map[string]any{
+		"id":         data.ID,
+		"like_count": data.LikeCount.Int32,
 	}
 	return
 }

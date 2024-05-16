@@ -3,6 +3,7 @@ package posts
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	postSqlc "profiln-be/package/posts/repository/sqlc"
 )
 
@@ -11,6 +12,7 @@ type IPostsRepository interface {
 	GetDetailPost(postId int64) (postSqlc.GetDetailPostRow, error)
 	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
+	UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
 }
 
 type PostsRepository struct {
@@ -89,4 +91,33 @@ func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, off
 	}
 
 	return data, count, nil
+}
+
+func (r *PostsRepository) UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error) {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockPostForUpdate(ctx, postId)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	post, err := qtx.UpdatePostLikeCount(ctx, postId)
+	if err != nil {
+		return nil, fmt.Errorf("could not update like count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return &post, nil
 }

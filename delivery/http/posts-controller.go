@@ -16,6 +16,7 @@ type IPostsController interface {
 	GetDetailPost(ctx *gin.Context)
 	GetPostComments(ctx *gin.Context)
 	GetPostCommentReplies(ctx *gin.Context)
+	UpdatePostLikeCount(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -190,5 +191,21 @@ func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
 	}
 
 	response = c.usecase.GetPostCommentReplies(int64(postId), int64(postCommentId), pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UpdatePostLikeCount(ctx *gin.Context) {
+	var response model.Response
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UpdatePostLikeCount(postId)
 	ctx.JSON(response.Status.Code, response)
 }

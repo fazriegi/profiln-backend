@@ -251,3 +251,36 @@ func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPost
 	)
 	return i, err
 }
+
+const lockPostForUpdate = `-- name: LockPostForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockPostForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockPostForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const updatePostLikeCount = `-- name: UpdatePostLikeCount :one
+UPDATE posts
+SET like_count = like_count + 1
+WHERE id = $1
+RETURNING id, like_count
+`
+
+type UpdatePostLikeCountRow struct {
+	ID        int64
+	LikeCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostLikeCount(ctx context.Context, id int64) (UpdatePostLikeCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostLikeCount, id)
+	var i UpdatePostLikeCountRow
+	err := row.Scan(&i.ID, &i.LikeCount)
+	return i, err
+}

@@ -22,4 +22,5 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.GET("/:postId", controller.GetDetailPost)
 	posts.GET("/:postId/comments", controller.GetPostComments)
 	posts.GET("/:postId/comments/:postCommentId/replies", controller.GetPostCommentReplies)
+	posts.POST("/:postId/like", controller.UpdatePostLikeCount)
 }
