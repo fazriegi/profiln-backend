@@ -1,18 +1,17 @@
 package homepage
 
 import (
-	"database/sql"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
 	repository "profiln-be/package/homepage/repository"
-	homepage "profiln-be/package/homepage/repository/sqlc"
 
 	"github.com/sirupsen/logrus"
 )
 
 type IHomepageUsecase interface {
 	ListPosts(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListFollowsRecommendation(userId int64, pagination model.PaginationRequest) (resp model.Response)
 }
 
 type HomepageUsecase struct {
@@ -29,14 +28,14 @@ func NewHomepageUsecase(repository repository.IHomepageRepository, log *logrus.L
 
 func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	posts := []homepage.Post{}
 	var (
+		posts     []model.Post
 		totalRows int64
 		err       error
 	)
 
 	if pagination.OrderBy == "newest" {
-		posts, totalRows, err = u.repository.ListPosts(userId, int32(offset), int32(pagination.Limit))
+		posts, totalRows, err = u.repository.ListNewestPosts(userId, int32(offset), int32(pagination.Limit))
 
 		if err != nil {
 			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
@@ -65,36 +64,6 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 		}
 	}
 
-	user, err := u.repository.GetUserById(userId)
-	if err != nil && err != sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.ListPopularPosts: %v", err)
-		return
-	}
-
-	userData := model.User{
-		ID:        user.ID,
-		AvatarUrl: user.AvatarUrl.String,
-		Fullname:  user.FullName,
-		Bio:       user.Bio.String,
-	}
-
-	data := []model.ListPostsResponse{}
-	for _, v := range posts {
-		post := model.ListPostsResponse{}
-		post.ID = int(v.ID)
-		post.User = userData
-		post.Content = v.Content.String
-		post.ImageUrl = v.ImageUrl.String
-		post.LikeCount = int(v.LikeCount.Int32)
-		post.CommentCount = int(v.CommentCount.Int32)
-		post.RepostCount = int(v.RepostCount.Int32)
-		post.UpdatedAt = v.UpdatedAt.Time
-
-		data = append(data, post)
-	}
-
 	totalPages := int(totalRows / int64(pagination.Limit))
 	if totalRows%int64(pagination.Limit) > 0 {
 		totalPages++
@@ -104,14 +73,54 @@ func (u *HomepageUsecase) ListPosts(userId int64, pagination model.PaginationReq
 		Page:             pagination.Page,
 		TotalRows:        totalRows,
 		TotalPages:       totalPages,
-		CurrentRowsCount: len(data),
+		CurrentRowsCount: len(posts),
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success fetch posts")
 	resp.Data = map[string]any{
 		"pagination": paginate,
-		"data":       data,
+		"data":       posts,
 	}
 
+	return
+}
+
+func (u *HomepageUsecase) ListFollowsRecommendation(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+	offset := (pagination.Page - 1) * pagination.Limit
+	users, totalRows, err :=
+		u.repository.GetFollowsRecommendationForUserId(userId, int32(offset), int32(pagination.Limit))
+
+	if err != nil {
+		u.log.Errorf("repository.GetFollowsRecommendationForUserId: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	data := make([]model.User, len(users))
+	for i, v := range users {
+		data[i] = model.User{
+			ID:         v.ID,
+			AvatarUrl:  v.AvatarUrl.String,
+			Fullname:   v.FullName,
+			Bio:        v.Bio.String,
+			OpenToWork: v.OpenToWork.Bool,
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success get follows recommendations")
+	resp.Data = map[string]any{
+		"pagination": paginate,
+		"data":       data,
+	}
 	return
 }

@@ -20,7 +20,7 @@ func (q *Queries) DeleteOtp(ctx context.Context, otp sql.NullString) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at FROM users
+SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count FROM users
 WHERE email = $1
 LIMIT 1
 `
@@ -40,6 +40,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
@@ -85,7 +87,7 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, $4
 )
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
 
 type InsertUserParams struct {
@@ -115,6 +117,8 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
@@ -123,7 +127,7 @@ const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2
 WHERE id = $1
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
 
 type UpdateUserPasswordParams struct {

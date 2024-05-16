@@ -37,7 +37,7 @@ func (c *PostsController) ReportPost(ctx *gin.Context) {
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
-	postId, err := strconv.Atoi(ctx.Param("postId"))
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -69,7 +69,7 @@ func (c *PostsController) ReportPost(ctx *gin.Context) {
 		return
 	}
 
-	reqBody.PostId = int64(postId)
+	reqBody.PostId = postId
 
 	response = c.usecase.InsertReportedPost(userId, &reqBody)
 	ctx.JSON(response.Status.Code, response)
@@ -78,7 +78,7 @@ func (c *PostsController) ReportPost(ctx *gin.Context) {
 func (c *PostsController) GetDetailPost(ctx *gin.Context) {
 	var response model.Response
 
-	postId, err := strconv.Atoi(ctx.Param("postId"))
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -87,14 +87,14 @@ func (c *PostsController) GetDetailPost(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.GetDetailPost(int64(postId))
+	response = c.usecase.GetDetailPost(postId)
 	ctx.JSON(response.Status.Code, response)
 }
 
 func (c *PostsController) GetPostComments(ctx *gin.Context) {
 	var response model.Response
 
-	postId, err := strconv.Atoi(ctx.Param("postId"))
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -134,14 +134,14 @@ func (c *PostsController) GetPostComments(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.GetPostComments(int64(postId), pagination)
+	response = c.usecase.GetPostComments(postId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
 func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
 	var response model.Response
 
-	postId, err := strconv.Atoi(ctx.Param("postId"))
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -150,7 +150,7 @@ func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
 		return
 	}
 
-	postCommentId, err := strconv.Atoi(ctx.Param("postCommentId"))
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -190,7 +190,7 @@ func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.GetPostCommentReplies(int64(postId), int64(postCommentId), pagination)
+	response = c.usecase.GetPostCommentReplies(postId, postCommentId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
