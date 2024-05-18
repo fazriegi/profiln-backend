@@ -215,7 +215,7 @@ func (u *AuthUsecase) UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) 
 		return
 	}
 
-	err = u.repository.UpdateVerifiedEmail(props.Otp, props.Email)
+	user, err := u.repository.UpdateVerifiedEmail(props.Otp, props.Email)
 
 	if err != nil && err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Failed verify email")
@@ -235,7 +235,18 @@ func (u *AuthUsecase) UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) 
 		return
 	}
 
-	resp.Status = libs.CustomResponse(http.StatusOK, "Success verified email")
+	token, err := libs.GenerateJWTToken(user.ID, user.Email, time.Hour*24)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		u.log.Errorf("libs.GenerateJWTToken: %v", err)
+		return
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success verify email")
+	resp.Data = map[string]string{
+		"token": token,
+	}
 	return
 }
 
