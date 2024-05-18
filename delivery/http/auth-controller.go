@@ -16,6 +16,8 @@ type IAuthController interface {
 	Register(ctx *gin.Context)
 	VerifiedEmail(ctx *gin.Context)
 	SendResetPasswordEmail(ctx *gin.Context)
+	GetUserOtpByEmail(ctx *gin.Context)
+	ResendOTP(ctx *gin.Context)
 }
 
 type AuthController struct {
@@ -206,6 +208,51 @@ func (c *AuthController) SendResetPasswordEmail(ctx *gin.Context) {
 	}
 
 	response = c.usecase.SendResetPasswordEmail(&reqBody)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *AuthController) GetUserOtpByEmail(ctx *gin.Context) {
+	var response model.Response
+
+	email := ctx.Param("email")
+
+	response = c.usecase.GetUserOtpByEmail(email)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *AuthController) ResendOTP(ctx *gin.Context) {
+	var (
+		reqBody  model.ResendOtpRequest
+		response model.Response
+	)
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.ResendOTP(&reqBody)
 
 	ctx.JSON(response.Status.Code, response)
 }

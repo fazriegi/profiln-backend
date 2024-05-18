@@ -31,3 +31,16 @@ type VerifiedEmailOTPRequest struct {
 	Otp   string `validate:"required"`
 	Email string `validate:"required,email"`
 }
+
+type UserOTPByEmailResponse struct {
+	ID            int    `json:"id"`
+	Email         string `json:"email"`
+	Fullname      string `json:"fullname"`
+	VerifiedEmail bool   `json:"verified_email"`
+	UserID        int    `json:"user_id"`
+	Otp           string `json:"otp"`
+}
+
+type ResendOtpRequest struct {
+	Email string `validate:"required,email"`
+}

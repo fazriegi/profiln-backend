@@ -40,3 +40,10 @@ LIMIT 1;
 
 -- name: DeleteOtp :exec
 DELETE FROM user_otps WHERE otp = $1;
+
+-- name: GetUserOtpByEmail :one
+SELECT *
+FROM users
+INNER JOIN user_otps ON users.id = user_otps.user_id
+WHERE users.email = $1 AND users.verified_email = FALSE
+LIMIT 1;
