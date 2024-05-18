@@ -17,7 +17,7 @@ type IAuthController interface {
 	VerifiedEmail(ctx *gin.Context)
 	SendResetPasswordEmail(ctx *gin.Context)
 	GetUserOtpByEmail(ctx *gin.Context)
-	ResendOTP(ctx *gin.Context)
+	SendOTPEmail(ctx *gin.Context)
 }
 
 type AuthController struct {
@@ -222,9 +222,9 @@ func (c *AuthController) GetUserOtpByEmail(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *AuthController) ResendOTP(ctx *gin.Context) {
+func (c *AuthController) SendOTPEmail(ctx *gin.Context) {
 	var (
-		reqBody  model.ResendOtpRequest
+		reqBody  model.OTPEmailRequest
 		response model.Response
 	)
 
@@ -237,7 +237,7 @@ func (c *AuthController) ResendOTP(ctx *gin.Context) {
 		return
 	}
 
-	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
 	// if there is an error
 	if len(validationErr) > 0 {
 		errResponse := map[string]any{
@@ -252,7 +252,7 @@ func (c *AuthController) ResendOTP(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.ResendOTP(&reqBody)
+	response = c.usecase.SendOTPEmail(&reqBody)
 
 	ctx.JSON(response.Status.Code, response)
 }

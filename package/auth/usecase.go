@@ -23,7 +23,7 @@ type IAuthUsecase interface {
 	UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) (resp model.Response)
 	SendResetPasswordEmail(props *model.ResetPasswordEmailRequest) (resp model.Response)
 	GetUserOtpByEmail(email string) (resp model.Response)
-	ResendOTP(props *model.ResendOtpRequest) (resp model.Response)
+	SendOTPEmail(props *model.OTPEmailRequest) (resp model.Response)
 }
 
 type AuthUsecase struct {
@@ -324,9 +324,9 @@ func (u *AuthUsecase) GetUserOtpByEmail(email string) (resp model.Response) {
 	return
 }
 
-func (u *AuthUsecase) ResendOTP(props *model.ResendOtpRequest) (resp model.Response) {
-	resp.Status = libs.CustomResponse(http.StatusOK, "Success resend otp")
-	subject := "Resend OTP Regristation Profiln"
+func (u *AuthUsecase) SendOTPEmail(props *model.OTPEmailRequest) (resp model.Response) {
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success send otp")
+	subject := "OTP Regristation Profiln"
 	_, err := u.repository.GetUserByEmail(props.Email)
 
 	if err != nil && err == sql.ErrNoRows {
@@ -343,12 +343,12 @@ func (u *AuthUsecase) ResendOTP(props *model.ResendOtpRequest) (resp model.Respo
 	userOtpByEmail, err := u.repository.GetUserOtpByEmail(props.Email)
 
 	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "OTP doesnt exist")
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "OTP doesnt exist")
 
 		return
 	} else if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetUserOtpByOtp %v", err)
+		u.log.Errorf("repository.GetUserOtpByEmail %v", err)
 		return
 	}
 

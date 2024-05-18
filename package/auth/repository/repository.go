@@ -120,7 +120,7 @@ func (r *AuthRepository) GetUserOtpByEmail(email string) (authSqlc.GetUserOtpByE
 	otpByEmail, err := r.query.GetUserOtpByEmail(context.Background(), email)
 
 	if err != nil {
-		return authSqlc.GetUserOtpByEmailRow{}, nil
+		return authSqlc.GetUserOtpByEmailRow{}, err
 	}
 
 	return otpByEmail, nil
