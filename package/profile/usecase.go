@@ -196,7 +196,8 @@ func (u *ProfileUsecase) InsertEducation(props *model.EducationRequest, id int64
 		FieldOfStudy: sql.NullString{String: props.FieldOfStudy, Valid: true},
 		Gpa:          sql.NullString{String: props.Gpa, Valid: true},
 		StartDate:    sql.NullTime{Time: props.StartDate.Time, Valid: true},
-		FinishDate:   sql.NullTime{Time: props.FinishDate.Time, Valid: true},
+		// FinishDate:   sql.NullTime{Time: time.Time{}, Valid: false},
+		FinishDate: sql.NullTime{Time: props.FinishDate.Time, Valid: true},
 	}
 
 	education, err := u.repository.InsertEducation(educationParams)
