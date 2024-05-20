@@ -1,4 +1,4 @@
-CREATE TABLE "reposted_posts" (
+CREATE TABLE "reported_posts" (
   "id" BIGSERIAL PRIMARY KEY,
   "user_id" BIGINT,
   "post_id" BIGINT,
@@ -6,10 +6,10 @@ CREATE TABLE "reposted_posts" (
   "message" TEXT
 );
 
-CREATE INDEX idx_reposted_posts_id ON "reposted_posts" ("id");
-CREATE INDEX idx_reposted_posts_user_id ON "reposted_posts" ("user_id");
-CREATE INDEX idx_reposted_posts_post_id ON "reposted_posts" ("post_id");
-CREATE INDEX idx_reposted_posts_reason ON "reposted_posts" ("reason");
+CREATE INDEX idx_reported_posts_id ON "reported_posts" ("id");
+CREATE INDEX idx_reported_posts_user_id ON "reported_posts" ("user_id");
+CREATE INDEX idx_reported_posts_post_id ON "reported_posts" ("post_id");
+CREATE INDEX idx_reported_posts_reason ON "reported_posts" ("reason");
 
-ALTER TABLE "reposted_posts" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
-ALTER TABLE "reposted_posts" ADD FOREIGN KEY ("post_id") REFERENCES "posts" ("id");
+ALTER TABLE "reported_posts" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
+ALTER TABLE "reported_posts" ADD FOREIGN KEY ("post_id") REFERENCES "posts" ("id");

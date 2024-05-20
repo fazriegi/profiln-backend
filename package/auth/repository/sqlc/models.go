@@ -107,7 +107,7 @@ type PostCommentReply struct {
 	UpdatedAt     sql.NullTime
 }
 
-type RepostedPost struct {
+type ReportedPost struct {
 	ID      int64
 	UserID  sql.NullInt64
 	PostID  sql.NullInt64
@@ -131,17 +131,19 @@ type SocialLink struct {
 }
 
 type User struct {
-	ID            int64
-	Email         string
-	Password      sql.NullString
-	FullName      string
-	VerifiedEmail sql.NullBool
-	AvatarUrl     sql.NullString
-	Bio           sql.NullString
-	OpenToWork    sql.NullBool
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
-	DeletedAt     sql.NullTime
+	ID              int64
+	Email           string
+	Password        sql.NullString
+	FullName        string
+	VerifiedEmail   sql.NullBool
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	CreatedAt       sql.NullTime
+	UpdatedAt       sql.NullTime
+	DeletedAt       sql.NullTime
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
 }
 
 type UserDetail struct {

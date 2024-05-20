@@ -11,3 +11,24 @@ type Status struct {
 	Message   string `json:"message"`
 	IsSuccess bool   `json:"is_success"`
 }
+
+type PaginationRequest struct {
+	Page    int
+	Limit   int
+	OrderBy string
+}
+
+type PaginationResponse struct {
+	Page             int   `json:"page"`
+	TotalPages       int   `json:"total_pages"`
+	TotalRows        int64 `json:"total_rows"`
+	CurrentRowsCount int   `json:"current_rows_count"`
+}
+
+type User struct {
+	ID         int64  `json:"id"`
+	AvatarUrl  string `json:"avatar_url"`
+	Fullname   string `json:"fullname"`
+	Bio        string `json:"bio"`
+	OpenToWork bool   `json:"open_to_work"`
+}

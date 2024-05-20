@@ -93,7 +93,7 @@ func (q *Queries) GetUserAbout(ctx context.Context, id int64) (GetUserAboutRow, 
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 FROM users
 WHERE users.id = $1
 LIMIT 1
@@ -114,6 +114,8 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
@@ -310,7 +312,7 @@ const insertUserAvatar = `-- name: InsertUserAvatar :exec
 UPDATE users
 SET avatar_url = $1
 WHERE id = $2
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
 
 type InsertUserAvatarParams struct {

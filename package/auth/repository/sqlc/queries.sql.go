@@ -20,7 +20,7 @@ func (q *Queries) DeleteOtp(ctx context.Context, otp sql.NullString) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at FROM users
+SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count FROM users
 WHERE email = $1
 LIMIT 1
 `
@@ -40,12 +40,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
 
 const getUserOtpByEmail = `-- name: GetUserOtpByEmail :one
-SELECT users.id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, user_otps.id, user_id, otp
+SELECT users.id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count, user_otps.id, user_id, otp
 FROM users
 INNER JOIN user_otps ON users.id = user_otps.user_id
 WHERE users.email = $1 AND users.verified_email = FALSE
@@ -53,20 +55,22 @@ LIMIT 1
 `
 
 type GetUserOtpByEmailRow struct {
-	ID            int64
-	Email         string
-	Password      sql.NullString
-	FullName      string
-	VerifiedEmail sql.NullBool
-	AvatarUrl     sql.NullString
-	Bio           sql.NullString
-	OpenToWork    sql.NullBool
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
-	DeletedAt     sql.NullTime
-	ID_2          int64
-	UserID        sql.NullInt64
-	Otp           sql.NullString
+	ID              int64
+	Email           string
+	Password        sql.NullString
+	FullName        string
+	VerifiedEmail   sql.NullBool
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	CreatedAt       sql.NullTime
+	UpdatedAt       sql.NullTime
+	DeletedAt       sql.NullTime
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
+	ID_2            int64
+	UserID          sql.NullInt64
+	Otp             sql.NullString
 }
 
 func (q *Queries) GetUserOtpByEmail(ctx context.Context, email string) (GetUserOtpByEmailRow, error) {
@@ -84,6 +88,8 @@ func (q *Queries) GetUserOtpByEmail(ctx context.Context, email string) (GetUserO
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 		&i.ID_2,
 		&i.UserID,
 		&i.Otp,
@@ -132,7 +138,7 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, $4
 )
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
 
 type InsertUserParams struct {
@@ -162,6 +168,8 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FollowersCount,
+		&i.FollowingsCount,
 	)
 	return i, err
 }
@@ -170,7 +178,7 @@ const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2
 WHERE id = $1
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at
+RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
 
 type UpdateUserPasswordParams struct {
@@ -188,7 +196,7 @@ UPDATE users
 SET verified_email = TRUE
 FROM user_otps 
 WHERE users.id = user_otps.user_id AND user_otps.otp = $1 AND users.email = $2
-RETURNING users.id
+RETURNING users.id, users.email
 `
 
 type UpdateVerifiedEmailParams struct {
@@ -196,9 +204,14 @@ type UpdateVerifiedEmailParams struct {
 	Email string
 }
 
-func (q *Queries) UpdateVerifiedEmail(ctx context.Context, arg UpdateVerifiedEmailParams) (int64, error) {
+type UpdateVerifiedEmailRow struct {
+	ID    int64
+	Email string
+}
+
+func (q *Queries) UpdateVerifiedEmail(ctx context.Context, arg UpdateVerifiedEmailParams) (UpdateVerifiedEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, updateVerifiedEmail, arg.Otp, arg.Email)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i UpdateVerifiedEmailRow
+	err := row.Scan(&i.ID, &i.Email)
+	return i, err
 }

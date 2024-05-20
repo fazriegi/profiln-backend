@@ -16,7 +16,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	usecase := profile.NewProfileUsecase(repository, log)
 	controller := http.NewProfileController(usecase)
 
-	profile := app.Group("profile")
+	profile := app.Group("profiles")
 	profile.Use(middleware.Authentication())
-	profile.POST("/user/about", controller.InsertUserAbout)
+	profile.POST("/users/about", controller.InsertUserAbout)
 }

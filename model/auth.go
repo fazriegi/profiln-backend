@@ -41,6 +41,6 @@ type UserOTPByEmailResponse struct {
 	Otp           string `json:"otp"`
 }
 
-type ResendOtpRequest struct {
+type OTPEmailRequest struct {
 	Email string `validate:"required,email"`
 }
