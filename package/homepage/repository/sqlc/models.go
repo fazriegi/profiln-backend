@@ -23,7 +23,7 @@ type Certificate struct {
 
 type Company struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type Education struct {
@@ -49,7 +49,7 @@ type EducationSkill struct {
 
 type EmploymentType struct {
 	ID   int16
-	Name sql.NullString
+	Name string
 }
 
 type Following struct {
@@ -60,12 +60,12 @@ type Following struct {
 
 type IssuingOrganization struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type LocationType struct {
 	ID   int16
-	Name sql.NullString
+	Name string
 }
 
 type Post struct {
@@ -117,17 +117,17 @@ type ReportedPost struct {
 
 type School struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type Skill struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type SocialLink struct {
 	ID   int16
-	Name sql.NullString
+	Name string
 }
 
 type User struct {
