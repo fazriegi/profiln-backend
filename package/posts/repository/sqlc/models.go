@@ -210,6 +210,7 @@ type WorkExperience struct {
 	Description      sql.NullString
 	CreatedAt        sql.NullTime
 	UpdatedAt        sql.NullTime
+	ImageUrl         sql.NullString
 }
 
 type WorkExperienceSkill struct {

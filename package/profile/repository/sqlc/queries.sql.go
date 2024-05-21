@@ -411,7 +411,7 @@ INSERT INTO work_experiences (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description, created_at, updated_at
+RETURNING id, user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description, created_at, updated_at, image_url
 `
 
 type InsertWorkExperienceParams struct {
@@ -452,6 +452,7 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ImageUrl,
 	)
 	return i, err
 }
