@@ -77,8 +77,7 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDeta
 }
 
 func (r *ProfileRepository) InsertCompany(name string) (profileSqlc.Company, error) {
-	arg := sql.NullString{String: name, Valid: true}
-	company, err := r.query.InsertCompany(context.Background(), arg)
+	company, err := r.query.InsertCompany(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.Company{}, err
@@ -98,8 +97,7 @@ func (r *ProfileRepository) InsertEducation(arg profileSqlc.InsertEducationParam
 }
 
 func (r *ProfileRepository) InsertEmploymentType(name string) (profileSqlc.EmploymentType, error) {
-	arg := sql.NullString{String: name, Valid: true}
-	employmentType, err := r.query.InsertEmploymentType(context.Background(), arg)
+	employmentType, err := r.query.InsertEmploymentType(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.EmploymentType{}, err
@@ -109,8 +107,7 @@ func (r *ProfileRepository) InsertEmploymentType(name string) (profileSqlc.Emplo
 }
 
 func (r *ProfileRepository) InsertLocationType(name string) (profileSqlc.LocationType, error) {
-	arg := sql.NullString{String: name, Valid: true}
-	locationType, err := r.query.InsertLocationType(context.Background(), arg)
+	locationType, err := r.query.InsertLocationType(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.LocationType{}, err
@@ -120,8 +117,7 @@ func (r *ProfileRepository) InsertLocationType(name string) (profileSqlc.Locatio
 }
 
 func (r *ProfileRepository) InsertSchool(name string) (profileSqlc.School, error) {
-	arg := sql.NullString{String: name, Valid: true}
-	school, err := r.query.InsertSchool(context.Background(), arg)
+	school, err := r.query.InsertSchool(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.School{}, err
@@ -151,9 +147,7 @@ func (r *ProfileRepository) InsertCertificate(arg profileSqlc.InsertCertificateP
 }
 
 func (r *ProfileRepository) InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error) {
-	arg := sql.NullString{String: name, Valid: true}
-
-	issueOrganization, err := r.query.InsertIssuingOrganization(context.Background(), arg)
+	issueOrganization, err := r.query.InsertIssuingOrganization(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.IssuingOrganization{}, err
@@ -173,9 +167,7 @@ func (r *ProfileRepository) InsertUserSkill(arg profileSqlc.InsertUserSkillParam
 }
 
 func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) {
-	arg := sql.NullString{String: name, Valid: true}
-
-	skill, err := r.query.InsertSkill(context.Background(), arg)
+	skill, err := r.query.InsertSkill(context.Background(), name)
 
 	if err != nil {
 		return profileSqlc.Skill{}, err
