@@ -1,2 +1,0 @@
-ALTER TABLE "user_social_links"
-DROP CONSTRAINT user_social_links_user_id_social_link_id_unique;

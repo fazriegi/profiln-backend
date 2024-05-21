@@ -1,0 +1,11 @@
+ALTER TABLE "user_social_links"
+DROP CONSTRAINT user_social_links_user_id_social_link_id_unique;
+
+ALTER TABLE "user_skills"
+DROP CONSTRAINT user_skills_user_id_skill_id_unique;
+
+ALTER TABLE "work_experience_skills"
+DROP CONSTRAINT work_experience_skills_work_experience_id_user_skill_id_unique;
+
+ALTER TABLE "education_skills"
+DROP CONSTRAINT education_skills_education_id_user_skill_id_unique;

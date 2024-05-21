@@ -44,7 +44,7 @@ type Education struct {
 type EducationSkill struct {
 	ID          int64
 	EducationID sql.NullInt64
-	SkillID     sql.NullInt64
+	UserSkillID sql.NullInt64
 }
 
 type EmploymentType struct {
@@ -215,5 +215,5 @@ type WorkExperience struct {
 type WorkExperienceSkill struct {
 	ID               int64
 	WorkExperienceID sql.NullInt64
-	SkillID          sql.NullInt64
+	UserSkillID      sql.NullInt64
 }

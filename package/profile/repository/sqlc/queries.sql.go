@@ -166,15 +166,13 @@ func (q *Queries) InsertCertificate(ctx context.Context, arg InsertCertificatePa
 }
 
 const insertCompany = `-- name: InsertCompany :one
-INSERT INTO companies (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO companies (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertCompany(ctx context.Context, name sql.NullString) (Company, error) {
+func (q *Queries) InsertCompany(ctx context.Context, name string) (Company, error) {
 	row := q.db.QueryRowContext(ctx, insertCompany, name)
 	var i Company
 	err := row.Scan(&i.ID, &i.Name)
@@ -229,15 +227,13 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 }
 
 const insertEmploymentType = `-- name: InsertEmploymentType :one
-INSERT INTO employment_types (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO employment_types (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertEmploymentType(ctx context.Context, name sql.NullString) (EmploymentType, error) {
+func (q *Queries) InsertEmploymentType(ctx context.Context, name string) (EmploymentType, error) {
 	row := q.db.QueryRowContext(ctx, insertEmploymentType, name)
 	var i EmploymentType
 	err := row.Scan(&i.ID, &i.Name)
@@ -245,15 +241,13 @@ func (q *Queries) InsertEmploymentType(ctx context.Context, name sql.NullString)
 }
 
 const insertIssuingOrganization = `-- name: InsertIssuingOrganization :one
-INSERT INTO issuing_organizations (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO issuing_organizations (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertIssuingOrganization(ctx context.Context, name sql.NullString) (IssuingOrganization, error) {
+func (q *Queries) InsertIssuingOrganization(ctx context.Context, name string) (IssuingOrganization, error) {
 	row := q.db.QueryRowContext(ctx, insertIssuingOrganization, name)
 	var i IssuingOrganization
 	err := row.Scan(&i.ID, &i.Name)
@@ -261,15 +255,13 @@ func (q *Queries) InsertIssuingOrganization(ctx context.Context, name sql.NullSt
 }
 
 const insertLocationType = `-- name: InsertLocationType :one
-INSERT INTO location_types (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO location_types (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertLocationType(ctx context.Context, name sql.NullString) (LocationType, error) {
+func (q *Queries) InsertLocationType(ctx context.Context, name string) (LocationType, error) {
 	row := q.db.QueryRowContext(ctx, insertLocationType, name)
 	var i LocationType
 	err := row.Scan(&i.ID, &i.Name)
@@ -277,15 +269,13 @@ func (q *Queries) InsertLocationType(ctx context.Context, name sql.NullString) (
 }
 
 const insertSchool = `-- name: InsertSchool :one
-INSERT INTO schools (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO schools (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertSchool(ctx context.Context, name sql.NullString) (School, error) {
+func (q *Queries) InsertSchool(ctx context.Context, name string) (School, error) {
 	row := q.db.QueryRowContext(ctx, insertSchool, name)
 	var i School
 	err := row.Scan(&i.ID, &i.Name)
@@ -293,15 +283,13 @@ func (q *Queries) InsertSchool(ctx context.Context, name sql.NullString) (School
 }
 
 const insertSkill = `-- name: InsertSkill :one
-INSERT INTO skills (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO skills (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING id, name
 `
 
-func (q *Queries) InsertSkill(ctx context.Context, name sql.NullString) (Skill, error) {
+func (q *Queries) InsertSkill(ctx context.Context, name string) (Skill, error) {
 	row := q.db.QueryRowContext(ctx, insertSkill, name)
 	var i Skill
 	err := row.Scan(&i.ID, &i.Name)
