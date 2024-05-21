@@ -49,35 +49,27 @@ INSERT INTO educations (
 RETURNING *;
 
 -- name: InsertCompany :one
-INSERT INTO companies (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO companies (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: InsertEmploymentType :one
-INSERT INTO employment_types (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO employment_types (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: InsertLocationType :one
-INSERT INTO location_types (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO location_types (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: InsertSchool :one 
-INSERT INTO schools (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO schools (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: InsertCertificate :one
@@ -89,11 +81,9 @@ INSERT INTO certificates (
 RETURNING *;
 
 -- name: InsertIssuingOrganization :one
-INSERT INTO issuing_organizations (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO issuing_organizations (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: InsertUserSkill :one
@@ -105,11 +95,9 @@ INSERT INTO user_skills (
 RETURNING *;
 
 -- name: InsertSkill :one
-INSERT INTO skills (
-  name
-) VALUES (
-  $1
-)
+INSERT INTO skills (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: GetUserAbout :one
