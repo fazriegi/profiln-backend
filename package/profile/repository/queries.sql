@@ -198,3 +198,9 @@ SET name = @name::text,
     url = @url::text
 WHERE id = @id::bigint AND user_id = @user_id::bigint
 RETURNING id; 
+
+-- name: GetUserAvatarById :one
+SELECT avatar_url
+FROM users
+WHERE users.id = $1
+LIMIT 1;

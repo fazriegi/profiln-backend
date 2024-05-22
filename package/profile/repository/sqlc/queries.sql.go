@@ -164,6 +164,20 @@ func (q *Queries) GetUserAbout(ctx context.Context, id int64) (GetUserAboutRow, 
 	return i, err
 }
 
+const getUserAvatarById = `-- name: GetUserAvatarById :one
+SELECT avatar_url
+FROM users
+WHERE users.id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getUserAvatarById, id)
+	var avatar_url sql.NullString
+	err := row.Scan(&avatar_url)
+	return avatar_url, err
+}
+
 const getUserById = `-- name: GetUserById :one
 SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 FROM users

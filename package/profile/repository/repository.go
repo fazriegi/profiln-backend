@@ -29,6 +29,7 @@ type IProfileRepository interface {
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
+	GetUserAvatarById(id int64) (string, error)
 }
 
 type ProfileRepository struct {
@@ -355,4 +356,13 @@ func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Upd
 	}
 
 	return nil
+}
+
+func (r *ProfileRepository) GetUserAvatarById(id int64) (string, error) {
+	avatarUrl, err := r.query.GetUserAvatarById(context.Background(), id)
+	if err != nil {
+		return "", err
+	}
+
+	return avatarUrl.String, nil
 }

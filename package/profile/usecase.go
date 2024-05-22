@@ -305,25 +305,27 @@ func (u *ProfileUsecase) GetSkills() (resp model.Response) {
 }
 
 func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response) {
-	newFilename := u.fileSystem.GenerateNewFilename(imageFile.Filename)
-	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+	var (
+		avatarUrl string
+		fileDest  string
+		err       error
+	)
 
-	if err := u.fileSystem.SaveFile(imageFile, fileDest); err != nil {
+	avatarUrl, err = u.repository.GetUserAvatarById(props.UserId)
+	if err != nil && err != sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("libs.SaveFile: %v", err)
+		u.log.Errorf("repository.GetUserAvatarById: %v", err)
 		return
 	}
 
-	bucketName := os.Getenv("BUCKET_NAME")
-	bucketObject := fmt.Sprintf("users/avatar/%s", newFilename)
-	err := libs.UploadFileToBucket(os.Stdout, bucketName, bucketObject, fileDest)
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("libs.UploadFileToBucket: %v", err)
-		return
+	if imageFile != nil {
+		avatarUrl, fileDest, err = u.handleImageUploadOfUpdateProfile(imageFile, avatarUrl)
+		if err != nil {
+			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+			u.log.Errorf("handleImageUpload: %v", err)
+			return
+		}
 	}
-
-	avatarUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, bucketObject)
 
 	err = u.repository.UpdateProfile(avatarUrl, props)
 	if err != nil {
@@ -332,10 +334,13 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		return
 	}
 
-	if err := u.fileSystem.RemoveFile(fileDest); err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("libs.RemoveFile: %v", err)
-		return
+	// If file exists, delete it from the local temporary storage
+	if fileDest != "" {
+		if err := u.fileSystem.RemoveFile(fileDest); err != nil {
+			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+			u.log.Errorf("libs.RemoveFile: %v", err)
+			return
+		}
 	}
 
 	responseData := model.UpdateProfileResponse{
@@ -390,4 +395,39 @@ func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.Update
 		Status: libs.CustomResponse(http.StatusOK, "Success update user's certificate"),
 		Data:   props,
 	}
+}
+
+// Helper function for update profile feature
+func (u *ProfileUsecase) handleImageUploadOfUpdateProfile(imageFile *multipart.FileHeader, currentAvatarUrl string) (string, string, error) {
+	bucketName := os.Getenv("BUCKET_NAME")
+
+	// Extract the previous object path from the current avatar URL
+	previousObjectPath, err := libs.ExtractBucketObjectUrl(currentAvatarUrl)
+	if err != nil {
+		return "", "", fmt.Errorf("libs.ExtractBucketObjectUrl: %w", err)
+	}
+
+	// Generate a new filename and save the file locally
+	newFilename := u.fileSystem.GenerateNewFilename(imageFile.Filename)
+	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+	if err := u.fileSystem.SaveFile(imageFile, fileDest); err != nil {
+		return "", "", fmt.Errorf("fileSystem.SaveFile: %w", err)
+	}
+
+	// Upload the new file to the bucket
+	bucketObject := fmt.Sprintf("users/avatar/%s", newFilename)
+	if err := libs.UploadFileToBucket(os.Stdout, bucketName, bucketObject, fileDest); err != nil {
+		return "", "", fmt.Errorf("libs.UploadFileToBucket: %w", err)
+	}
+
+	// Delete the previous file from the bucket asynchronously
+	go func() {
+		if err := libs.RemoveFileFromBucket(os.Stdout, bucketName, previousObjectPath); err != nil {
+			u.log.Errorf("libs.RemoveFileFromBucket (%s): %v", previousObjectPath, err)
+		}
+	}()
+
+	// Construct the new avatar URL
+	avatarUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, bucketObject)
+	return avatarUrl, fileDest, nil
 }
