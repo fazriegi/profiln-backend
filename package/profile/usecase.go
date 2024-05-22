@@ -26,6 +26,7 @@ type IProfileUsecase interface {
 	InsertUserSkill(props *model.UserSkillRequest, id int64) (resp model.Response)
 	GetSkills() (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
+	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -338,5 +339,25 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success edit profile"),
 		Data:   responseData,
+	}
+}
+
+func (u *ProfileUsecase) UpdateAboutMe(userId int64, aboutMe string) (resp model.Response) {
+	err := u.repository.UpdateAboutMe(userId, aboutMe)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.UpdateAboutMe: %v", err)
+		return
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success update user's about"),
+		Data: map[string]any{
+			"user_id": userId,
+			"about":   aboutMe,
+		},
 	}
 }

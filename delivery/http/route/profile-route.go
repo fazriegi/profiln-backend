@@ -23,4 +23,5 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile.POST("/users/about", controller.InsertUserAbout)
 	profile.GET("/skills", controller.GetSkills)
 	profile.PUT("/my-profile", middleware.MaxReqSizeAllowed(int64(twoMegaBytes)), controller.UpdateProfile)
+	profile.PUT("/about", controller.UpdateAboutMe)
 }

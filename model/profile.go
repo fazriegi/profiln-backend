@@ -68,7 +68,7 @@ type EducationRequest struct {
 }
 
 type UserDetailAboutRequest struct {
-	About string `validate:"required"`
+	About string `json:"about" validate:"required"`
 	// UserID sql.NullInt64
 }
 

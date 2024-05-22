@@ -26,6 +26,7 @@ type IProfileRepository interface {
 	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
 	GetSkills() ([]profileSqlc.Skill, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
+	UpdateAboutMe(userId int64, aboutMe string) error
 }
 
 type ProfileRepository struct {
@@ -274,6 +275,19 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit edit profile transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) UpdateAboutMe(userId int64, aboutMe string) error {
+	arg := profileSqlc.UpdateUserDetailAboutParams{
+		UserID: userId,
+		About:  aboutMe,
+	}
+
+	if err := r.query.UpdateUserDetailAbout(context.Background(), arg); err != nil {
+		return err
 	}
 
 	return nil

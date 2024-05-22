@@ -20,9 +20,8 @@ LIMIT 1;
 
 -- name: UpdateUserDetailAbout :exec
 UPDATE user_details
-SET about = $1
-WHERE user_id = $2
-RETURNING *;
+SET about = @about::text
+WHERE user_id = @user_id::bigint;
 
 -- name: InsertUserDetailAbout :one
 INSERT INTO user_details (

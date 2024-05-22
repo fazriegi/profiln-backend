@@ -46,9 +46,9 @@ type BatchInsertUserSkillsParams struct {
 	Names       []string
 }
 
-// start: get skills id
-// end: get skills id
-// start: insert user skills if not exist
+// start get skills id
+// end get skills id
+// start insert user skills if not exist
 func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUserSkillsParams) error {
 	_, err := q.db.ExecContext(ctx, batchInsertUserSkills, arg.UserID, arg.IsMainSkill, pq.Array(arg.Names))
 	return err
@@ -548,7 +548,7 @@ type UpdateUserRow struct {
 	AvatarUrl sql.NullString
 }
 
-// end: insert user skills if not exist
+// end insert user skills if not exist
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
 	row := q.db.QueryRowContext(ctx, updateUser, arg.FullName, arg.AvatarUrl, arg.ID)
 	var i UpdateUserRow
@@ -558,14 +558,13 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateU
 
 const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec
 UPDATE user_details
-SET about = $1
-WHERE user_id = $2
-RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
+SET about = $1::text
+WHERE user_id = $2::bigint
 `
 
 type UpdateUserDetailAboutParams struct {
-	About  sql.NullString
-	UserID sql.NullInt64
+	About  string
+	UserID int64
 }
 
 func (q *Queries) UpdateUserDetailAbout(ctx context.Context, arg UpdateUserDetailAboutParams) error {
