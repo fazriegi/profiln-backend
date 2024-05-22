@@ -8,7 +8,51 @@ package profile
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
+
+const batchInsertSkills = `-- name: BatchInsertSkills :exec
+INSERT INTO skills (name)
+SELECT unnest($1::text[])
+ON CONFLICT (name) DO NOTHING
+`
+
+func (q *Queries) BatchInsertSkills(ctx context.Context, names []string) error {
+	_, err := q.db.ExecContext(ctx, batchInsertSkills, pq.Array(names))
+	return err
+}
+
+const batchInsertUserSkills = `-- name: BatchInsertUserSkills :exec
+WITH exist_skills AS (
+    SELECT id, name
+    FROM skills
+    WHERE name = ANY($3::text[])
+)
+INSERT INTO user_skills (user_id, skill_id, main_skill)
+SELECT
+    $1::bigint,
+    es.id,
+    $2::boolean
+FROM exist_skills es
+WHERE es.name = ANY($3::text[])
+ON CONFLICT (user_id, skill_id) DO UPDATE
+SET main_skill = true
+`
+
+type BatchInsertUserSkillsParams struct {
+	UserID      int64
+	IsMainSkill bool
+	Names       []string
+}
+
+// start: get skills id
+// end: get skills id
+// start: insert user skills if not exist
+func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUserSkillsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserSkills, arg.UserID, arg.IsMainSkill, pq.Array(arg.Names))
+	return err
+}
 
 const getProfile = `-- name: GetProfile :many
 SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
@@ -58,6 +102,33 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, er
 			&i.Name_2,
 			&i.CountFollowing,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSkills = `-- name: GetSkills :many
+SELECT id, name FROM skills
+`
+
+func (q *Queries) GetSkills(ctx context.Context) ([]Skill, error) {
+	rows, err := q.db.QueryContext(ctx, getSkills)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Skill
+	for rows.Next() {
+		var i Skill
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -457,6 +528,34 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 	return i, err
 }
 
+const updateUser = `-- name: UpdateUser :one
+
+UPDATE users
+SET full_name = $1,
+    avatar_url = $2
+WHERE id = $3
+RETURNING full_name, avatar_url
+`
+
+type UpdateUserParams struct {
+	FullName  string
+	AvatarUrl sql.NullString
+	ID        int64
+}
+
+type UpdateUserRow struct {
+	FullName  string
+	AvatarUrl sql.NullString
+}
+
+// end: insert user skills if not exist
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
+	row := q.db.QueryRowContext(ctx, updateUser, arg.FullName, arg.AvatarUrl, arg.ID)
+	var i UpdateUserRow
+	err := row.Scan(&i.FullName, &i.AvatarUrl)
+	return i, err
+}
+
 const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec
 UPDATE user_details
 SET about = $1
@@ -471,5 +570,76 @@ type UpdateUserDetailAboutParams struct {
 
 func (q *Queries) UpdateUserDetailAbout(ctx context.Context, arg UpdateUserDetailAboutParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserDetailAbout, arg.About, arg.UserID)
+	return err
+}
+
+const updateUserDetailByUserId = `-- name: UpdateUserDetailByUserId :one
+UPDATE user_details
+SET hide_phone_number = $2,
+    phone_number = $3,
+    gender = $4
+WHERE user_id = $1
+RETURNING hide_phone_number, phone_number, gender
+`
+
+type UpdateUserDetailByUserIdParams struct {
+	UserID          sql.NullInt64
+	HidePhoneNumber sql.NullBool
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+}
+
+type UpdateUserDetailByUserIdRow struct {
+	HidePhoneNumber sql.NullBool
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+}
+
+func (q *Queries) UpdateUserDetailByUserId(ctx context.Context, arg UpdateUserDetailByUserIdParams) (UpdateUserDetailByUserIdRow, error) {
+	row := q.db.QueryRowContext(ctx, updateUserDetailByUserId,
+		arg.UserID,
+		arg.HidePhoneNumber,
+		arg.PhoneNumber,
+		arg.Gender,
+	)
+	var i UpdateUserDetailByUserIdRow
+	err := row.Scan(&i.HidePhoneNumber, &i.PhoneNumber, &i.Gender)
+	return i, err
+}
+
+const updateUserMainSkillToFalse = `-- name: UpdateUserMainSkillToFalse :exec
+UPDATE user_skills 
+SET main_skill = false 
+WHERE user_id = $1::bigint
+AND main_skill = true
+`
+
+func (q *Queries) UpdateUserMainSkillToFalse(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, updateUserMainSkillToFalse, userID)
+	return err
+}
+
+const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec
+WITH social_link AS (
+    SELECT id
+    FROM social_links
+    WHERE name = $2
+    LIMIT 1
+)
+INSERT INTO user_social_links (user_id, social_link_id, url)
+SELECT $1, sl.id, $3
+FROM social_link sl
+ON CONFLICT (user_id, social_link_id) DO UPDATE
+SET url = EXCLUDED.url
+`
+
+type UpsertUserSocialLinkParams struct {
+	UserID sql.NullInt64
+	Name   string
+	Url    sql.NullString
+}
+
+func (q *Queries) UpsertUserSocialLink(ctx context.Context, arg UpsertUserSocialLinkParams) error {
+	_, err := q.db.ExecContext(ctx, upsertUserSocialLink, arg.UserID, arg.Name, arg.Url)
 	return err
 }

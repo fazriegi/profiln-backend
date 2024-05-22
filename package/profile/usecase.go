@@ -2,6 +2,8 @@ package profile
 
 import (
 	"database/sql"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 
 	"profiln-be/libs"
@@ -22,6 +24,8 @@ type IProfileUsecase interface {
 	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
 	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
 	InsertUserSkill(props *model.UserSkillRequest, id int64) (resp model.Response)
+	GetSkills() (resp model.Response)
+	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -271,4 +275,68 @@ func (u *ProfileUsecase) InsertUserDetail(props *model.UserDetailRequest, id int
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
 	resp.Data = userDetail
 	return resp
+}
+
+func (u *ProfileUsecase) GetSkills() (resp model.Response) {
+	skills, err := u.repository.GetSkills()
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.GetSkills: %v", err)
+		return
+	}
+
+	data := make([]model.GetSkillsResponse, len(skills))
+	for i, v := range skills {
+		data[i] = model.GetSkillsResponse{
+			ID:   v.ID,
+			Name: v.Name,
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch skills"),
+		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response) {
+	newFilename := libs.GenerateNewFilename(imageFile.Filename)
+	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+
+	if err := libs.SaveFile(imageFile, fileDest); err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("libs.SaveFile: %v", err)
+		return
+	}
+
+	// avatarUrl, err := libs.UploadFileToBucket(imageFile)
+
+	err := u.repository.UpdateProfile(fileDest, props)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.UpdateProfile: %v", err)
+		return
+	}
+
+	if err := libs.RemoveFile(fileDest); err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("libs.RemoveFile: %v", err)
+		return
+	}
+
+	responseData := model.UpdateProfileResponse{
+		UserId:          props.UserId,
+		Fullname:        props.Fullname,
+		AvatarUrl:       fileDest,
+		HidePhoneNumber: props.HidePhoneNumber,
+		MainSkills:      props.MainSkills,
+		PhoneNumber:     props.PhoneNumber,
+		Gender:          props.Gender,
+		SocialLinks:     props.SocialLinks,
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success edit profile"),
+		Data:   responseData,
+	}
 }

@@ -3,15 +3,18 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"html/template"
 	"io"
 	"profiln-be/model"
+	"time"
 )
 
 func CustomResponse(code int, message string) model.Status {
 	statuses := map[int]string{
 		500: "internal server error",
 		422: "unprocessable content",
+		413: "request entity too large",
 		404: "not found",
 		401: "unauthorized",
 		400: "bad request",
@@ -60,4 +63,10 @@ func HTMLToString(filepath string, data any) (string, error) {
 	}
 
 	return buff.String(), nil
+}
+
+func GenerateNewFilename(filename string) string {
+	currentTime := time.Now().UnixNano()
+	newFilename := fmt.Sprintf("%d_%s", currentTime, filename)
+	return newFilename
 }

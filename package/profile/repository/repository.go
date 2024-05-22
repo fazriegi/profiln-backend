@@ -3,6 +3,8 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"profiln-be/model"
 	profileSqlc "profiln-be/package/profile/repository/sqlc"
 )
 
@@ -22,6 +24,8 @@ type IProfileRepository interface {
 	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
 	GetUserById(id int64) (profileSqlc.User, error)
 	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
+	GetSkills() ([]profileSqlc.Skill, error)
+	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 }
 
 type ProfileRepository struct {
@@ -194,4 +198,83 @@ func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
 	}
 
 	return user, nil
+}
+
+func (r *ProfileRepository) GetSkills() ([]profileSqlc.Skill, error) {
+	skills, err := r.query.GetSkills(context.Background())
+	if err != nil {
+		return []profileSqlc.Skill{}, err
+	}
+
+	return skills, nil
+}
+
+func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin edit profile transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// update users table
+	_, err = qtx.UpdateUser(ctx, profileSqlc.UpdateUserParams{
+		ID:        props.UserId,
+		FullName:  props.Fullname,
+		AvatarUrl: sql.NullString{String: avatar_url, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user: %w", err)
+	}
+
+	// update user details table
+	_, err = qtx.UpdateUserDetailByUserId(ctx, profileSqlc.UpdateUserDetailByUserIdParams{
+		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		HidePhoneNumber: sql.NullBool{Bool: props.HidePhoneNumber, Valid: true},
+		PhoneNumber:     sql.NullString{String: props.PhoneNumber, Valid: true},
+		Gender:          sql.NullString{String: props.Gender, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user detail: %w", err)
+	}
+
+	// insert to skills table (if not exist)
+	if err := qtx.BatchInsertSkills(ctx, props.MainSkills); err != nil {
+		return fmt.Errorf("could not batch insert skills: %w", err)
+	}
+
+	// change all main skills to false
+	if err := qtx.UpdateUserMainSkillToFalse(ctx, props.UserId); err != nil {
+		return fmt.Errorf("could not update user main skills to false: %w", err)
+	}
+
+	// insert user main skills
+	err = qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
+		UserID:      props.UserId,
+		Names:       props.MainSkills,
+		IsMainSkill: true,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	// update or insert user social links
+	for _, v := range props.SocialLinks {
+		err := qtx.UpsertUserSocialLink(ctx, profileSqlc.UpsertUserSocialLinkParams{
+			UserID: sql.NullInt64{Int64: props.UserId, Valid: true},
+			Name:   v.Name,
+			Url:    sql.NullString{String: v.URL, Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("could not upsert user social links: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit edit profile transaction: %w", err)
+	}
+
+	return nil
 }

@@ -1,6 +1,8 @@
 package model
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type CompanyRequest struct {
 	Name string `validate:"required"`
@@ -73,4 +75,35 @@ type UserDetailAboutRequest struct {
 type UserDetailRequest struct {
 	PhoneNumber string `validate:"required"`
 	Gender      string `validate:"required"`
+}
+
+type GetSkillsResponse struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type UpdateProfileRequest struct {
+	UserId          int64         `json:"user_id" form:"user_id"`
+	Fullname        string        `json:"fullname" form:"fullname" validate:"required"`
+	HidePhoneNumber bool          `json:"hide_phone_number" form:"hide_phone_number" validate:"required"`
+	MainSkills      []string      `json:"main_skills" form:"main_skills" validate:"required"`
+	PhoneNumber     string        `json:"phone_number" form:"phone_number" validate:"required"`
+	Gender          string        `json:"gender" form:"gender" validate:"required"`
+	SocialLinks     []SocialLinks `json:"social_links" form:"social_links" validate:"required"`
+}
+
+type UpdateProfileResponse struct {
+	UserId          int64         `json:"user_id"`
+	Fullname        string        `json:"fullname"`
+	AvatarUrl       string        `json:"avatar_url"`
+	HidePhoneNumber bool          `json:"hide_phone_number"`
+	MainSkills      []string      `json:"main_skills"`
+	PhoneNumber     string        `json:"phone_number"`
+	Gender          string        `json:"gender"`
+	SocialLinks     []SocialLinks `json:"social_links"`
+}
+
+type SocialLinks struct {
+	Name string `json:"name" form:"name" validate:"required"`
+	URL  string `json:"url" form:"url" validate:"required"`
 }

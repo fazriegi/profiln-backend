@@ -12,6 +12,8 @@ import (
 )
 
 func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
+	twoMegaBytes := 2 << 20
+
 	repository := repository.NewProfileRepository(db)
 	usecase := profile.NewProfileUsecase(repository, log)
 	controller := http.NewProfileController(usecase)
@@ -19,4 +21,6 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile := app.Group("profiles")
 	profile.Use(middleware.Authentication())
 	profile.POST("/users/about", controller.InsertUserAbout)
+	profile.GET("/skills", controller.GetSkills)
+	profile.PUT("/my-profile", middleware.MaxReqSizeAllowed(int64(twoMegaBytes)), controller.UpdateProfile)
 }

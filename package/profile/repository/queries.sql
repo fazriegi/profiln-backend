@@ -126,3 +126,65 @@ ON users.id = user_skills.user_id
 LEFT JOIN skills
 ON user_skills.skill_id = skills.id
 WHERE user_skills.main_skill = TRUE AND users.id = $1;
+
+-- name: BatchInsertSkills :exec
+INSERT INTO skills (name)
+SELECT unnest(@names::text[])
+ON CONFLICT (name) DO NOTHING;
+
+-- name: GetSkills :many
+SELECT * FROM skills;
+
+-- name: UpdateUserMainSkillToFalse :exec
+UPDATE user_skills 
+SET main_skill = false 
+WHERE user_id = @user_id::bigint
+AND main_skill = true;
+
+-- name: BatchInsertUserSkills :exec
+-- start get skills id 
+WITH exist_skills AS (
+    SELECT id, name
+    FROM skills
+    WHERE name = ANY(@names::text[])
+)
+-- end get skills id 
+-- start insert user skills if not exist
+INSERT INTO user_skills (user_id, skill_id, main_skill)
+SELECT
+    @user_id::bigint,
+    es.id,
+    @is_main_skill::boolean
+FROM exist_skills es
+WHERE es.name = ANY(@names::text[])
+ON CONFLICT (user_id, skill_id) DO UPDATE
+SET main_skill = true;
+-- end insert user skills if not exist
+
+-- name: UpdateUser :one
+UPDATE users
+SET full_name = $1,
+    avatar_url = $2
+WHERE id = $3
+RETURNING full_name, avatar_url;
+
+-- name: UpdateUserDetailByUserId :one
+UPDATE user_details
+SET hide_phone_number = $2,
+    phone_number = $3,
+    gender = $4
+WHERE user_id = $1
+RETURNING hide_phone_number, phone_number, gender;
+
+-- name: UpsertUserSocialLink :exec
+WITH social_link AS (
+    SELECT id
+    FROM social_links
+    WHERE name = $2
+    LIMIT 1
+)
+INSERT INTO user_social_links (user_id, social_link_id, url)
+SELECT $1, sl.id, $3
+FROM social_link sl
+ON CONFLICT (user_id, social_link_id) DO UPDATE
+SET url = EXCLUDED.url;
