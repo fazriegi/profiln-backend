@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"os"
 
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -311,9 +312,18 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		return
 	}
 
-	// avatarUrl, err := libs.UploadFileToBucket(imageFile)
+	bucketName := os.Getenv("BUCKET_NAME")
+	bucketObject := fmt.Sprintf("users/avatar/%s", newFilename)
+	err := libs.UploadFileToBucket(os.Stdout, bucketName, bucketObject, fileDest)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("libs.UploadFileToBucket: %v", err)
+		return
+	}
 
-	err := u.repository.UpdateProfile(fileDest, props)
+	avatarUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, bucketObject)
+
+	err = u.repository.UpdateProfile(avatarUrl, props)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.UpdateProfile: %v", err)
@@ -329,7 +339,7 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 	responseData := model.UpdateProfileResponse{
 		UserId:          props.UserId,
 		Fullname:        props.Fullname,
-		AvatarUrl:       fileDest,
+		AvatarUrl:       avatarUrl,
 		HidePhoneNumber: props.HidePhoneNumber,
 		MainSkills:      props.MainSkills,
 		PhoneNumber:     props.PhoneNumber,
