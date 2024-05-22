@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
@@ -61,4 +63,21 @@ func RemoveFileFromBucket(w io.Writer, bucket, object string) error {
 	}
 
 	return nil
+}
+
+// Get the filepath from object url
+func ExtractBucketObjectUrl(objectUrl string) (string, error) {
+	parsedURL, err := url.Parse(objectUrl)
+	if err != nil {
+		return "", fmt.Errorf("url.Parse: %w", err)
+	}
+
+	// Split the path and get the relevant part
+	parts := strings.SplitN(parsedURL.Path, "/", 3)
+
+	if len(parts) < 3 {
+		return "", fmt.Errorf("unexpected URL format")
+	}
+
+	return parts[2], nil
 }
