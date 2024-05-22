@@ -34,12 +34,14 @@ type IProfileUsecase interface {
 type ProfileUsecase struct {
 	repository repository.IProfileRepository
 	log        *logrus.Logger
+	fileSystem libs.IFileSystem
 }
 
-func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Logger) IProfileUsecase {
+func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Logger, fileSystem libs.IFileSystem) IProfileUsecase {
 	return &ProfileUsecase{
 		repository,
 		log,
+		fileSystem,
 	}
 }
 
@@ -303,10 +305,10 @@ func (u *ProfileUsecase) GetSkills() (resp model.Response) {
 }
 
 func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response) {
-	newFilename := libs.GenerateNewFilename(imageFile.Filename)
+	newFilename := u.fileSystem.GenerateNewFilename(imageFile.Filename)
 	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
 
-	if err := libs.SaveFile(imageFile, fileDest); err != nil {
+	if err := u.fileSystem.SaveFile(imageFile, fileDest); err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("libs.SaveFile: %v", err)
 		return
@@ -330,7 +332,7 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		return
 	}
 
-	if err := libs.RemoveFile(fileDest); err != nil {
+	if err := u.fileSystem.RemoveFile(fileDest); err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("libs.RemoveFile: %v", err)
 		return

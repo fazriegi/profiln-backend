@@ -3,11 +3,9 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
 	"html/template"
 	"io"
 	"profiln-be/model"
-	"time"
 )
 
 func CustomResponse(code int, message string) model.Status {
@@ -63,10 +61,4 @@ func HTMLToString(filepath string, data any) (string, error) {
 	}
 
 	return buff.String(), nil
-}
-
-func GenerateNewFilename(filename string) string {
-	currentTime := time.Now().UnixNano()
-	newFilename := fmt.Sprintf("%d_%s", currentTime, filename)
-	return newFilename
 }

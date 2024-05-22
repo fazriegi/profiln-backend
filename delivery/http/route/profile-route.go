@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"profiln-be/delivery/http"
 	"profiln-be/delivery/http/middleware"
+	"profiln-be/libs"
 	"profiln-be/package/profile"
 	repository "profiln-be/package/profile/repository"
 
@@ -14,8 +15,9 @@ import (
 func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	twoMegaBytes := 2 << 20
 
+	fileSystem := libs.NewFileSystem()
 	repository := repository.NewProfileRepository(db)
-	usecase := profile.NewProfileUsecase(repository, log)
+	usecase := profile.NewProfileUsecase(repository, log, fileSystem)
 	controller := http.NewProfileController(usecase)
 
 	profile := app.Group("profiles")
