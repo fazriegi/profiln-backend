@@ -107,3 +107,18 @@ type SocialLinks struct {
 	Name string `json:"name" form:"name" validate:"required"`
 	URL  string `json:"url" form:"url" validate:"required"`
 }
+
+type UpdateCertificate struct {
+	ID                  int64               `json:"id"`
+	Name                string              `json:"name" validate:"required"`
+	IssuingOrganization IssuingOrganization `json:"issuing_organization" validate:"required"`
+	IssueDate           string              `json:"issue_date" validate:"required"`
+	ExpirationDate      string              `json:"expiration_date"`
+	CredentialID        string              `json:"credential_id"`
+	Url                 string              `json:"url"`
+}
+
+type IssuingOrganization struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}

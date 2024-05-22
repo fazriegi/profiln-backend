@@ -8,6 +8,7 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -554,6 +555,45 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateU
 	var i UpdateUserRow
 	err := row.Scan(&i.FullName, &i.AvatarUrl)
 	return i, err
+}
+
+const updateUserCertificate = `-- name: UpdateUserCertificate :one
+UPDATE certificates 
+SET name = $1::text,
+    issuing_organization_id = $2::bigint,
+    issue_date = $3::date, 
+    expiration_date = $4::date, 
+    credential_id = $5::text, 
+    url = $6::text
+WHERE id = $7::bigint AND user_id = $8::bigint
+RETURNING id
+`
+
+type UpdateUserCertificateParams struct {
+	Name                  string
+	IssuingOrganizationID int64
+	IssueDate             time.Time
+	ExpirationDate        time.Time
+	CredentialID          string
+	Url                   string
+	ID                    int64
+	UserID                int64
+}
+
+func (q *Queries) UpdateUserCertificate(ctx context.Context, arg UpdateUserCertificateParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, updateUserCertificate,
+		arg.Name,
+		arg.IssuingOrganizationID,
+		arg.IssueDate,
+		arg.ExpirationDate,
+		arg.CredentialID,
+		arg.Url,
+		arg.ID,
+		arg.UserID,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec

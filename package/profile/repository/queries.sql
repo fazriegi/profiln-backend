@@ -187,3 +187,14 @@ SELECT $1, sl.id, $3
 FROM social_link sl
 ON CONFLICT (user_id, social_link_id) DO UPDATE
 SET url = EXCLUDED.url;
+
+-- name: UpdateUserCertificate :one
+UPDATE certificates 
+SET name = @name::text,
+    issuing_organization_id = @issuing_organization_id::bigint,
+    issue_date = @issue_date::date, 
+    expiration_date = @expiration_date::date, 
+    credential_id = @credential_id::text, 
+    url = @url::text
+WHERE id = @id::bigint AND user_id = @user_id::bigint
+RETURNING id; 

@@ -27,6 +27,7 @@ type IProfileUsecase interface {
 	GetSkills() (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
+	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -359,5 +360,22 @@ func (u *ProfileUsecase) UpdateAboutMe(userId int64, aboutMe string) (resp model
 			"user_id": userId,
 			"about":   aboutMe,
 		},
+	}
+}
+
+func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response) {
+	err := u.repository.UpdateUserCertificate(userId, props)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.UpdateAboutMe: %v", err)
+		return
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success update user's certificate"),
+		Data:   props,
 	}
 }

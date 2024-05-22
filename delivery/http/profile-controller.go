@@ -1,10 +1,12 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
 	"profiln-be/package/profile"
+	"strconv"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
@@ -15,6 +17,7 @@ type IProfileController interface {
 	GetSkills(ctx *gin.Context)
 	UpdateProfile(ctx *gin.Context)
 	UpdateAboutMe(ctx *gin.Context)
+	UpdateUserCertificate(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -139,5 +142,52 @@ func (c *ProfileController) UpdateAboutMe(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UpdateAboutMe(userId, reqBody.About)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) UpdateUserCertificate(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.UpdateCertificate
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	certificateId, err := strconv.ParseInt(ctx.Param("certificateId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+		fmt.Println(err)
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.ID = certificateId
+
+	response = c.usecase.UpdateUserCertificate(userId, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

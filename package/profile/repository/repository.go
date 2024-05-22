@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"profiln-be/model"
 	profileSqlc "profiln-be/package/profile/repository/sqlc"
+	"time"
 )
 
 type IProfileRepository interface {
@@ -27,6 +28,7 @@ type IProfileRepository interface {
 	GetSkills() ([]profileSqlc.Skill, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
+	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
 }
 
 type ProfileRepository struct {
@@ -288,6 +290,68 @@ func (r *ProfileRepository) UpdateAboutMe(userId int64, aboutMe string) error {
 
 	if err := r.query.UpdateUserDetailAbout(context.Background(), arg); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error {
+	var (
+		issueDate      time.Time
+		expirationDate time.Time
+		err            error
+	)
+
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	if props.IssuingOrganization.ID < 1 {
+		createdIssuingOrganization, err :=
+			qtx.InsertIssuingOrganization(ctx, props.IssuingOrganization.Name)
+
+		if err != nil {
+			return err
+		}
+
+		props.IssuingOrganization.ID = createdIssuingOrganization.ID
+	}
+
+	issueDate, err = time.Parse("2006-01-02", props.IssueDate)
+	if err != nil {
+		return fmt.Errorf("error parsing expiration date: %w", err)
+	}
+
+	if props.ExpirationDate != "" {
+		expirationDate, err = time.Parse("2006-01-02", props.ExpirationDate)
+		if err != nil {
+			return fmt.Errorf("error parsing expiration date: %w", err)
+		}
+	}
+
+	arg := profileSqlc.UpdateUserCertificateParams{
+		Name:                  props.Name,
+		IssuingOrganizationID: props.IssuingOrganization.ID,
+		IssueDate:             issueDate,
+		ExpirationDate:        expirationDate,
+		CredentialID:          props.CredentialID,
+		Url:                   props.Url,
+		ID:                    props.ID,
+		UserID:                userId,
+	}
+
+	_, err = qtx.UpdateUserCertificate(ctx, arg)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return nil
