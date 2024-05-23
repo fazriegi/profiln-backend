@@ -67,7 +67,39 @@ func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {
 }
 
 func (c *ProfileController) GetSkills(ctx *gin.Context) {
-	response := c.usecase.GetSkills()
+	var response model.Response
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetSkills(pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 

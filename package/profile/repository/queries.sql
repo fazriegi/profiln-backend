@@ -132,7 +132,10 @@ SELECT unnest(@names::text[])
 ON CONFLICT (name) DO NOTHING;
 
 -- name: GetSkills :many
-SELECT * FROM skills;
+SELECT *, COUNT(id) OVER () AS total_rows
+FROM skills
+OFFSET $1
+LIMIT $2;
 
 -- name: UpdateUserMainSkillToFalse :exec
 UPDATE user_skills 

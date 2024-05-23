@@ -25,7 +25,7 @@ type IProfileRepository interface {
 	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
 	GetUserById(id int64) (profileSqlc.User, error)
 	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
-	GetSkills() ([]profileSqlc.Skill, error)
+	GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
@@ -204,13 +204,23 @@ func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
 	return user, nil
 }
 
-func (r *ProfileRepository) GetSkills() ([]profileSqlc.Skill, error) {
-	skills, err := r.query.GetSkills(context.Background())
-	if err != nil {
-		return []profileSqlc.Skill{}, err
+func (r *ProfileRepository) GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error) {
+	arg := profileSqlc.GetSkillsParams{
+		Offset: offset,
+		Limit:  limit,
 	}
 
-	return skills, nil
+	skills, err := r.query.GetSkills(context.Background(), arg)
+	if err != nil {
+		return []profileSqlc.GetSkillsRow{}, 0, err
+	}
+
+	var count int64
+	if len(skills) > 0 {
+		count = skills[0].TotalRows
+	}
+
+	return skills, count, nil
 }
 
 func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error {
