@@ -122,3 +122,21 @@ type IssuingOrganization struct {
 	ID   int64  `json:"id" validate:"required"`
 	Name string `json:"name" validate:"required"`
 }
+
+type UpdateUserInformation struct {
+	UserId       int64    `json:"user_id"`
+	Skills       []string `json:"skills"`
+	Location     string   `json:"location" validate:"required"`
+	PortfolioUrl string   `json:"portfolio_url"`
+}
+
+type UserDetail struct {
+	ID              int64
+	UserId          int64
+	PhoneNumber     string
+	Gender          string
+	Location        string
+	PortfolioUrl    string
+	About           string
+	HidePhoneNumber bool
+}

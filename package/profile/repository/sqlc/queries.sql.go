@@ -38,7 +38,7 @@ SELECT
 FROM exist_skills es
 WHERE es.name = ANY($3::text[])
 ON CONFLICT (user_id, skill_id) DO UPDATE
-SET main_skill = true
+SET main_skill = $2::boolean
 `
 
 type BatchInsertUserSkillsParams struct {
@@ -216,6 +216,30 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 		&i.DeletedAt,
 		&i.FollowersCount,
 		&i.FollowingsCount,
+	)
+	return i, err
+}
+
+const getUserDetail = `-- name: GetUserDetail :one
+SELECT id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at FROM user_details
+WHERE user_id = $1::bigint
+LIMIT 1
+`
+
+func (q *Queries) GetUserDetail(ctx context.Context, userID int64) (UserDetail, error) {
+	row := q.db.QueryRowContext(ctx, getUserDetail, userID)
+	var i UserDetail
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+		&i.HidePhoneNumber,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -622,6 +646,61 @@ func (q *Queries) UpdateUserCertificate(ctx context.Context, arg UpdateUserCerti
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updateUserDetail = `-- name: UpdateUserDetail :one
+UPDATE user_details
+SET phone_number = $2,
+    gender = $3,
+    location = $4,
+    portfolio_url = $5,
+    about = $6,
+    hide_phone_number = $7
+WHERE user_id = $1
+RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_number
+`
+
+type UpdateUserDetailParams struct {
+	UserID          sql.NullInt64
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+	Location        sql.NullString
+	PortfolioUrl    sql.NullString
+	About           sql.NullString
+	HidePhoneNumber sql.NullBool
+}
+
+type UpdateUserDetailRow struct {
+	ID              int64
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+	Location        sql.NullString
+	PortfolioUrl    sql.NullString
+	About           sql.NullString
+	HidePhoneNumber sql.NullBool
+}
+
+func (q *Queries) UpdateUserDetail(ctx context.Context, arg UpdateUserDetailParams) (UpdateUserDetailRow, error) {
+	row := q.db.QueryRowContext(ctx, updateUserDetail,
+		arg.UserID,
+		arg.PhoneNumber,
+		arg.Gender,
+		arg.Location,
+		arg.PortfolioUrl,
+		arg.About,
+		arg.HidePhoneNumber,
+	)
+	var i UpdateUserDetailRow
+	err := row.Scan(
+		&i.ID,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+		&i.HidePhoneNumber,
+	)
+	return i, err
 }
 
 const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec

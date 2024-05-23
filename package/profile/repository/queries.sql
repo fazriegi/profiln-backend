@@ -160,7 +160,7 @@ SELECT
 FROM exist_skills es
 WHERE es.name = ANY(@names::text[])
 ON CONFLICT (user_id, skill_id) DO UPDATE
-SET main_skill = true;
+SET main_skill = @is_main_skill::boolean;
 -- end insert user skills if not exist
 
 -- name: UpdateUser :one
@@ -207,3 +207,19 @@ SELECT avatar_url
 FROM users
 WHERE users.id = $1
 LIMIT 1;
+
+-- name: GetUserDetail :one
+SELECT * FROM user_details
+WHERE user_id = @user_id::bigint
+LIMIT 1;
+
+-- name: UpdateUserDetail :one
+UPDATE user_details
+SET phone_number = $2,
+    gender = $3,
+    location = $4,
+    portfolio_url = $5,
+    about = $6,
+    hide_phone_number = $7
+WHERE user_id = $1
+RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_number;

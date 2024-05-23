@@ -30,6 +30,7 @@ type IProfileRepository interface {
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
 	GetUserAvatarById(id int64) (string, error)
+	UpdateUserInformation(props *model.UpdateUserInformation) error
 }
 
 type ProfileRepository struct {
@@ -375,4 +376,74 @@ func (r *ProfileRepository) GetUserAvatarById(id int64) (string, error) {
 	}
 
 	return avatarUrl.String, nil
+}
+
+func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInformation) error {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	currentUserDetail, err := qtx.GetUserDetail(ctx, props.UserId)
+	if err != nil {
+		return fmt.Errorf("could not get user detail: %w", err)
+	}
+
+	updateUserDetailArg := profileSqlc.UpdateUserDetailParams{
+		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		PhoneNumber:     sql.NullString{String: currentUserDetail.PhoneNumber.String, Valid: true},
+		Gender:          sql.NullString{String: currentUserDetail.Gender.String, Valid: true},
+		Location:        sql.NullString{String: props.Location, Valid: true},
+		PortfolioUrl:    sql.NullString{String: props.PortfolioUrl, Valid: true},
+		About:           sql.NullString{String: currentUserDetail.About.String, Valid: true},
+		HidePhoneNumber: sql.NullBool{Bool: currentUserDetail.HidePhoneNumber.Bool, Valid: true},
+	}
+	_, err = r.updateUserDetail(ctx, qtx, &updateUserDetailArg)
+	if err != nil {
+		return fmt.Errorf("could not update user detail: %w", err)
+	}
+
+	err = r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {
+	data, err := qtx.UpdateUserDetail(ctx, *props)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+// Batch insert to skills and user skills table (if not exist)
+func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *profileSqlc.Queries, userId int64, skills []string) error {
+	// Insert skills
+	if err := qtx.BatchInsertSkills(ctx, skills); err != nil {
+		return fmt.Errorf("could not batch insert skills: %w", err)
+	}
+
+	// Insert user skills
+	err := qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
+		UserID:      userId,
+		Names:       skills,
+		IsMainSkill: false,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	return nil
 }
