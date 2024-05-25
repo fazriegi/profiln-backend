@@ -47,11 +47,6 @@ type EducationSkill struct {
 	UserSkillID sql.NullInt64
 }
 
-type EmploymentType struct {
-	ID   int16
-	Name string
-}
-
 type Following struct {
 	ID           int64
 	UserID       sql.NullInt64
@@ -60,11 +55,6 @@ type Following struct {
 
 type IssuingOrganization struct {
 	ID   int64
-	Name string
-}
-
-type LocationType struct {
-	ID   int16
 	Name string
 }
 
@@ -160,9 +150,9 @@ type UserDetail struct {
 }
 
 type UserEmploymentTypeInterest struct {
-	ID               int64
-	UserID           sql.NullInt64
-	EmploymentTypeID sql.NullInt16
+	ID             int64
+	UserID         sql.NullInt64
+	EmploymentType sql.NullString
 }
 
 type UserJobInterest struct {
@@ -172,9 +162,9 @@ type UserJobInterest struct {
 }
 
 type UserLocationTypeInterest struct {
-	ID             int64
-	UserID         sql.NullInt64
-	LocationTypeID sql.NullInt16
+	ID           int64
+	UserID       sql.NullInt64
+	LocationType sql.NullString
 }
 
 type UserOtp struct {
@@ -198,19 +188,19 @@ type UserSocialLink struct {
 }
 
 type WorkExperience struct {
-	ID               int64
-	UserID           sql.NullInt64
-	JobTitle         sql.NullString
-	CompanyID        sql.NullInt64
-	EmploymentTypeID sql.NullInt16
-	Location         sql.NullString
-	LocationTypeID   sql.NullInt16
-	StartDate        sql.NullTime
-	FinishDate       sql.NullTime
-	Description      sql.NullString
-	CreatedAt        sql.NullTime
-	UpdatedAt        sql.NullTime
-	ImageUrl         sql.NullString
+	ID             int64
+	UserID         sql.NullInt64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	Location       sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	ImageUrl       sql.NullString
+	LocationType   sql.NullString
+	EmploymentType sql.NullString
 }
 
 type WorkExperienceSkill struct {

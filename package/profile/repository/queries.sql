@@ -33,7 +33,7 @@ RETURNING *;
 
 -- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
-  user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description
+  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
@@ -49,18 +49,6 @@ RETURNING *;
 
 -- name: InsertCompany :one
 INSERT INTO companies (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING *;
-
--- name: InsertEmploymentType :one
-INSERT INTO employment_types (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING *;
-
--- name: InsertLocationType :one
-INSERT INTO location_types (name)
 VALUES ($1)
 ON CONFLICT (name) DO NOTHING
 RETURNING *;
@@ -258,7 +246,7 @@ SET school_id = $2,
 WHERE id = $1
 RETURNING *;
 
--- name: GetUserEducation :one
+-- name: GetUserEducationById :one
 SELECT * FROM educations
 WHERE id = @id::bigint
 LIMIT 1;

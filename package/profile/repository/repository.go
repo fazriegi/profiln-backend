@@ -14,8 +14,6 @@ type IProfileRepository interface {
 	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error)
 	InsertCompany(name string) (profileSqlc.Company, error)
 	InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error)
-	InsertEmploymentType(name string) (profileSqlc.EmploymentType, error)
-	InsertLocationType(name string) (profileSqlc.LocationType, error)
 	InsertSchool(name string) (profileSqlc.School, error)
 	InsertCertificate(arg profileSqlc.InsertCertificateParams) (profileSqlc.Certificate, error)
 	InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error)
@@ -105,26 +103,6 @@ func (r *ProfileRepository) InsertEducation(arg profileSqlc.InsertEducationParam
 	}
 
 	return education, nil
-}
-
-func (r *ProfileRepository) InsertEmploymentType(name string) (profileSqlc.EmploymentType, error) {
-	employmentType, err := r.query.InsertEmploymentType(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.EmploymentType{}, err
-	}
-
-	return employmentType, nil
-}
-
-func (r *ProfileRepository) InsertLocationType(name string) (profileSqlc.LocationType, error) {
-	locationType, err := r.query.InsertLocationType(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.LocationType{}, err
-	}
-
-	return locationType, nil
 }
 
 func (r *ProfileRepository) InsertSchool(name string) (profileSqlc.School, error) {
@@ -514,7 +492,7 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 }
 
 func (r *ProfileRepository) GetUserEducation(id int64) (profileSqlc.Education, error) {
-	data, err := r.query.GetUserEducation(context.Background(), id)
+	data, err := r.query.GetUserEducationById(context.Background(), id)
 	if err != nil {
 		return profileSqlc.Education{}, err
 	}

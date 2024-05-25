@@ -72,32 +72,6 @@ func (u *ProfileUsecase) InsertIssuingOrganization(props *model.IssuingOrganizat
 	return resp
 }
 
-func (u *ProfileUsecase) InsertEmploymentType(props *model.EmploymentTypeRequest) (resp model.Response) {
-	employmentType, err := u.repository.InsertEmploymentType(props.Name)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertEmploymentType %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create employment type")
-	resp.Data = employmentType
-	return resp
-}
-
-func (u *ProfileUsecase) InsertLocationType(props *model.LocationTypeRequest) (resp model.Response) {
-	locationType, err := u.repository.InsertLocationType(props.Name)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertLocationType %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create location type")
-	resp.Data = locationType
-	return resp
-}
-
 func (u *ProfileUsecase) InsertSchool(props *model.SchoolRequest) (resp model.Response) {
 	school, err := u.repository.InsertSchool(props.Name)
 
@@ -175,15 +149,15 @@ func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id i
 
 func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
 	workExperienceParams := profileSqlc.InsertWorkExperienceParams{
-		UserID:           sql.NullInt64{Int64: id, Valid: true},
-		JobTitle:         sql.NullString{String: props.JobTitle, Valid: true},
-		CompanyID:        sql.NullInt64{Int64: props.CompanyID, Valid: true},
-		EmploymentTypeID: sql.NullInt16{Int16: props.EmploymentTypeID, Valid: true},
-		Location:         sql.NullString{String: props.Location, Valid: true},
-		LocationTypeID:   sql.NullInt16{Int16: props.LocationTypeID, Valid: true},
-		StartDate:        sql.NullTime{Time: props.StartDate.Time, Valid: true},
-		FinishDate:       sql.NullTime{Time: props.FinishDate.Time, Valid: true},
-		Description:      sql.NullString{String: props.Description, Valid: true},
+		UserID:         sql.NullInt64{Int64: id, Valid: true},
+		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
+		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
+		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
+		Location:       sql.NullString{String: props.Location, Valid: true},
+		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
+		StartDate:      sql.NullTime{Time: props.StartDate.Time, Valid: true},
+		FinishDate:     sql.NullTime{Time: props.FinishDate.Time, Valid: true},
+		Description:    sql.NullString{String: props.Description, Valid: true},
 	}
 
 	workExperience, err := u.repository.InsertWorkExperience(workExperienceParams)

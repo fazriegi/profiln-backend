@@ -359,14 +359,14 @@ func (q *Queries) GetUserDetail(ctx context.Context, userID int64) (UserDetail, 
 	return i, err
 }
 
-const getUserEducation = `-- name: GetUserEducation :one
+const getUserEducationById = `-- name: GetUserEducationById :one
 SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at FROM educations
 WHERE id = $1::bigint
 LIMIT 1
 `
 
-func (q *Queries) GetUserEducation(ctx context.Context, id int64) (Education, error) {
-	row := q.db.QueryRowContext(ctx, getUserEducation, id)
+func (q *Queries) GetUserEducationById(ctx context.Context, id int64) (Education, error) {
+	row := q.db.QueryRowContext(ctx, getUserEducationById, id)
 	var i Education
 	err := row.Scan(
 		&i.ID,
@@ -491,20 +491,6 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 	return i, err
 }
 
-const insertEmploymentType = `-- name: InsertEmploymentType :one
-INSERT INTO employment_types (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING id, name
-`
-
-func (q *Queries) InsertEmploymentType(ctx context.Context, name string) (EmploymentType, error) {
-	row := q.db.QueryRowContext(ctx, insertEmploymentType, name)
-	var i EmploymentType
-	err := row.Scan(&i.ID, &i.Name)
-	return i, err
-}
-
 const insertIssuingOrganization = `-- name: InsertIssuingOrganization :one
 INSERT INTO issuing_organizations (name)
 VALUES ($1)
@@ -515,20 +501,6 @@ RETURNING id, name
 func (q *Queries) InsertIssuingOrganization(ctx context.Context, name string) (IssuingOrganization, error) {
 	row := q.db.QueryRowContext(ctx, insertIssuingOrganization, name)
 	var i IssuingOrganization
-	err := row.Scan(&i.ID, &i.Name)
-	return i, err
-}
-
-const insertLocationType = `-- name: InsertLocationType :one
-INSERT INTO location_types (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING id, name
-`
-
-func (q *Queries) InsertLocationType(ctx context.Context, name string) (LocationType, error) {
-	row := q.db.QueryRowContext(ctx, insertLocationType, name)
-	var i LocationType
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
@@ -672,23 +644,23 @@ func (q *Queries) InsertUserSkill(ctx context.Context, arg InsertUserSkillParams
 
 const insertWorkExperience = `-- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
-  user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description
+  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, user_id, job_title, company_id, employment_type_id, location, location_type_id, start_date, finish_date, description, created_at, updated_at, image_url
+RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, image_url, location_type, employment_type
 `
 
 type InsertWorkExperienceParams struct {
-	UserID           sql.NullInt64
-	JobTitle         sql.NullString
-	CompanyID        sql.NullInt64
-	EmploymentTypeID sql.NullInt16
-	Location         sql.NullString
-	LocationTypeID   sql.NullInt16
-	StartDate        sql.NullTime
-	FinishDate       sql.NullTime
-	Description      sql.NullString
+	UserID         sql.NullInt64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	EmploymentType sql.NullString
+	Location       sql.NullString
+	LocationType   sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
 }
 
 func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperienceParams) (WorkExperience, error) {
@@ -696,9 +668,9 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		arg.UserID,
 		arg.JobTitle,
 		arg.CompanyID,
-		arg.EmploymentTypeID,
+		arg.EmploymentType,
 		arg.Location,
-		arg.LocationTypeID,
+		arg.LocationType,
 		arg.StartDate,
 		arg.FinishDate,
 		arg.Description,
@@ -709,15 +681,15 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		&i.UserID,
 		&i.JobTitle,
 		&i.CompanyID,
-		&i.EmploymentTypeID,
 		&i.Location,
-		&i.LocationTypeID,
 		&i.StartDate,
 		&i.FinishDate,
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ImageUrl,
+		&i.LocationType,
+		&i.EmploymentType,
 	)
 	return i, err
 }
