@@ -29,4 +29,5 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile.PUT("/about", controller.UpdateAboutMe)
 	profile.PUT("/certificates/:certificateId", controller.UpdateUserCertificate)
 	profile.PUT("/my-information", controller.UpdateUserInformation)
+	profile.PUT("/educations/:educationId", controller.UpdateUserEducation)
 }

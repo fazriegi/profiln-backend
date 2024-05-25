@@ -31,6 +31,8 @@ type IProfileRepository interface {
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
+	UpdateUserEducation(props *model.UpdateEducationRequest) error
+	GetUserEducation(id int64) (profileSqlc.Education, error)
 }
 
 type ProfileRepository struct {
@@ -266,10 +268,9 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	}
 
 	// insert user main skills
-	err = qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
-		UserID:      props.UserId,
-		Names:       props.MainSkills,
-		IsMainSkill: true,
+	_, err = qtx.BatchInsertUserMainSkills(ctx, profileSqlc.BatchInsertUserMainSkillsParams{
+		UserID: props.UserId,
+		Names:  props.MainSkills,
 	})
 	if err != nil {
 		return fmt.Errorf("could not batch insert user skills: %w", err)
@@ -407,7 +408,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 		return fmt.Errorf("could not update user detail: %w", err)
 	}
 
-	err = r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	_, err = r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
 	if err != nil {
 		return fmt.Errorf("could not batch insert user skills: %w", err)
 	}
@@ -417,6 +418,108 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 	}
 
 	return nil
+}
+
+func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequest) error {
+	var (
+		startDate  time.Time
+		finishDate time.Time
+		err        error
+	)
+
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// Delete current user education skills by education id
+	currentUserSkillIDs, err := qtx.DeleteEducationSkillsByEducation(ctx, props.ID)
+	if err != nil {
+		return fmt.Errorf("could not delete user education skills: %w", err)
+	}
+
+	// Convert the data type
+	userSkillIDsToDelete := make([]int64, len(currentUserSkillIDs))
+	for i, v := range currentUserSkillIDs {
+		userSkillIDsToDelete[i] = v.Int64
+	}
+
+	// Delete user skills by it's id
+	// err = qtx.BatchDeleteUserSkills(ctx, userSkillIDsToDelete)
+	// if err != nil {
+	// 	return fmt.Errorf("could not delete user skills: %w", err)
+	// }
+
+	// Batch insert new user skills
+	userSkillIDs, err := r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	err = qtx.BatchInsertEducationSkills(ctx, profileSqlc.BatchInsertEducationSkillsParams{
+		EducationID: props.ID,
+		UserSkillID: userSkillIDs,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user education skills: %w", err)
+	}
+
+	// If the school doesn't exist, insert the school first
+	if props.School.ID < 1 {
+		school, err := qtx.InsertSchool(ctx, props.School.Name)
+		if err != nil {
+			return fmt.Errorf("could not insert school: %w", err)
+		}
+
+		props.School.ID = school.ID
+	}
+
+	startDate, err = time.Parse("2006-01-02", props.StartDate)
+	if err != nil {
+		return fmt.Errorf("error parsing expiration date: %w", err)
+	}
+
+	if props.FinishDate != "" {
+		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
+		if err != nil {
+			return fmt.Errorf("error parsing expiration date: %w", err)
+		}
+	}
+
+	arg := profileSqlc.UpdateUserEducationParams{
+		ID:           props.ID,
+		SchoolID:     sql.NullInt64{Int64: props.School.ID, Valid: true},
+		Degree:       sql.NullString{String: props.Degree, Valid: true},
+		FieldOfStudy: sql.NullString{String: props.FieldOfStudy, Valid: true},
+		Gpa:          sql.NullString{String: props.GPA, Valid: true},
+		StartDate:    sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
+		FinishDate:   sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
+		Description:  sql.NullString{String: props.Description, Valid: true},
+		DocumentUrl:  sql.NullString{String: props.DocumentUrl, Valid: true},
+	}
+	_, err = qtx.UpdateUserEducation(ctx, arg)
+	if err != nil {
+		return fmt.Errorf("could not update user education: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) GetUserEducation(id int64) (profileSqlc.Education, error) {
+	data, err := r.query.GetUserEducation(context.Background(), id)
+	if err != nil {
+		return profileSqlc.Education{}, err
+	}
+
+	return data, nil
 }
 
 func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {
@@ -429,21 +532,21 @@ func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSq
 }
 
 // Batch insert to skills and user skills table (if not exist)
-func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *profileSqlc.Queries, userId int64, skills []string) error {
+func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *profileSqlc.Queries, userId int64, skills []string) ([]int64, error) {
 	// Insert skills
 	if err := qtx.BatchInsertSkills(ctx, skills); err != nil {
-		return fmt.Errorf("could not batch insert skills: %w", err)
+		return []int64{}, fmt.Errorf("could not batch insert skills: %w", err)
 	}
 
 	// Insert user skills
-	err := qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
+	userSkillIDs, err := qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
 		UserID:      userId,
 		Names:       skills,
 		IsMainSkill: false,
 	})
 	if err != nil {
-		return fmt.Errorf("could not batch insert user skills: %w", err)
+		return []int64{}, fmt.Errorf("could not batch insert user skills: %w", err)
 	}
 
-	return nil
+	return userSkillIDs, nil
 }

@@ -13,6 +13,22 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchInsertEducationSkills = `-- name: BatchInsertEducationSkills :exec
+INSERT INTO education_skills (education_id, user_skill_id)
+SELECT $1::bigint, unnest($2::bigint[])
+ON CONFLICT (education_id, user_skill_id) DO NOTHING
+`
+
+type BatchInsertEducationSkillsParams struct {
+	EducationID int64
+	UserSkillID []int64
+}
+
+func (q *Queries) BatchInsertEducationSkills(ctx context.Context, arg BatchInsertEducationSkillsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertEducationSkills, arg.EducationID, pq.Array(arg.UserSkillID))
+	return err
+}
+
 const batchInsertSkills = `-- name: BatchInsertSkills :exec
 INSERT INTO skills (name)
 SELECT unnest($1::text[])
@@ -24,7 +40,7 @@ func (q *Queries) BatchInsertSkills(ctx context.Context, names []string) error {
 	return err
 }
 
-const batchInsertUserSkills = `-- name: BatchInsertUserSkills :exec
+const batchInsertUserMainSkills = `-- name: BatchInsertUserMainSkills :many
 WITH exist_skills AS (
     SELECT id, name
     FROM skills
@@ -38,10 +54,11 @@ SELECT
 FROM exist_skills es
 WHERE es.name = ANY($3::text[])
 ON CONFLICT (user_id, skill_id) DO UPDATE
-SET main_skill = $2::boolean
+SET main_skill = true
+RETURNING id
 `
 
-type BatchInsertUserSkillsParams struct {
+type BatchInsertUserMainSkillsParams struct {
 	UserID      int64
 	IsMainSkill bool
 	Names       []string
@@ -50,9 +67,107 @@ type BatchInsertUserSkillsParams struct {
 // start get skills id
 // end get skills id
 // start insert user skills if not exist
-func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUserSkillsParams) error {
-	_, err := q.db.ExecContext(ctx, batchInsertUserSkills, arg.UserID, arg.IsMainSkill, pq.Array(arg.Names))
-	return err
+func (q *Queries) BatchInsertUserMainSkills(ctx context.Context, arg BatchInsertUserMainSkillsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, batchInsertUserMainSkills, arg.UserID, arg.IsMainSkill, pq.Array(arg.Names))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const batchInsertUserSkills = `-- name: BatchInsertUserSkills :many
+
+WITH exist_skills AS (
+    SELECT id, name
+    FROM skills
+    WHERE name = ANY($3::text[])
+)
+INSERT INTO user_skills (user_id, skill_id, main_skill)
+SELECT
+    $1::bigint,
+    es.id,
+    $2::boolean
+FROM exist_skills es
+WHERE es.name = ANY($3::text[])
+ON CONFLICT (user_id, skill_id) DO NOTHING
+RETURNING id
+`
+
+type BatchInsertUserSkillsParams struct {
+	UserID      int64
+	IsMainSkill bool
+	Names       []string
+}
+
+// end insert user skills if not exist
+// start get skills id
+// end get skills id
+// start insert user skills if not exist
+func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUserSkillsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, batchInsertUserSkills, arg.UserID, arg.IsMainSkill, pq.Array(arg.Names))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteEducationSkillsByEducation = `-- name: DeleteEducationSkillsByEducation :many
+DELETE FROM education_skills
+WHERE education_id = $1::bigint
+RETURNING user_skill_id
+`
+
+func (q *Queries) DeleteEducationSkillsByEducation(ctx context.Context, educationID int64) ([]sql.NullInt64, error) {
+	rows, err := q.db.QueryContext(ctx, deleteEducationSkillsByEducation, educationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullInt64
+	for rows.Next() {
+		var user_skill_id sql.NullInt64
+		if err := rows.Scan(&user_skill_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_skill_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getProfile = `-- name: GetProfile :many
@@ -238,6 +353,32 @@ func (q *Queries) GetUserDetail(ctx context.Context, userID int64) (UserDetail, 
 		&i.PortfolioUrl,
 		&i.About,
 		&i.HidePhoneNumber,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserEducation = `-- name: GetUserEducation :one
+SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at FROM educations
+WHERE id = $1::bigint
+LIMIT 1
+`
+
+func (q *Queries) GetUserEducation(ctx context.Context, id int64) (Education, error) {
+	row := q.db.QueryRowContext(ctx, getUserEducation, id)
+	var i Education
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SchoolID,
+		&i.Degree,
+		&i.FieldOfStudy,
+		&i.Gpa,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.DocumentUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -750,6 +891,62 @@ func (q *Queries) UpdateUserDetailByUserId(ctx context.Context, arg UpdateUserDe
 	)
 	var i UpdateUserDetailByUserIdRow
 	err := row.Scan(&i.HidePhoneNumber, &i.PhoneNumber, &i.Gender)
+	return i, err
+}
+
+const updateUserEducation = `-- name: UpdateUserEducation :one
+UPDATE educations
+SET school_id = $2,
+    degree = $3,
+    field_of_study = $4,
+    gpa = $5,
+    start_date = $6,
+    finish_date = $7,
+    description = $8,
+    document_url = $9
+WHERE id = $1
+RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at
+`
+
+type UpdateUserEducationParams struct {
+	ID           int64
+	SchoolID     sql.NullInt64
+	Degree       sql.NullString
+	FieldOfStudy sql.NullString
+	Gpa          sql.NullString
+	StartDate    sql.NullTime
+	FinishDate   sql.NullTime
+	Description  sql.NullString
+	DocumentUrl  sql.NullString
+}
+
+func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducationParams) (Education, error) {
+	row := q.db.QueryRowContext(ctx, updateUserEducation,
+		arg.ID,
+		arg.SchoolID,
+		arg.Degree,
+		arg.FieldOfStudy,
+		arg.Gpa,
+		arg.StartDate,
+		arg.FinishDate,
+		arg.Description,
+		arg.DocumentUrl,
+	)
+	var i Education
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SchoolID,
+		&i.Degree,
+		&i.FieldOfStudy,
+		&i.Gpa,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.DocumentUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 

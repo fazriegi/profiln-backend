@@ -143,7 +143,7 @@ SET main_skill = false
 WHERE user_id = @user_id::bigint
 AND main_skill = true;
 
--- name: BatchInsertUserSkills :exec
+-- name: BatchInsertUserMainSkills :many
 -- start get skills id 
 WITH exist_skills AS (
     SELECT id, name
@@ -160,7 +160,28 @@ SELECT
 FROM exist_skills es
 WHERE es.name = ANY(@names::text[])
 ON CONFLICT (user_id, skill_id) DO UPDATE
-SET main_skill = @is_main_skill::boolean;
+SET main_skill = true
+RETURNING id;
+-- end insert user skills if not exist
+
+-- name: BatchInsertUserSkills :many
+-- start get skills id 
+WITH exist_skills AS (
+    SELECT id, name
+    FROM skills
+    WHERE name = ANY(@names::text[])
+)
+-- end get skills id 
+-- start insert user skills if not exist
+INSERT INTO user_skills (user_id, skill_id, main_skill)
+SELECT
+    @user_id::bigint,
+    es.id,
+    @is_main_skill::boolean
+FROM exist_skills es
+WHERE es.name = ANY(@names::text[])
+ON CONFLICT (user_id, skill_id) DO NOTHING
+RETURNING id;
 -- end insert user skills if not exist
 
 -- name: UpdateUser :one
@@ -223,3 +244,31 @@ SET phone_number = $2,
     hide_phone_number = $7
 WHERE user_id = $1
 RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_number;
+
+-- name: UpdateUserEducation :one
+UPDATE educations
+SET school_id = $2,
+    degree = $3,
+    field_of_study = $4,
+    gpa = $5,
+    start_date = $6,
+    finish_date = $7,
+    description = $8,
+    document_url = $9
+WHERE id = $1
+RETURNING *;
+
+-- name: GetUserEducation :one
+SELECT * FROM educations
+WHERE id = @id::bigint
+LIMIT 1;
+
+-- name: BatchInsertEducationSkills :exec
+INSERT INTO education_skills (education_id, user_skill_id)
+SELECT @education_id::bigint, unnest(@user_skill_id::bigint[])
+ON CONFLICT (education_id, user_skill_id) DO NOTHING;
+
+-- name: DeleteEducationSkillsByEducation :many
+DELETE FROM education_skills
+WHERE education_id = @education_id::bigint
+RETURNING user_skill_id;

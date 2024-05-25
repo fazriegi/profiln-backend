@@ -420,3 +420,47 @@ func (u *ProfileUsecase) UpdateUserInformation(props *model.UpdateUserInformatio
 		Data:   props,
 	}
 }
+
+func (u *ProfileUsecase) UpdateUserEducation(imageFile *multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response) {
+	var (
+		err error
+	)
+
+	userEducation, err := u.repository.GetUserEducation(props.ID)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Data not found")
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.GetUserEducation: %v", err)
+		return
+	}
+
+	props.DocumentUrl = userEducation.DocumentUrl.String
+
+	if imageFile != nil {
+		objectPath := fmt.Sprintf("users/%d/educations/files", props.UserId)
+
+		props.DocumentUrl, err = u.googleBucket.HandleObjectUpload(imageFile, props.DocumentUrl, objectPath)
+		if err != nil {
+			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+			u.log.Errorf("HandleObjectUpload: %v", err)
+			return
+		}
+	}
+
+	err = u.repository.UpdateUserEducation(props)
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.UpdateUserEducation: %v", err)
+		return
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success update user's education"),
+		Data:   props,
+	}
+}

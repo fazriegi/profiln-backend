@@ -140,3 +140,27 @@ type UserDetail struct {
 	About           string
 	HidePhoneNumber bool
 }
+
+type UpdateEducationRequest struct {
+	ID           int64    `json:"id"`
+	UserId       int64    `json:"user_id"`
+	School       School   `json:"school" form:"school" validate:"required"`
+	Degree       string   `json:"degree" form:"degree" validate:"required"`
+	FieldOfStudy string   `json:"field_of_study" form:"field_of_study" validate:"required"`
+	StartDate    string   `json:"start_date" form:"start_date" validate:"required"`
+	FinishDate   string   `json:"finish_date" form:"finish_date"`
+	GPA          string   `json:"gpa" form:"gpa" validate:"required"`
+	Description  string   `json:"description"  form:"description" validate:"required"`
+	DocumentUrl  string   `json:"document_url"`
+	Skills       []string `json:"skills" form:"skills"`
+}
+
+type School struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name" validate:"required"`
+}
+
+type Skill struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name" validate:"required"`
+}
