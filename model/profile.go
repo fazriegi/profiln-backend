@@ -12,14 +12,6 @@ type IssuingOrganizationRequest struct {
 	Name string `validate:"required"`
 }
 
-type EmploymentTypeRequest struct {
-	Name string `validate:"required"`
-}
-
-type LocationTypeRequest struct {
-	Name string `validate:"required"`
-}
-
 type SchoolRequest struct {
 	Name string `validate:"required"`
 }
@@ -47,14 +39,14 @@ type CertificateRequest struct {
 
 type WorkExperienceRequest struct {
 	// UserID           int64        `validate:"required"`
-	JobTitle         string       `validate:"required"`
-	CompanyID        int64        `validate:"required"`
-	EmploymentTypeID int16        `validate:"required"`
-	Location         string       `validate:"required"`
-	LocationTypeID   int16        `validate:"required"`
-	StartDate        sql.NullTime `validate:"required"`
-	FinishDate       sql.NullTime `validate:"required"`
-	Description      string       `validate:"required"`
+	JobTitle       string       `validate:"required"`
+	CompanyID      int64        `validate:"required"`
+	EmploymentType string       `validate:"required"`
+	Location       string       `validate:"required"`
+	LocationType   string       `validate:"required"`
+	StartDate      sql.NullTime `validate:"required"`
+	FinishDate     sql.NullTime `validate:"required"`
+	Description    string       `validate:"required"`
 }
 
 type EducationRequest struct {
