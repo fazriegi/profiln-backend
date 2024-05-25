@@ -16,8 +16,9 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	twoMegaBytes := 2 << 20
 
 	fileSystem := libs.NewFileSystem()
+	googleBucket := libs.NewGoogleBucket(fileSystem, log)
 	repository := repository.NewProfileRepository(db)
-	usecase := profile.NewProfileUsecase(repository, log, fileSystem)
+	usecase := profile.NewProfileUsecase(repository, log, googleBucket)
 	controller := http.NewProfileController(usecase)
 
 	profile := app.Group("profiles")
