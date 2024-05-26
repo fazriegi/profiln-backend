@@ -360,7 +360,7 @@ func (q *Queries) GetUserDetail(ctx context.Context, userID int64) (UserDetail, 
 }
 
 const getUserEducationById = `-- name: GetUserEducationById :one
-SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at FROM educations
+SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at FROM educations
 WHERE id = $1::bigint
 LIMIT 1
 `
@@ -378,7 +378,6 @@ func (q *Queries) GetUserEducationById(ctx context.Context, id int64) (Education
 		&i.StartDate,
 		&i.FinishDate,
 		&i.Description,
-		&i.DocumentUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -450,7 +449,7 @@ INSERT INTO educations (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at
+RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 `
 
 type InsertEducationParams struct {
@@ -484,7 +483,6 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 		&i.StartDate,
 		&i.FinishDate,
 		&i.Description,
-		&i.DocumentUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -648,7 +646,7 @@ INSERT INTO work_experiences (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, image_url, location_type, employment_type
+RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, location_type, employment_type
 `
 
 type InsertWorkExperienceParams struct {
@@ -687,7 +685,6 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ImageUrl,
 		&i.LocationType,
 		&i.EmploymentType,
 	)
@@ -874,10 +871,9 @@ SET school_id = $2,
     gpa = $5,
     start_date = $6,
     finish_date = $7,
-    description = $8,
-    document_url = $9
+    description = $8
 WHERE id = $1
-RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, document_url, created_at, updated_at
+RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 `
 
 type UpdateUserEducationParams struct {
@@ -889,7 +885,6 @@ type UpdateUserEducationParams struct {
 	StartDate    sql.NullTime
 	FinishDate   sql.NullTime
 	Description  sql.NullString
-	DocumentUrl  sql.NullString
 }
 
 func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducationParams) (Education, error) {
@@ -902,7 +897,6 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 		arg.StartDate,
 		arg.FinishDate,
 		arg.Description,
-		arg.DocumentUrl,
 	)
 	var i Education
 	err := row.Scan(
@@ -915,7 +909,6 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 		&i.StartDate,
 		&i.FinishDate,
 		&i.Description,
-		&i.DocumentUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

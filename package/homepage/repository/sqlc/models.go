@@ -36,9 +36,14 @@ type Education struct {
 	StartDate    sql.NullTime
 	FinishDate   sql.NullTime
 	Description  sql.NullString
-	DocumentUrl  sql.NullString
 	CreatedAt    sql.NullTime
 	UpdatedAt    sql.NullTime
+}
+
+type EducationFile struct {
+	ID          int64
+	EducationID sql.NullInt64
+	Url         sql.NullString
 }
 
 type EducationSkill struct {
@@ -198,9 +203,14 @@ type WorkExperience struct {
 	Description    sql.NullString
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
-	ImageUrl       sql.NullString
 	LocationType   sql.NullString
 	EmploymentType sql.NullString
+}
+
+type WorkExperienceFile struct {
+	ID               int64
+	WorkExperienceID sql.NullInt64
+	Url              sql.NullString
 }
 
 type WorkExperienceSkill struct {

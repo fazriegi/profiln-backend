@@ -241,8 +241,7 @@ SET school_id = $2,
     gpa = $5,
     start_date = $6,
     finish_date = $7,
-    description = $8,
-    document_url = $9
+    description = $8
 WHERE id = $1
 RETURNING *;
 
