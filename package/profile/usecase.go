@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"sync"
 
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -29,7 +30,7 @@ type IProfileUsecase interface {
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
-	UpdateUserEducation(imageFile *multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
+	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -299,29 +300,58 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		err       error
 	)
 
-	avatarUrl, err = u.repository.GetUserAvatarById(props.UserId)
+	currentAvatarUrl, err := u.repository.GetUserAvatarById(props.UserId)
 	if err != nil && err != sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.GetUserAvatarById: %v", err)
 		return
 	}
 
+	avatarUrl = currentAvatarUrl
+
 	if imageFile != nil {
+		var wg sync.WaitGroup
 		objectPath := fmt.Sprintf("users/%d/avatar", props.UserId)
 
-		avatarUrl, err = u.googleBucket.HandleObjectUpload(imageFile, avatarUrl, objectPath)
-		if err != nil {
-			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-			u.log.Errorf("googleBucket.HandleObjectUpload: %v", err)
+		errChan := make(chan error, 1)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var err error
+
+			avatarUrl, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
+			if err != nil {
+				errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+			}
+		}()
+		wg.Wait()
+		close(errChan)
+
+		if err, ok := <-errChan; ok {
+			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred")
+			u.log.Errorf("goroutine error: %v", err)
 			return
 		}
 	}
 
 	err = u.repository.UpdateProfile(avatarUrl, props)
 	if err != nil {
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(currentAvatarUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+		}
+
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.UpdateProfile: %v", err)
 		return
+	}
+
+	if currentAvatarUrl != "" && imageFile != nil {
+		err := u.googleBucket.HandleObjectDeletion(currentAvatarUrl)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
 	}
 
 	responseData := model.UpdateProfileResponse{
@@ -395,42 +425,93 @@ func (u *ProfileUsecase) UpdateUserInformation(props *model.UpdateUserInformatio
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserEducation(imageFile *multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response) {
 	var (
 		err error
 	)
 
-	userEducation, err := u.repository.GetUserEducation(props.ID)
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Data not found")
-		return
-	} else if err != nil {
+	// Get all current education file urls
+	currentObjectUrls, err := u.repository.GetUserEducationFileURLs(props.ID)
+	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetUserEducation: %v", err)
+		u.log.Errorf("repository.GetUserEducationFileURLs: %v", err)
 		return
 	}
 
-	props.DocumentUrl = userEducation.DocumentUrl.String
+	props.FileURLs = currentObjectUrls
 
-	if imageFile != nil {
+	if files != nil {
+		var wg sync.WaitGroup
 		objectPath := fmt.Sprintf("users/%d/educations/files", props.UserId)
 
-		props.DocumentUrl, err = u.googleBucket.HandleObjectUpload(imageFile, props.DocumentUrl, objectPath)
-		if err != nil {
-			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-			u.log.Errorf("HandleObjectUpload: %v", err)
-			return
+		errChan := make(chan error, len(files))
+		urlChan := make(chan string, len(files))
+
+		// Loop through the files
+		for _, file := range files {
+			wg.Add(1)
+			file := file
+
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
+		wg.Wait()
+		close(errChan)
+		close(urlChan)
+
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+				u.log.Error(err)
+				return
+			}
+		}
+
+		// Empty the file urls
+		props.FileURLs = []string{}
+		// Loop through URL channel and append the URL to file URLs
+		for url := range urlChan {
+			props.FileURLs = append(props.FileURLs, url)
 		}
 	}
 
 	err = u.repository.UpdateUserEducation(props)
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
-		return
-	} else if err != nil {
+	if err != nil {
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+		}
+
+		if err == sql.ErrNoRows {
+			resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+			return
+		}
+
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.UpdateUserEducation: %v", err)
 		return
+	}
+
+	// If previous objects exists, delete it from gcloud storage asynchronously
+	if len(currentObjectUrls) > 1 && files != nil {
+		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
 	}
 
 	return model.Response{

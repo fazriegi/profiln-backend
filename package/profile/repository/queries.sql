@@ -259,3 +259,28 @@ ON CONFLICT (education_id, user_skill_id) DO NOTHING;
 DELETE FROM education_skills
 WHERE education_id = @education_id::bigint
 RETURNING user_skill_id;
+
+-- name: BatchInsertEducationFiles :many
+INSERT INTO education_files
+  (education_id, url)
+SELECT @education_id::bigint, UNNEST(@url::text[])
+RETURNING *;
+
+-- name: DeleteEducationFilesByEducationId :exec
+DELETE FROM education_files
+WHERE education_id = @education_id::bigint;
+
+-- name: BatchInsertWorkExperienceFiles :many
+INSERT INTO work_experience_files
+  (work_experience_id, url)
+SELECT @work_experience_id::bigint, @url::text[]
+RETURNING *;
+
+-- name: GetUserEducationFileURLs :many
+SELECT url FROM education_files
+WHERE education_id = @education_id::bigint;
+
+-- name: GetUserSkillIDsByName :many
+SELECT us.id FROM user_skills us
+JOIN skills s ON us.skill_id = s.id
+WHERE s.name = ANY(@name::text[]);

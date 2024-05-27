@@ -271,7 +271,20 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
-	imageFile, _ := ctx.FormFile("file")
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing form data")
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	files := form.File["files"]
+	if len(files) > 3 {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Too many files (max: 3)")
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
 	educationId, err := strconv.ParseInt(ctx.Param("educationId"), 10, 64)
 	if err != nil {
 		response.Status =
@@ -307,6 +320,6 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = educationId
 
-	response = c.usecase.UpdateUserEducation(imageFile, &reqBody)
+	response = c.usecase.UpdateUserEducation(files, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

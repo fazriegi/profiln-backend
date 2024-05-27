@@ -13,6 +13,41 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchInsertEducationFiles = `-- name: BatchInsertEducationFiles :many
+INSERT INTO education_files
+  (education_id, url)
+SELECT $1::bigint, UNNEST($2::text[])
+RETURNING id, education_id, url
+`
+
+type BatchInsertEducationFilesParams struct {
+	EducationID int64
+	Url         []string
+}
+
+func (q *Queries) BatchInsertEducationFiles(ctx context.Context, arg BatchInsertEducationFilesParams) ([]EducationFile, error) {
+	rows, err := q.db.QueryContext(ctx, batchInsertEducationFiles, arg.EducationID, pq.Array(arg.Url))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EducationFile
+	for rows.Next() {
+		var i EducationFile
+		if err := rows.Scan(&i.ID, &i.EducationID, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const batchInsertEducationSkills = `-- name: BatchInsertEducationSkills :exec
 INSERT INTO education_skills (education_id, user_skill_id)
 SELECT $1::bigint, unnest($2::bigint[])
@@ -139,6 +174,51 @@ func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUser
 		return nil, err
 	}
 	return items, nil
+}
+
+const batchInsertWorkExperienceFiles = `-- name: BatchInsertWorkExperienceFiles :many
+INSERT INTO work_experience_files
+  (work_experience_id, url)
+SELECT $1::bigint, $2::text[]
+RETURNING id, work_experience_id, url
+`
+
+type BatchInsertWorkExperienceFilesParams struct {
+	WorkExperienceID int64
+	Url              []string
+}
+
+func (q *Queries) BatchInsertWorkExperienceFiles(ctx context.Context, arg BatchInsertWorkExperienceFilesParams) ([]WorkExperienceFile, error) {
+	rows, err := q.db.QueryContext(ctx, batchInsertWorkExperienceFiles, arg.WorkExperienceID, pq.Array(arg.Url))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkExperienceFile
+	for rows.Next() {
+		var i WorkExperienceFile
+		if err := rows.Scan(&i.ID, &i.WorkExperienceID, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteEducationFilesByEducationId = `-- name: DeleteEducationFilesByEducationId :exec
+DELETE FROM education_files
+WHERE education_id = $1::bigint
+`
+
+func (q *Queries) DeleteEducationFilesByEducationId(ctx context.Context, educationID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteEducationFilesByEducationId, educationID)
+	return err
 }
 
 const deleteEducationSkillsByEducation = `-- name: DeleteEducationSkillsByEducation :many
@@ -382,6 +462,63 @@ func (q *Queries) GetUserEducationById(ctx context.Context, id int64) (Education
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getUserEducationFileURLs = `-- name: GetUserEducationFileURLs :many
+SELECT url FROM education_files
+WHERE education_id = $1::bigint
+`
+
+func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int64) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, getUserEducationFileURLs, educationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullString
+	for rows.Next() {
+		var url sql.NullString
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserSkillIDsByName = `-- name: GetUserSkillIDsByName :many
+SELECT us.id FROM user_skills us
+JOIN skills s ON us.skill_id = s.id
+WHERE s.name = ANY($1::text[])
+`
+
+func (q *Queries) GetUserSkillIDsByName(ctx context.Context, name []string) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSkillIDsByName, pq.Array(name))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertCertificate = `-- name: InsertCertificate :one

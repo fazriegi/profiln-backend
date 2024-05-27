@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	"github.com/sirupsen/logrus"
@@ -15,7 +16,9 @@ import (
 )
 
 type IGoogleBucket interface {
-	HandleObjectUpload(imageFile *multipart.FileHeader, currentObjectUrl, newObjectPath string) (string, error)
+	HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error)
+	HandleObjectDeletion(objectUrl ...string) error
+	// HandleBatchObjectDeletion(objectUrls ...string) error
 }
 
 type GoogleBucket struct {
@@ -32,13 +35,61 @@ func NewGoogleBucket(fs IFileSystem, log *logrus.Logger) IGoogleBucket {
 	}
 }
 
-func (g *GoogleBucket) HandleObjectUpload(imageFile *multipart.FileHeader, currentObjectUrl, newObjectPath string) (string, error) {
-	// Extract the previous object path from the current document URL
-	currentObjectPath, err := extractBucketObjectUrl(currentObjectUrl)
-	if err != nil {
-		return "", fmt.Errorf("extractBucketObjectUrl: %w", err)
+func (g *GoogleBucket) HandleObjectDeletion(objectUrls ...string) error {
+	if len(objectUrls) < 1 {
+		return nil
 	}
 
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(objectUrls))
+
+	for _, objectUrl := range objectUrls {
+		// Extract the previous object path from the current document URL
+		objectPath, err := extractBucketObjectUrl(objectUrl)
+		if err != nil {
+			return fmt.Errorf("extractBucketObjectUrl: %w", err)
+		}
+
+		wg.Add(1)
+		go func(objectPath string) {
+			defer wg.Done()
+			if err := removeBucketObject(g.bucketName, objectPath); err != nil {
+				errChan <- fmt.Errorf("removeBucketObject (%s): %v", objectPath, err)
+			}
+		}(objectPath)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// func (g *GoogleBucket) HandleObjectDeletion(objectUrl string) error {
+// 	if objectUrl == "" {
+// 		return nil
+// 	}
+
+// 	// Extract the previous object path from the current document URL
+// 	objectPath, err := extractBucketObjectUrl(objectUrl)
+// 	if err != nil {
+// 		return fmt.Errorf("extractBucketObjectUrl: %w", err)
+// 	}
+
+// 	if err := removeBucketObject(g.bucketName, objectPath); err != nil {
+// 		return fmt.Errorf("removeBucketObject (%s): %v", objectPath, err)
+// 	}
+
+// 	return nil
+// }
+
+func (g *GoogleBucket) HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error) {
 	// Generate a new filename and save the file locally
 	newFilename := g.fs.GenerateNewFilename(imageFile.Filename)
 	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
@@ -52,15 +103,6 @@ func (g *GoogleBucket) HandleObjectUpload(imageFile *multipart.FileHeader, curre
 	bucketObject := fmt.Sprintf("%s/%s", newObjectPath, newFilename)
 	if err := uploadBucketObject(g.bucketName, bucketObject, fileDest); err != nil {
 		return "", fmt.Errorf("uploadBucketObject: %w", err)
-	}
-
-	if currentObjectPath != "" {
-		// Delete the previous file from the bucket asynchronously
-		go func() {
-			if err := removeBucketObject(g.bucketName, currentObjectPath); err != nil {
-				g.log.Errorf("removeBucketObject (%s): %v", currentObjectPath, err)
-			}
-		}()
 	}
 
 	// If file exists, delete it from the local temporary storage asynchronously

@@ -143,7 +143,7 @@ type UpdateEducationRequest struct {
 	FinishDate   string   `json:"finish_date" form:"finish_date"`
 	GPA          string   `json:"gpa" form:"gpa" validate:"required"`
 	Description  string   `json:"description"  form:"description" validate:"required"`
-	DocumentUrl  string   `json:"document_url"`
+	FileURLs     []string `json:"file_urls"`
 	Skills       []string `json:"skills" form:"skills"`
 }
 

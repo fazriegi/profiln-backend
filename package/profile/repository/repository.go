@@ -31,6 +31,7 @@ type IProfileRepository interface {
 	UpdateUserInformation(props *model.UpdateUserInformation) error
 	UpdateUserEducation(props *model.UpdateEducationRequest) error
 	GetUserEducation(id int64) (profileSqlc.Education, error)
+	GetUserEducationFileURLs(educationId int64) ([]string, error)
 }
 
 type ProfileRepository struct {
@@ -415,21 +416,21 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 	qtx := r.query.WithTx(tx)
 
 	// Delete current user education skills by education id
-	currentUserSkillIDs, err := qtx.DeleteEducationSkillsByEducation(ctx, props.ID)
+	err = qtx.DeleteEducationFilesByEducationId(ctx, props.ID)
+	if err != nil {
+		return fmt.Errorf("could not delete user education files: %w", err)
+	}
+
+	// Delete current user education skills by education id
+	_, err = qtx.DeleteEducationSkillsByEducation(ctx, props.ID)
 	if err != nil {
 		return fmt.Errorf("could not delete user education skills: %w", err)
 	}
 
 	// Convert the data type
-	userSkillIDsToDelete := make([]int64, len(currentUserSkillIDs))
-	for i, v := range currentUserSkillIDs {
-		userSkillIDsToDelete[i] = v.Int64
-	}
-
-	// Delete user skills by it's id
-	// err = qtx.BatchDeleteUserSkills(ctx, userSkillIDsToDelete)
-	// if err != nil {
-	// 	return fmt.Errorf("could not delete user skills: %w", err)
+	// userSkillIDsToDelete := make([]int64, len(currentUserSkillIDs))
+	// for i, v := range currentUserSkillIDs {
+	// 	userSkillIDsToDelete[i] = v.Int64
 	// }
 
 	// Batch insert new user skills
@@ -477,11 +478,14 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 		StartDate:    sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
 		FinishDate:   sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
 		Description:  sql.NullString{String: props.Description, Valid: true},
-		DocumentUrl:  sql.NullString{String: props.DocumentUrl, Valid: true},
 	}
 	_, err = qtx.UpdateUserEducation(ctx, arg)
 	if err != nil {
 		return fmt.Errorf("could not update user education: %w", err)
+	}
+
+	if _, err = r.batchInsertEducationFiles(ctx, qtx, props.ID, props.FileURLs); err != nil {
+		return fmt.Errorf("could not batch insert education files: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -500,6 +504,20 @@ func (r *ProfileRepository) GetUserEducation(id int64) (profileSqlc.Education, e
 	return data, nil
 }
 
+func (r *ProfileRepository) GetUserEducationFileURLs(educationId int64) ([]string, error) {
+	data, err := r.query.GetUserEducationFileURLs(context.Background(), educationId)
+	if err != nil {
+		return nil, err
+	}
+
+	urls := make([]string, len(data))
+	for i, v := range data {
+		urls[i] = v.String
+	}
+
+	return urls, nil
+}
+
 func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {
 	data, err := qtx.UpdateUserDetail(ctx, *props)
 	if err != nil {
@@ -511,20 +529,45 @@ func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSq
 
 // Batch insert to skills and user skills table (if not exist)
 func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *profileSqlc.Queries, userId int64, skills []string) ([]int64, error) {
+	var (
+		userSkillIDs []int64
+		err          error
+	)
 	// Insert skills
 	if err := qtx.BatchInsertSkills(ctx, skills); err != nil {
-		return []int64{}, fmt.Errorf("could not batch insert skills: %w", err)
+		return nil, fmt.Errorf("could not batch insert skills: %w", err)
 	}
 
 	// Insert user skills
-	userSkillIDs, err := qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
+	userSkillIDs, err = qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
 		UserID:      userId,
 		Names:       skills,
 		IsMainSkill: false,
 	})
 	if err != nil {
-		return []int64{}, fmt.Errorf("could not batch insert user skills: %w", err)
+		return nil, fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	// If no new user skills were inserted, get the existing user skills
+	if len(userSkillIDs) < 1 {
+		userSkillIDs, err = qtx.GetUserSkillIDsByName(ctx, skills)
+		if err != nil {
+			return nil, fmt.Errorf("could not get user skills: %w", err)
+		}
 	}
 
 	return userSkillIDs, nil
+}
+
+func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *profileSqlc.Queries, educationId int64, url []string) ([]profileSqlc.EducationFile, error) {
+	arg := profileSqlc.BatchInsertEducationFilesParams{
+		EducationID: educationId,
+		Url:         url,
+	}
+	educationFiles, err := qtx.BatchInsertEducationFiles(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+
+	return educationFiles, nil
 }
