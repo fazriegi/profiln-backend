@@ -557,13 +557,13 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	// Delete current user work experience skills by work experience id
 	err = qtx.DeleteWorkExperienceFilesByWorkExperienceId(ctx, props.ID)
 	if err != nil {
-		return fmt.Errorf("could not delete user (%d) work experience files: %w", props.UserId, err)
+		return fmt.Errorf("could not delete user work experience files: %w", err)
 	}
 
 	// Delete current user work experience skills by work experience id
 	_, err = qtx.DeleteWorkExperienceSkillsByWorkExperience(ctx, props.ID)
 	if err != nil {
-		return fmt.Errorf("could not delete user (%d) work experience skills: %w", props.UserId, err)
+		return fmt.Errorf("could not delete user work experience skills: %w", err)
 	}
 
 	// Batch insert new user skills
@@ -577,7 +577,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 		UserSkillID:      userSkillIDs,
 	})
 	if err != nil {
-		return fmt.Errorf("could not batch insert user (%d) work experience skills: %w", props.UserId, err)
+		return fmt.Errorf("could not batch insert user work experience skills: %w", err)
 	}
 
 	// If the company doesn't exist, insert the company first
@@ -615,7 +615,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	}
 	_, err = qtx.UpdateUserWorkExperience(ctx, updateUserWorkExperienceArg)
 	if err != nil {
-		return fmt.Errorf("could not update user (%d) work experience: %w", props.UserId, err)
+		return fmt.Errorf("could not update user work experience: %w", err)
 	}
 
 	_, err = qtx.BatchInsertWorkExperienceFiles(ctx, profileSqlc.BatchInsertWorkExperienceFilesParams{
@@ -623,7 +623,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 		Url:              props.FileURLs,
 	})
 	if err != nil {
-		return fmt.Errorf("could not batch insert user (%d) work experience files: %w", props.UserId, err)
+		return fmt.Errorf("could not batch insert user work experience files: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

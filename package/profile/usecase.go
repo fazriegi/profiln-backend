@@ -442,7 +442,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	currentObjectUrls, err := u.repository.GetUserEducationFileURLs(props.ID)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetUserEducationFileURLs: %v", err)
+		u.log.Errorf("repository.GetUserEducationFileURLs (user id: %d): %v", props.UserId, err)
 		return
 	}
 
@@ -466,7 +466,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
 
 				if err != nil {
-					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
 					return
 				}
 
@@ -501,7 +501,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 		// Delete uploaded objects
 		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
 		if errObjectDelete != nil {
-			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
 		}
 
 		if err == sql.ErrNoRows {
@@ -510,7 +510,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 		}
 
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.UpdateUserEducation: %v", err)
+		u.log.Errorf("repository.UpdateUserEducation (user id: %d): %v", props.UserId, err)
 		return
 	}
 
@@ -518,7 +518,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	if len(currentObjectUrls) > 1 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
-			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+			u.log.Errorf("googleBucket.HandleObjectDeletionc (user id: %d): %v", props.UserId, err)
 		}
 	}
 
@@ -544,7 +544,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	currentObjectUrls, err := u.repository.GetWorkExperienceFileURLs(props.ID)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetWorkExperienceFileURLs: %v", err)
+		u.log.Errorf("repository.GetWorkExperienceFileURLs (user id: %d): %v", props.UserId, err)
 		return
 	}
 
@@ -568,7 +568,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
 
 				if err != nil {
-					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
 					return
 				}
 
@@ -603,7 +603,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 		// Delete uploaded objects
 		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
 		if errObjectDelete != nil {
-			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
 		}
 
 		if err == sql.ErrNoRows {
@@ -612,7 +612,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 		}
 
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.UpdateUserWorkExperience: %v", err)
+		u.log.Errorf("repository.UpdateUserWorkExperience (user id: %d): %v", props.UserId, err)
 		return
 	}
 
@@ -620,7 +620,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	if len(currentObjectUrls) > 1 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
-			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, err)
 		}
 	}
 
