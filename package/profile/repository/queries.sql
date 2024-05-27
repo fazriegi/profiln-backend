@@ -270,15 +270,51 @@ RETURNING *;
 DELETE FROM education_files
 WHERE education_id = @education_id::bigint;
 
+-- name: UpdateUserWorkExperience :one
+UPDATE work_experiences
+SET job_title = $2,
+    company_id = $3,
+    employment_type = $4,
+    location = $5,
+    location_type = $6,
+    start_date = $7,
+    finish_date = $8,
+    description = $9
+WHERE id = $1
+RETURNING *;
+
+-- name: GetWorkExperienceById :one
+SELECT * FROM work_experiences
+WHERE id = @id::bigint
+LIMIT 1;
+
+-- name: BatchInsertWorkExperienceSkills :exec
+INSERT INTO work_experience_skills (work_experience_id, user_skill_id)
+SELECT @work_experience_id::bigint, unnest(@user_skill_id::bigint[])
+ON CONFLICT (work_experience_id, user_skill_id) DO NOTHING;
+
+-- name: DeleteWorkExperienceSkillsByWorkExperience :many
+DELETE FROM work_experience_skills
+WHERE work_experience_id = @work_experience_id::bigint
+RETURNING user_skill_id;
+
 -- name: BatchInsertWorkExperienceFiles :many
 INSERT INTO work_experience_files
   (work_experience_id, url)
-SELECT @work_experience_id::bigint, @url::text[]
+SELECT @work_experience_id::bigint, UNNEST(@url::text[])
 RETURNING *;
+
+-- name: DeleteWorkExperienceFilesByWorkExperienceId :exec
+DELETE FROM work_experience_files
+WHERE work_experience_id = @work_experience_id::bigint;
 
 -- name: GetUserEducationFileURLs :many
 SELECT url FROM education_files
 WHERE education_id = @education_id::bigint;
+
+-- name: GetWorkExperienceFileURLs :many
+SELECT url FROM work_experience_files
+WHERE work_experience_id = @work_experience_id::bigint;
 
 -- name: GetUserSkillIDsByName :many
 SELECT us.id FROM user_skills us

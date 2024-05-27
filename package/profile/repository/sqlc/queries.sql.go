@@ -179,7 +179,7 @@ func (q *Queries) BatchInsertUserSkills(ctx context.Context, arg BatchInsertUser
 const batchInsertWorkExperienceFiles = `-- name: BatchInsertWorkExperienceFiles :many
 INSERT INTO work_experience_files
   (work_experience_id, url)
-SELECT $1::bigint, $2::text[]
+SELECT $1::bigint, UNNEST($2::text[])
 RETURNING id, work_experience_id, url
 `
 
@@ -211,6 +211,22 @@ func (q *Queries) BatchInsertWorkExperienceFiles(ctx context.Context, arg BatchI
 	return items, nil
 }
 
+const batchInsertWorkExperienceSkills = `-- name: BatchInsertWorkExperienceSkills :exec
+INSERT INTO work_experience_skills (work_experience_id, user_skill_id)
+SELECT $1::bigint, unnest($2::bigint[])
+ON CONFLICT (work_experience_id, user_skill_id) DO NOTHING
+`
+
+type BatchInsertWorkExperienceSkillsParams struct {
+	WorkExperienceID int64
+	UserSkillID      []int64
+}
+
+func (q *Queries) BatchInsertWorkExperienceSkills(ctx context.Context, arg BatchInsertWorkExperienceSkillsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertWorkExperienceSkills, arg.WorkExperienceID, pq.Array(arg.UserSkillID))
+	return err
+}
+
 const deleteEducationFilesByEducationId = `-- name: DeleteEducationFilesByEducationId :exec
 DELETE FROM education_files
 WHERE education_id = $1::bigint
@@ -229,6 +245,45 @@ RETURNING user_skill_id
 
 func (q *Queries) DeleteEducationSkillsByEducation(ctx context.Context, educationID int64) ([]sql.NullInt64, error) {
 	rows, err := q.db.QueryContext(ctx, deleteEducationSkillsByEducation, educationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullInt64
+	for rows.Next() {
+		var user_skill_id sql.NullInt64
+		if err := rows.Scan(&user_skill_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_skill_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteWorkExperienceFilesByWorkExperienceId = `-- name: DeleteWorkExperienceFilesByWorkExperienceId :exec
+DELETE FROM work_experience_files
+WHERE work_experience_id = $1::bigint
+`
+
+func (q *Queries) DeleteWorkExperienceFilesByWorkExperienceId(ctx context.Context, workExperienceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteWorkExperienceFilesByWorkExperienceId, workExperienceID)
+	return err
+}
+
+const deleteWorkExperienceSkillsByWorkExperience = `-- name: DeleteWorkExperienceSkillsByWorkExperience :many
+DELETE FROM work_experience_skills
+WHERE work_experience_id = $1::bigint
+RETURNING user_skill_id
+`
+
+func (q *Queries) DeleteWorkExperienceSkillsByWorkExperience(ctx context.Context, workExperienceID int64) ([]sql.NullInt64, error) {
+	rows, err := q.db.QueryContext(ctx, deleteWorkExperienceSkillsByWorkExperience, workExperienceID)
 	if err != nil {
 		return nil, err
 	}
@@ -511,6 +566,60 @@ func (q *Queries) GetUserSkillIDsByName(ctx context.Context, name []string) ([]i
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getWorkExperienceById = `-- name: GetWorkExperienceById :one
+SELECT id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, location_type, employment_type FROM work_experiences
+WHERE id = $1::bigint
+LIMIT 1
+`
+
+func (q *Queries) GetWorkExperienceById(ctx context.Context, id int64) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, getWorkExperienceById, id)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.JobTitle,
+		&i.CompanyID,
+		&i.Location,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LocationType,
+		&i.EmploymentType,
+	)
+	return i, err
+}
+
+const getWorkExperienceFileURLs = `-- name: GetWorkExperienceFileURLs :many
+SELECT url FROM work_experience_files
+WHERE work_experience_id = $1::bigint
+`
+
+func (q *Queries) GetWorkExperienceFileURLs(ctx context.Context, workExperienceID int64) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkExperienceFileURLs, workExperienceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullString
+	for rows.Next() {
+		var url sql.NullString
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1062,6 +1171,62 @@ AND main_skill = true
 func (q *Queries) UpdateUserMainSkillToFalse(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, updateUserMainSkillToFalse, userID)
 	return err
+}
+
+const updateUserWorkExperience = `-- name: UpdateUserWorkExperience :one
+UPDATE work_experiences
+SET job_title = $2,
+    company_id = $3,
+    employment_type = $4,
+    location = $5,
+    location_type = $6,
+    start_date = $7,
+    finish_date = $8,
+    description = $9
+WHERE id = $1
+RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, location_type, employment_type
+`
+
+type UpdateUserWorkExperienceParams struct {
+	ID             int64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	EmploymentType sql.NullString
+	Location       sql.NullString
+	LocationType   sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
+}
+
+func (q *Queries) UpdateUserWorkExperience(ctx context.Context, arg UpdateUserWorkExperienceParams) (WorkExperience, error) {
+	row := q.db.QueryRowContext(ctx, updateUserWorkExperience,
+		arg.ID,
+		arg.JobTitle,
+		arg.CompanyID,
+		arg.EmploymentType,
+		arg.Location,
+		arg.LocationType,
+		arg.StartDate,
+		arg.FinishDate,
+		arg.Description,
+	)
+	var i WorkExperience
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.JobTitle,
+		&i.CompanyID,
+		&i.Location,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LocationType,
+		&i.EmploymentType,
+	)
+	return i, err
 }
 
 const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec

@@ -156,3 +156,23 @@ type Skill struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name" validate:"required"`
 }
+
+type UpdateWorkExperience struct {
+	ID             int64    `json:"id"`
+	UserId         int64    `json:"user_id"`
+	JobTitle       string   `json:"job_title" form:"job_title" validate:"required"`
+	Company        Company  `json:"company" form:"company" validate:"required"`
+	EmploymentType string   `json:"employment_type" form:"employment_type" validate:"required"`
+	Location       string   `json:"location" form:"location" validate:"required"`
+	LocationType   string   `json:"location_type" form:"location_type" validate:"required"`
+	StartDate      string   `json:"start_date" form:"start_date" validate:"required"`
+	FinishDate     string   `json:"finish_date" form:"finish_date"`
+	Description    string   `json:"description"  form:"description" validate:"required"`
+	FileURLs       []string `json:"file_urls"`
+	Skills         []string `json:"skills" form:"skills"`
+}
+
+type Company struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name" validate:"required"`
+}

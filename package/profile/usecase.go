@@ -31,6 +31,7 @@ type IProfileUsecase interface {
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
+	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -506,7 +507,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 		return
 	}
 
-	// If previous objects exists, delete it from gcloud storage asynchronously
+	// If previous objects exists, delete it from gcloud storage
 	if len(currentObjectUrls) > 1 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
@@ -516,6 +517,101 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success update user's education"),
+		Data:   props,
+	}
+}
+
+func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response) {
+	var (
+		err error
+	)
+
+	// Get all current work experience file urls
+	currentObjectUrls, err := u.repository.GetWorkExperienceFileURLs(props.ID)
+	if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.GetWorkExperienceFileURLs: %v", err)
+		return
+	}
+
+	props.FileURLs = currentObjectUrls
+
+	if files != nil {
+		var wg sync.WaitGroup
+		objectPath := fmt.Sprintf("users/%d/work-experiences/files", props.UserId)
+
+		errChan := make(chan error, len(files))
+		urlChan := make(chan string, len(files))
+
+		// Loop through the files
+		for _, file := range files {
+			wg.Add(1)
+			file := file
+
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
+		wg.Wait()
+		close(errChan)
+		close(urlChan)
+
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+				u.log.Error(err)
+				return
+			}
+		}
+
+		// Empty the file urls
+		props.FileURLs = []string{}
+		// Loop through URL channel and append the URL to file URLs
+		for url := range urlChan {
+			props.FileURLs = append(props.FileURLs, url)
+		}
+	}
+
+	err = u.repository.UpdateUserWorkExperience(props)
+	if err != nil {
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+		}
+
+		if err == sql.ErrNoRows {
+			resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+			return
+		}
+
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+		u.log.Errorf("repository.UpdateUserWorkExperience: %v", err)
+		return
+	}
+
+	// If previous objects exists, delete it from gcloud storage
+	if len(currentObjectUrls) > 1 && files != nil {
+		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success update user's work experience"),
 		Data:   props,
 	}
 }

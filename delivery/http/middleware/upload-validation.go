@@ -18,7 +18,7 @@ func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []
 		form, err := ctx.MultipartForm()
 		if err != nil {
 			response := model.Response{
-				Status: libs.CustomResponse(http.StatusRequestEntityTooLarge, "Error parsing form data"),
+				Status: libs.CustomResponse(http.StatusBadRequest, "Error parsing form data"),
 			}
 			ctx.AbortWithStatusJSON(response.Status.Code, response)
 			return
