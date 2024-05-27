@@ -431,6 +431,12 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 		err error
 	)
 
+	_, err = u.repository.GetEducationById(props.ID)
+	if err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+		return
+	}
+
 	// Get all current education file urls
 	currentObjectUrls, err := u.repository.GetUserEducationFileURLs(props.ID)
 	if err != nil {

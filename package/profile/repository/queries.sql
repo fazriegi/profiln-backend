@@ -245,7 +245,7 @@ SET school_id = $2,
 WHERE id = $1
 RETURNING *;
 
--- name: GetUserEducationById :one
+-- name: GetEducationById :one
 SELECT * FROM educations
 WHERE id = @id::bigint
 LIMIT 1;

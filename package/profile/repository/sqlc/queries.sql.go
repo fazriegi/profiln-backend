@@ -305,6 +305,31 @@ func (q *Queries) DeleteWorkExperienceSkillsByWorkExperience(ctx context.Context
 	return items, nil
 }
 
+const getEducationById = `-- name: GetEducationById :one
+SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at FROM educations
+WHERE id = $1::bigint
+LIMIT 1
+`
+
+func (q *Queries) GetEducationById(ctx context.Context, id int64) (Education, error) {
+	row := q.db.QueryRowContext(ctx, getEducationById, id)
+	var i Education
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.SchoolID,
+		&i.Degree,
+		&i.FieldOfStudy,
+		&i.Gpa,
+		&i.StartDate,
+		&i.FinishDate,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProfile = `-- name: GetProfile :many
 SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
     SELECT COUNT(*) 
@@ -488,31 +513,6 @@ func (q *Queries) GetUserDetail(ctx context.Context, userID int64) (UserDetail, 
 		&i.PortfolioUrl,
 		&i.About,
 		&i.HidePhoneNumber,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserEducationById = `-- name: GetUserEducationById :one
-SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at FROM educations
-WHERE id = $1::bigint
-LIMIT 1
-`
-
-func (q *Queries) GetUserEducationById(ctx context.Context, id int64) (Education, error) {
-	row := q.db.QueryRowContext(ctx, getUserEducationById, id)
-	var i Education
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.SchoolID,
-		&i.Degree,
-		&i.FieldOfStudy,
-		&i.Gpa,
-		&i.StartDate,
-		&i.FinishDate,
-		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

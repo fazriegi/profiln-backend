@@ -30,7 +30,7 @@ type IProfileRepository interface {
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
 	UpdateUserEducation(props *model.UpdateEducationRequest) error
-	GetUserEducation(id int64) (profileSqlc.Education, error)
+	GetEducationById(id int64) (profileSqlc.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
@@ -491,8 +491,8 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 	return nil
 }
 
-func (r *ProfileRepository) GetUserEducation(id int64) (profileSqlc.Education, error) {
-	data, err := r.query.GetUserEducationById(context.Background(), id)
+func (r *ProfileRepository) GetEducationById(id int64) (profileSqlc.Education, error) {
+	data, err := r.query.GetEducationById(context.Background(), id)
 	if err != nil {
 		return profileSqlc.Education{}, err
 	}
