@@ -431,6 +431,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 		err error
 	)
 
+	// Check if user education exists
 	_, err = u.repository.GetEducationById(props.ID)
 	if err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
@@ -531,6 +532,13 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	var (
 		err error
 	)
+
+	// Check if user work experience exists
+	_, err = u.repository.GetWorkExperienceById(props.ID)
+	if err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
+		return
+	}
 
 	// Get all current work experience file urls
 	currentObjectUrls, err := u.repository.GetWorkExperienceFileURLs(props.ID)

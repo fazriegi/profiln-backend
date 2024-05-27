@@ -32,6 +32,7 @@ type IProfileRepository interface {
 	UpdateUserEducation(props *model.UpdateEducationRequest) error
 	GetEducationById(id int64) (profileSqlc.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
+	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 }
@@ -514,6 +515,15 @@ func (r *ProfileRepository) GetUserEducationFileURLs(educationId int64) ([]strin
 	return urls, nil
 }
 
+func (r *ProfileRepository) GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error) {
+	data, err := r.query.GetWorkExperienceById(context.Background(), id)
+	if err != nil {
+		return profileSqlc.WorkExperience{}, err
+	}
+
+	return data, nil
+}
+
 func (r *ProfileRepository) GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error) {
 	data, err := r.query.GetWorkExperienceFileURLs(context.Background(), workExperienceId)
 	if err != nil {
@@ -543,12 +553,6 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	defer tx.Rollback()
 
 	qtx := r.query.WithTx(tx)
-
-	// Check if work experience id exists
-	_, err = qtx.GetWorkExperienceById(ctx, props.ID)
-	if err != nil {
-		return err
-	}
 
 	// Delete current user work experience skills by work experience id
 	err = qtx.DeleteWorkExperienceFilesByWorkExperienceId(ctx, props.ID)
