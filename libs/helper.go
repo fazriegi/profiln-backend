@@ -5,13 +5,18 @@ import (
 	"crypto/rand"
 	"html/template"
 	"io"
+	"mime/multipart"
+	"path/filepath"
 	"profiln-be/model"
+	"strings"
 )
 
 func CustomResponse(code int, message string) model.Status {
 	statuses := map[int]string{
 		500: "internal server error",
 		422: "unprocessable content",
+		415: "unsupported media type",
+		413: "request entity too large",
 		404: "not found",
 		401: "unauthorized",
 		400: "bad request",
@@ -60,4 +65,26 @@ func HTMLToString(filepath string, data any) (string, error) {
 	}
 
 	return buff.String(), nil
+}
+
+func IsFileSizeAllowed(allowedSize int64, files ...*multipart.FileHeader) bool {
+	for _, file := range files {
+		if file.Size > allowedSize {
+			return false
+		}
+	}
+
+	return true
+}
+
+func IsFileExtensionAllowed(allowedExtensions []string, file *multipart.FileHeader) bool {
+	fileExt := strings.ToLower(filepath.Ext(file.Filename))
+
+	for _, ext := range allowedExtensions {
+		if fileExt == strings.ToLower(ext) {
+			return true
+		}
+	}
+
+	return false
 }

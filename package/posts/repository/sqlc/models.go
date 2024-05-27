@@ -23,7 +23,7 @@ type Certificate struct {
 
 type Company struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type Education struct {
@@ -36,20 +36,20 @@ type Education struct {
 	StartDate    sql.NullTime
 	FinishDate   sql.NullTime
 	Description  sql.NullString
-	DocumentUrl  sql.NullString
 	CreatedAt    sql.NullTime
 	UpdatedAt    sql.NullTime
+}
+
+type EducationFile struct {
+	ID          int64
+	EducationID sql.NullInt64
+	Url         sql.NullString
 }
 
 type EducationSkill struct {
 	ID          int64
 	EducationID sql.NullInt64
-	SkillID     sql.NullInt64
-}
-
-type EmploymentType struct {
-	ID   int16
-	Name sql.NullString
+	UserSkillID sql.NullInt64
 }
 
 type Following struct {
@@ -60,11 +60,11 @@ type Following struct {
 
 type IssuingOrganization struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
-type LocationType struct {
-	ID   int16
+type JobPosition struct {
+	ID   int64
 	Name sql.NullString
 }
 
@@ -117,17 +117,17 @@ type ReportedPost struct {
 
 type School struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type Skill struct {
 	ID   int64
-	Name sql.NullString
+	Name string
 }
 
 type SocialLink struct {
 	ID   int16
-	Name sql.NullString
+	Name string
 }
 
 type User struct {
@@ -160,21 +160,21 @@ type UserDetail struct {
 }
 
 type UserEmploymentTypeInterest struct {
-	ID               int64
-	UserID           sql.NullInt64
-	EmploymentTypeID sql.NullInt16
+	ID             int64
+	UserID         sql.NullInt64
+	EmploymentType sql.NullString
 }
 
 type UserJobInterest struct {
-	ID       int64
-	UserID   sql.NullInt64
-	JobTitle sql.NullString
+	ID            int64
+	UserID        sql.NullInt64
+	JobPositionID sql.NullInt64
 }
 
 type UserLocationTypeInterest struct {
-	ID             int64
-	UserID         sql.NullInt64
-	LocationTypeID sql.NullInt16
+	ID           int64
+	UserID       sql.NullInt64
+	LocationType sql.NullString
 }
 
 type UserOtp struct {
@@ -198,22 +198,28 @@ type UserSocialLink struct {
 }
 
 type WorkExperience struct {
+	ID             int64
+	UserID         sql.NullInt64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	Location       sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	LocationType   sql.NullString
+	EmploymentType sql.NullString
+}
+
+type WorkExperienceFile struct {
 	ID               int64
-	UserID           sql.NullInt64
-	JobTitle         sql.NullString
-	CompanyID        sql.NullInt64
-	EmploymentTypeID sql.NullInt16
-	Location         sql.NullString
-	LocationTypeID   sql.NullInt16
-	StartDate        sql.NullTime
-	FinishDate       sql.NullTime
-	Description      sql.NullString
-	CreatedAt        sql.NullTime
-	UpdatedAt        sql.NullTime
+	WorkExperienceID sql.NullInt64
+	Url              sql.NullString
 }
 
 type WorkExperienceSkill struct {
 	ID               int64
 	WorkExperienceID sql.NullInt64
-	SkillID          sql.NullInt64
+	UserSkillID      sql.NullInt64
 }

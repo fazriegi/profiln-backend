@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.26.0
 
-package auth
+package profile
 
 import (
 	"database/sql"
