@@ -13,7 +13,9 @@ import (
 )
 
 func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
-	twoMegaBytes := 2 << 20
+	twoMegaBytes := 2 * 1024 * 1024
+	imageFormats := []string{".png", ".jpg"}
+	imageAndDocumentFormats := append(imageFormats, ".pdf", ".doc", ".docx")
 
 	fileSystem := libs.NewFileSystem()
 	googleBucket := libs.NewGoogleBucket(fileSystem, log)
@@ -25,9 +27,9 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile.Use(middleware.Authentication())
 	profile.POST("/users/about", controller.InsertUserAbout)
 	profile.GET("/skills", controller.GetSkills)
-	profile.PUT("/my-profile", middleware.MaxReqSizeAllowed(int64(twoMegaBytes)), controller.UpdateProfile)
+	profile.PUT("/my-profile", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats), controller.UpdateProfile)
 	profile.PUT("/about", controller.UpdateAboutMe)
 	profile.PUT("/certificates/:certificateId", controller.UpdateUserCertificate)
 	profile.PUT("/my-information", controller.UpdateUserInformation)
-	profile.PUT("/educations/:educationId", controller.UpdateUserEducation)
+	profile.PUT("/educations/:educationId", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.UpdateUserEducation)
 }

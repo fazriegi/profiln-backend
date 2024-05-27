@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -107,13 +108,18 @@ func (c *ProfileController) GetSkills(ctx *gin.Context) {
 
 func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 	var (
-		response model.Response
-		reqBody  model.UpdateProfileRequest
+		response  model.Response
+		reqBody   model.UpdateProfileRequest
+		imageFile *multipart.FileHeader
 	)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
-	imageFile, _ := ctx.FormFile("file")
+	// Get the first file
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	if files != nil {
+		imageFile = files[0]
+	}
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
 		response.Status =
@@ -268,22 +274,9 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.UpdateEducationRequest
 	)
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
-
-	form, err := ctx.MultipartForm()
-	if err != nil {
-		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing form data")
-		ctx.JSON(response.Status.Code, response)
-		return
-	}
-
-	files := form.File["files"]
-	if len(files) > 3 {
-		response.Status = libs.CustomResponse(http.StatusBadRequest, "Too many files (max: 3)")
-		ctx.JSON(response.Status.Code, response)
-		return
-	}
 
 	educationId, err := strconv.ParseInt(ctx.Param("educationId"), 10, 64)
 	if err != nil {
