@@ -11,7 +11,7 @@ import (
 )
 
 const getDetailPost = `-- name: GetDetailPost :one
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, 
+SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, p.title, p.visibility, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work
 FROM posts p
 JOIN users pu ON p.user_id = pu.id
@@ -30,6 +30,8 @@ type GetDetailPostRow struct {
 	OriginalPostID sql.NullInt64
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
+	Title          string
+	Visibility     string
 	ID_2           int64
 	AvatarUrl      sql.NullString
 	FullName       string
@@ -52,6 +54,8 @@ func (q *Queries) GetDetailPost(ctx context.Context, id int64) (GetDetailPostRow
 		&i.OriginalPostID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Title,
+		&i.Visibility,
 		&i.ID_2,
 		&i.AvatarUrl,
 		&i.FullName,

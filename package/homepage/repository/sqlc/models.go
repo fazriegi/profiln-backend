@@ -68,6 +68,12 @@ type JobPosition struct {
 	Name sql.NullString
 }
 
+type LikedPost struct {
+	ID     int64
+	UserID sql.NullInt64
+	PostID sql.NullInt64
+}
+
 type Post struct {
 	ID             int64
 	UserID         sql.NullInt64
@@ -80,6 +86,8 @@ type Post struct {
 	OriginalPostID sql.NullInt64
 	CreatedAt      sql.NullTime
 	UpdatedAt      sql.NullTime
+	Title          string
+	Visibility     string
 }
 
 type PostComment struct {
