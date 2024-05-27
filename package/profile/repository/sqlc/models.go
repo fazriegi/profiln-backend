@@ -63,6 +63,11 @@ type IssuingOrganization struct {
 	Name string
 }
 
+type JobPosition struct {
+	ID   int64
+	Name sql.NullString
+}
+
 type Post struct {
 	ID             int64
 	UserID         sql.NullInt64
@@ -161,9 +166,9 @@ type UserEmploymentTypeInterest struct {
 }
 
 type UserJobInterest struct {
-	ID       int64
-	UserID   sql.NullInt64
-	JobTitle sql.NullString
+	ID            int64
+	UserID        sql.NullInt64
+	JobPositionID sql.NullInt64
 }
 
 type UserLocationTypeInterest struct {
