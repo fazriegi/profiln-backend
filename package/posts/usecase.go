@@ -17,6 +17,7 @@ type IPostsUsecase interface {
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
 	UpdatePostLikeCount(postId int64) (resp model.Response)
 	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 }
 
 type PostsUsecase struct {
@@ -211,6 +212,34 @@ func (u *PostsUsecase) ListNewestPostsByUserId(userId int64, pagination model.Pa
 
 	if err != nil {
 		u.log.Errorf("repository.ListNewestPostsByUserId (user id %d): %v", userId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success get user's posts")
+	resp.Data = map[string]any{
+		"pagination": paginate,
+		"data":       data,
+	}
+	return
+}
+
+func (u *PostsUsecase) ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+	offset := (pagination.Page - 1) * pagination.Limit
+	data, totalRows, err := u.repository.ListLikedPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+
+	if err != nil {
+		u.log.Errorf("repository.ListLikedPostsByUserId (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}

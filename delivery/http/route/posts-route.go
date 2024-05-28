@@ -27,4 +27,5 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	users := app.Group("users")
 	users.Use(middleware.Authentication())
 	users.GET("/me/posts", controller.ListNewestPostsByUserId)
+	users.GET("/me/posts/liked", controller.ListLikedPostsByUserId)
 }

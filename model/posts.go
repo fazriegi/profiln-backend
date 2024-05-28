@@ -24,6 +24,7 @@ type Post struct {
 	CommentCount   int32     `json:"comment_count"`
 	RepostCount    int32     `json:"repost_count"`
 	IsRepost       bool      `json:"is_repost"`
+	IsLiked        bool      `json:"is_liked"`
 	OriginalPostID int64     `json:"original_post_id"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
