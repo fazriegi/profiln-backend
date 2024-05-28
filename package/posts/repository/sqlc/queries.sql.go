@@ -457,6 +457,99 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 	return items, nil
 }
 
+const listRepostedPostsByUserId = `-- name: ListRepostedPostsByUserId :many
+SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	COUNT(p.id) OVER () AS total_rows,
+    CASE 
+    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
+FROM posts p
+LEFT JOIN users u ON p.user_id = u.id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+WHERE rpp.user_id = $1
+ORDER BY p.updated_at DESC
+OFFSET $2
+LIMIT $3
+`
+
+type ListRepostedPostsByUserIdParams struct {
+	UserID sql.NullInt64
+	Offset int32
+	Limit  int32
+}
+
+type ListRepostedPostsByUserIdRow struct {
+	ID           int64
+	UserID       sql.NullInt64
+	Content      sql.NullString
+	ImageUrl     sql.NullString
+	LikeCount    sql.NullInt32
+	CommentCount sql.NullInt32
+	RepostCount  sql.NullInt32
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	Title        string
+	Visibility   string
+	ID_2         sql.NullInt64
+	FullName     sql.NullString
+	AvatarUrl    sql.NullString
+	Bio          sql.NullString
+	OpenToWork   sql.NullBool
+	TotalRows    int64
+	Liked        bool
+	Repost       bool
+}
+
+func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListRepostedPostsByUserIdParams) ([]ListRepostedPostsByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRepostedPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRepostedPostsByUserIdRow
+	for rows.Next() {
+		var i ListRepostedPostsByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Content,
+			&i.ImageUrl,
+			&i.LikeCount,
+			&i.CommentCount,
+			&i.RepostCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Visibility,
+			&i.ID_2,
+			&i.FullName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.OpenToWork,
+			&i.TotalRows,
+			&i.Liked,
+			&i.Repost,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockPostForUpdate = `-- name: LockPostForUpdate :one
 SELECT 1
 FROM posts

@@ -16,6 +16,7 @@ type IPostsRepository interface {
 	UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
 	ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
+	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 }
 
 type PostsRepository struct {
@@ -181,6 +182,50 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 	}
 
 	data, err := r.query.ListLikedPostsByUserId(context.Background(), arg)
+	if err != nil {
+		return []model.Post{}, 0, err
+	}
+
+	// get total rows for pagination
+	var count int64
+	if len(data) > 0 {
+		count = data[0].TotalRows
+	}
+
+	posts := make([]model.Post, len(data))
+	for i, v := range data {
+		posts[i] = model.Post{
+			ID: v.ID,
+			User: model.User{
+				ID:         v.UserID.Int64,
+				AvatarUrl:  v.AvatarUrl.String,
+				Fullname:   v.FullName.String,
+				Bio:        v.Bio.String,
+				OpenToWork: v.OpenToWork.Bool,
+			},
+			Title:        v.Title,
+			Content:      v.Content.String,
+			ImageUrl:     v.ImageUrl.String,
+			LikeCount:    v.LikeCount.Int32,
+			CommentCount: v.CommentCount.Int32,
+			RepostCount:  v.RepostCount.Int32,
+			IsRepost:     v.Repost,
+			IsLiked:      v.Liked,
+			UpdatedAt:    v.UpdatedAt.Time,
+		}
+	}
+
+	return posts, count, nil
+}
+
+func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
+	arg := postSqlc.ListRepostedPostsByUserIdParams{
+		UserID: sql.NullInt64{Int64: userId, Valid: true},
+		Offset: offset,
+		Limit:  limit,
+	}
+
+	data, err := r.query.ListRepostedPostsByUserId(context.Background(), arg)
 	if err != nil {
 		return []model.Post{}, 0, err
 	}
