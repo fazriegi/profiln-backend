@@ -239,6 +239,46 @@ func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams
 	return items, nil
 }
 
+const insertPost = `-- name: InsertPost :one
+INSERT INTO posts
+(user_id, title, content, image_url, visibility)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, content, image_url, like_count, comment_count, repost_count, created_at, updated_at, title, visibility
+`
+
+type InsertPostParams struct {
+	UserID     sql.NullInt64
+	Title      string
+	Content    sql.NullString
+	ImageUrl   sql.NullString
+	Visibility string
+}
+
+func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, error) {
+	row := q.db.QueryRowContext(ctx, insertPost,
+		arg.UserID,
+		arg.Title,
+		arg.Content,
+		arg.ImageUrl,
+		arg.Visibility,
+	)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Content,
+		&i.ImageUrl,
+		&i.LikeCount,
+		&i.CommentCount,
+		&i.RepostCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Visibility,
+	)
+	return i, err
+}
+
 const insertReportedPost = `-- name: InsertReportedPost :one
 INSERT INTO reported_posts
 (user_id, post_id, reason, message)

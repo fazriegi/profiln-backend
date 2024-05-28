@@ -2,10 +2,13 @@ package posts
 
 import (
 	"database/sql"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
 	repository "profiln-be/package/posts/repository"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 )
@@ -19,17 +22,20 @@ type IPostsUsecase interface {
 	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	InsertPost(imageFile *multipart.FileHeader, props *model.CreatePostRequest) model.Response
 }
 
 type PostsUsecase struct {
-	repository repository.IPostsRepository
-	log        *logrus.Logger
+	repository   repository.IPostsRepository
+	log          *logrus.Logger
+	googleBucket libs.IGoogleBucket
 }
 
-func NewPostsUsecase(repository repository.IPostsRepository, log *logrus.Logger) IPostsUsecase {
+func NewPostsUsecase(repository repository.IPostsRepository, log *logrus.Logger, googleBucket libs.IGoogleBucket) IPostsUsecase {
 	return &PostsUsecase{
 		repository,
 		log,
+		googleBucket,
 	}
 }
 
@@ -292,4 +298,52 @@ func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.
 		"data":       data,
 	}
 	return
+}
+
+func (u *PostsUsecase) InsertPost(imageFile *multipart.FileHeader, props *model.CreatePostRequest) model.Response {
+	var imageUrl string
+
+	if imageFile != nil {
+		var wg sync.WaitGroup
+		objectPath := fmt.Sprintf("users/%d/posts", props.UserId)
+
+		errChan := make(chan error, 1)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var err error
+
+			imageUrl, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
+			if err != nil {
+				errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+			}
+		}()
+		wg.Wait()
+		close(errChan)
+
+		if err, ok := <-errChan; ok {
+			u.log.Errorf("goroutine error: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+			}
+		}
+	}
+
+	props.ImageUrl = imageUrl
+	data, err := u.repository.InsertPost(props)
+
+	if err != nil {
+		u.log.Errorf("repository.InsertPost (user id %d): %v", props.UserId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success create post"),
+		Data:   data,
+	}
 }

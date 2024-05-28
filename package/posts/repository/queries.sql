@@ -118,3 +118,9 @@ WHERE rpp.user_id = $1
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3;
+
+-- name: InsertPost :one
+INSERT INTO posts
+(user_id, title, content, image_url, visibility)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;

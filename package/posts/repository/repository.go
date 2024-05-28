@@ -17,6 +17,7 @@ type IPostsRepository interface {
 	ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
+	InsertPost(props *model.CreatePostRequest) (model.Post, error)
 }
 
 type PostsRepository struct {
@@ -260,4 +261,37 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 	}
 
 	return posts, count, nil
+}
+
+func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post, error) {
+	arg := postSqlc.InsertPostParams{
+		UserID:     sql.NullInt64{Int64: props.UserId, Valid: true},
+		Title:      props.Title,
+		Content:    sql.NullString{String: props.Content, Valid: true},
+		ImageUrl:   sql.NullString{String: props.ImageUrl, Valid: true},
+		Visibility: props.Visibility,
+	}
+
+	createdPost, err := r.query.InsertPost(context.Background(), arg)
+	if err != nil {
+		return model.Post{}, err
+	}
+
+	data := model.Post{
+		ID: createdPost.ID,
+		User: model.User{
+			ID: createdPost.UserID.Int64,
+		},
+		Title:        createdPost.Title,
+		Content:      createdPost.Content.String,
+		ImageUrl:     createdPost.ImageUrl.String,
+		LikeCount:    createdPost.LikeCount.Int32,
+		CommentCount: createdPost.CommentCount.Int32,
+		RepostCount:  createdPost.RepostCount.Int32,
+		IsRepost:     false,
+		IsLiked:      false,
+		UpdatedAt:    createdPost.UpdatedAt.Time,
+	}
+
+	return data, nil
 }

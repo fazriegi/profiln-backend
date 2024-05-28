@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"profiln-be/delivery/http"
 	"profiln-be/delivery/http/middleware"
+	"profiln-be/libs"
 	"profiln-be/package/posts"
 	repository "profiln-be/package/posts/repository"
 
@@ -12,8 +13,13 @@ import (
 )
 
 func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
+	twoMegaBytes := 2 * 1024 * 1024
+	imageFormats := []string{".png", ".jpg"}
+
+	fileSystem := libs.NewFileSystem()
+	googleBucket := libs.NewGoogleBucket(fileSystem, log)
 	repository := repository.NewPostsRepository(db)
-	usecase := posts.NewPostsUsecase(repository, log)
+	usecase := posts.NewPostsUsecase(repository, log, googleBucket)
 	controller := http.NewPostsController(usecase)
 
 	posts := app.Group("posts")
@@ -29,4 +35,5 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	myPosts.GET("/", controller.ListNewestPostsByUserId)
 	myPosts.GET("/liked", controller.ListLikedPostsByUserId)
 	myPosts.GET("/reposted", controller.ListRepostedPostsByUserId)
+	myPosts.POST("/", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats), controller.InsertPost)
 }

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -20,6 +21,7 @@ type IPostsController interface {
 	ListNewestPostsByUserId(ctx *gin.Context)
 	ListLikedPostsByUserId(ctx *gin.Context)
 	ListRepostedPostsByUserId(ctx *gin.Context)
+	InsertPost(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -336,5 +338,49 @@ func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
 	}
 
 	response = c.usecase.ListRepostedPostsByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) InsertPost(ctx *gin.Context) {
+	var (
+		reqBody   model.CreatePostRequest
+		response  model.Response
+		imageFile *multipart.FileHeader
+	)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	// Get the first file
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	if files != nil {
+		imageFile = files[0]
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.InsertPost(imageFile, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

@@ -14,6 +14,14 @@ type ReportPostResponse struct {
 	Message string `json:"message"`
 }
 
+type CreatePostRequest struct {
+	UserId     int64  `json:"user_id"`
+	Title      string `json:"title" form:"title" validate:"required"`
+	Content    string `json:"content" form:"content"`
+	ImageUrl   string `json:"image_url"`
+	Visibility string `json:"visibility" form:"visibility" validate:"required"`
+}
+
 type Post struct {
 	ID           int64     `json:"id"`
 	User         User      `json:"author"`
