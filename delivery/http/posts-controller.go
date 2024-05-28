@@ -17,6 +17,7 @@ type IPostsController interface {
 	GetPostComments(ctx *gin.Context)
 	GetPostCommentReplies(ctx *gin.Context)
 	UpdatePostLikeCount(ctx *gin.Context)
+	ListNewestPostsByUserId(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -207,5 +208,46 @@ func (c *PostsController) UpdatePostLikeCount(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UpdatePostLikeCount(postId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) ListNewestPostsByUserId(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+
+	response = c.usecase.ListNewestPostsByUserId(userId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }

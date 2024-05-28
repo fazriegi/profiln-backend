@@ -45,3 +45,14 @@ UPDATE posts
 SET like_count = like_count + 1
 WHERE id = $1
 RETURNING id, like_count;
+
+-- name: ListNewestPostsByUserId :many
+SELECT p.*, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	COUNT(p.id) OVER () AS total_rows 
+FROM posts p
+LEFT JOIN users u ON p.user_id = u.id 
+WHERE p.user_id = $1
+ORDER BY p.updated_at DESC
+OFFSET $2
+LIMIT $3;

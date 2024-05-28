@@ -256,6 +256,89 @@ func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPost
 	return i, err
 }
 
+const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
+SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, p.title, p.visibility, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	COUNT(p.id) OVER () AS total_rows 
+FROM posts p
+LEFT JOIN users u ON p.user_id = u.id 
+WHERE p.user_id = $1
+ORDER BY p.updated_at DESC
+OFFSET $2
+LIMIT $3
+`
+
+type ListNewestPostsByUserIdParams struct {
+	UserID sql.NullInt64
+	Offset int32
+	Limit  int32
+}
+
+type ListNewestPostsByUserIdRow struct {
+	ID             int64
+	UserID         sql.NullInt64
+	Content        sql.NullString
+	ImageUrl       sql.NullString
+	LikeCount      sql.NullInt32
+	CommentCount   sql.NullInt32
+	RepostCount    sql.NullInt32
+	Repost         sql.NullBool
+	OriginalPostID sql.NullInt64
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	Title          string
+	Visibility     string
+	ID_2           sql.NullInt64
+	FullName       sql.NullString
+	AvatarUrl      sql.NullString
+	Bio            sql.NullString
+	OpenToWork     sql.NullBool
+	TotalRows      int64
+}
+
+func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPostsByUserIdParams) ([]ListNewestPostsByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, listNewestPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNewestPostsByUserIdRow
+	for rows.Next() {
+		var i ListNewestPostsByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Content,
+			&i.ImageUrl,
+			&i.LikeCount,
+			&i.CommentCount,
+			&i.RepostCount,
+			&i.Repost,
+			&i.OriginalPostID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Visibility,
+			&i.ID_2,
+			&i.FullName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.OpenToWork,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockPostForUpdate = `-- name: LockPostForUpdate :one
 SELECT 1
 FROM posts

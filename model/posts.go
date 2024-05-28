@@ -17,6 +17,7 @@ type ReportPostResponse struct {
 type Post struct {
 	ID             int64     `json:"id"`
 	User           User      `json:"author"`
+	Title          string    `json:"title"`
 	Content        string    `json:"content"`
 	ImageUrl       string    `json:"image_url"`
 	LikeCount      int32     `json:"like_count"`
