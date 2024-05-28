@@ -131,6 +131,7 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 		Offset: offset,
 		Limit:  limit,
 	}
+	fmt.Println(arg)
 
 	data, err := r.query.ListNewestPostsByUserId(context.Background(), arg)
 	if err != nil {
@@ -162,6 +163,7 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 			RepostCount:    v.RepostCount.Int32,
 			IsRepost:       v.Repost.Bool,
 			OriginalPostID: v.OriginalPostID.Int64,
+			IsLiked:        v.Liked,
 			UpdatedAt:      v.UpdatedAt.Time,
 		}
 	}

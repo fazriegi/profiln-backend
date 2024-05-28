@@ -62,6 +62,7 @@ func (r *HomepageRepository) ListNewestPosts(userId int64, offset, limit int32) 
 			CommentCount:   v.CommentCount.Int32,
 			RepostCount:    v.RepostCount.Int32,
 			IsRepost:       v.Repost.Bool,
+			IsLiked:        v.Liked,
 			OriginalPostID: v.OriginalPostID.Int64,
 			UpdatedAt:      v.UpdatedAt.Time,
 		}
@@ -106,6 +107,7 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 			CommentCount:   v.CommentCount.Int32,
 			RepostCount:    v.RepostCount.Int32,
 			IsRepost:       v.Repost.Bool,
+			IsLiked:        v.Liked,
 			OriginalPostID: v.OriginalPostID.Int64,
 			UpdatedAt:      v.UpdatedAt.Time,
 		}
@@ -150,6 +152,7 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 			CommentCount:   v.CommentCount.Int32,
 			RepostCount:    v.RepostCount.Int32,
 			IsRepost:       v.Repost.Bool,
+			IsLiked:        v.Liked,
 			OriginalPostID: v.OriginalPostID.Int64,
 			UpdatedAt:      v.UpdatedAt.Time,
 		}

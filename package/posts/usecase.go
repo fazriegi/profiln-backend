@@ -75,12 +75,16 @@ func (u *PostsUsecase) GetDetailPost(postId int64) (resp model.Response) {
 			Bio:        data.Bio.String,
 			OpenToWork: data.OpenToWork.Bool,
 		},
-		Content:      data.Content.String,
-		ImageUrl:     data.ImageUrl.String,
-		LikeCount:    data.LikeCount.Int32,
-		CommentCount: data.CommentCount.Int32,
-		RepostCount:  data.RepostCount.Int32,
-		UpdatedAt:    data.UpdatedAt.Time,
+		Title:          data.Title,
+		Content:        data.Content.String,
+		ImageUrl:       data.ImageUrl.String,
+		LikeCount:      data.LikeCount.Int32,
+		CommentCount:   data.CommentCount.Int32,
+		RepostCount:    data.RepostCount.Int32,
+		IsRepost:       data.Repost.Bool,
+		OriginalPostID: data.OriginalPostID.Int64,
+		IsLiked:        data.Liked,
+		UpdatedAt:      data.UpdatedAt.Time,
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success get detail post")

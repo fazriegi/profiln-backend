@@ -12,9 +12,14 @@ import (
 
 const getDetailPost = `-- name: GetDetailPost :one
 SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, p.title, p.visibility, 
-    pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work
+    pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
+    CASE 
+    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS liked
 FROM posts p
 JOIN users pu ON p.user_id = pu.id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id
 WHERE p.id = $1
 `
 
@@ -37,6 +42,7 @@ type GetDetailPostRow struct {
 	FullName       string
 	Bio            sql.NullString
 	OpenToWork     sql.NullBool
+	Liked          bool
 }
 
 func (q *Queries) GetDetailPost(ctx context.Context, id int64) (GetDetailPostRow, error) {
@@ -61,6 +67,7 @@ func (q *Queries) GetDetailPost(ctx context.Context, id int64) (GetDetailPostRow
 		&i.FullName,
 		&i.Bio,
 		&i.OpenToWork,
+		&i.Liked,
 	)
 	return i, err
 }
@@ -349,9 +356,14 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
 SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.repost, p.original_post_id, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
-	COUNT(p.id) OVER () AS total_rows 
+	COUNT(p.id) OVER () AS total_rows,
+    CASE 
+    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS liked
 FROM posts p
-LEFT JOIN users u ON p.user_id = u.id 
+LEFT JOIN users u ON p.user_id = u.id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id
 WHERE p.user_id = $1
 ORDER BY p.updated_at DESC
 OFFSET $2
@@ -384,6 +396,7 @@ type ListNewestPostsByUserIdRow struct {
 	Bio            sql.NullString
 	OpenToWork     sql.NullBool
 	TotalRows      int64
+	Liked          bool
 }
 
 func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPostsByUserIdParams) ([]ListNewestPostsByUserIdRow, error) {
@@ -415,6 +428,7 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 			&i.Bio,
 			&i.OpenToWork,
 			&i.TotalRows,
+			&i.Liked,
 		); err != nil {
 			return nil, err
 		}

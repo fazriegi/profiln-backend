@@ -6,9 +6,14 @@ RETURNING *;
 
 -- name: GetDetailPost :one
 SELECT p.*, 
-    pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work
+    pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
+    CASE 
+    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS liked
 FROM posts p
 JOIN users pu ON p.user_id = pu.id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id
 WHERE p.id = $1;
 
 -- name: GetPostComments :many
@@ -49,9 +54,14 @@ RETURNING id, like_count;
 -- name: ListNewestPostsByUserId :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
-	COUNT(p.id) OVER () AS total_rows 
+	COUNT(p.id) OVER () AS total_rows,
+    CASE 
+    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS liked
 FROM posts p
-LEFT JOIN users u ON p.user_id = u.id 
+LEFT JOIN users u ON p.user_id = u.id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id
 WHERE p.user_id = $1
 ORDER BY p.updated_at DESC
 OFFSET $2
