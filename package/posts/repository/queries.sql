@@ -10,10 +10,15 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
 JOIN users pu ON p.user_id = pu.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $2
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $2
 WHERE p.id = $1;
 
 -- name: GetPostComments :many
@@ -58,10 +63,15 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
 WHERE p.user_id = $1
 ORDER BY p.updated_at DESC
 OFFSET $2
@@ -74,10 +84,15 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
 WHERE lp.user_id = $1
 ORDER BY p.updated_at DESC
 OFFSET $2

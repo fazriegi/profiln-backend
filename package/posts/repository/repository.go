@@ -10,7 +10,7 @@ import (
 
 type IPostsRepository interface {
 	InsertReportedPost(userId, postId int64, reason, message string) (postSqlc.ReportedPost, error)
-	GetDetailPost(postId int64) (postSqlc.GetDetailPostRow, error)
+	GetDetailPost(postId, userId int64) (postSqlc.GetDetailPostRow, error)
 	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
 	UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
@@ -46,8 +46,11 @@ func (r *PostsRepository) InsertReportedPost(userId, postId int64, reason, messa
 	return reportedPost, nil
 }
 
-func (r *PostsRepository) GetDetailPost(postId int64) (postSqlc.GetDetailPostRow, error) {
-	data, err := r.query.GetDetailPost(context.Background(), postId)
+func (r *PostsRepository) GetDetailPost(postId, userId int64) (postSqlc.GetDetailPostRow, error) {
+	data, err := r.query.GetDetailPost(context.Background(), postSqlc.GetDetailPostParams{
+		ID:     postId,
+		UserID: sql.NullInt64{Int64: userId, Valid: true},
+	})
 	if err != nil {
 		return postSqlc.GetDetailPostRow{}, err
 	}
@@ -155,16 +158,15 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 				Bio:        v.Bio.String,
 				OpenToWork: v.OpenToWork.Bool,
 			},
-			Title:          v.Title,
-			Content:        v.Content.String,
-			ImageUrl:       v.ImageUrl.String,
-			LikeCount:      v.LikeCount.Int32,
-			CommentCount:   v.CommentCount.Int32,
-			RepostCount:    v.RepostCount.Int32,
-			IsRepost:       v.Repost.Bool,
-			OriginalPostID: v.OriginalPostID.Int64,
-			IsLiked:        v.Liked,
-			UpdatedAt:      v.UpdatedAt.Time,
+			Title:        v.Title,
+			Content:      v.Content.String,
+			ImageUrl:     v.ImageUrl.String,
+			LikeCount:    v.LikeCount.Int32,
+			CommentCount: v.CommentCount.Int32,
+			RepostCount:  v.RepostCount.Int32,
+			IsRepost:     v.Repost,
+			IsLiked:      v.Liked,
+			UpdatedAt:    v.UpdatedAt.Time,
 		}
 	}
 
@@ -200,16 +202,15 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 				Bio:        v.Bio.String,
 				OpenToWork: v.OpenToWork.Bool,
 			},
-			Title:          v.Title,
-			Content:        v.Content.String,
-			ImageUrl:       v.ImageUrl.String,
-			LikeCount:      v.LikeCount.Int32,
-			CommentCount:   v.CommentCount.Int32,
-			RepostCount:    v.RepostCount.Int32,
-			IsRepost:       v.Repost.Bool,
-			IsLiked:        v.Liked,
-			OriginalPostID: v.OriginalPostID.Int64,
-			UpdatedAt:      v.UpdatedAt.Time,
+			Title:        v.Title,
+			Content:      v.Content.String,
+			ImageUrl:     v.ImageUrl.String,
+			LikeCount:    v.LikeCount.Int32,
+			CommentCount: v.CommentCount.Int32,
+			RepostCount:  v.RepostCount.Int32,
+			IsRepost:     v.Repost,
+			IsLiked:      v.Liked,
+			UpdatedAt:    v.UpdatedAt.Time,
 		}
 	}
 

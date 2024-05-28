@@ -5,11 +5,16 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
+LEFT JOIN users u ON p.user_id = u.id
 LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
-LEFT JOIN users u ON p.user_id = u.id 
-LEFT JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
 WHERE rp.post_id IS NULL AND p.visibility = 'public'
 ORDER BY p.updated_at DESC
 OFFSET $2
@@ -22,12 +27,17 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
-LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN users u ON p.user_id = u.id 
+LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN followings f ON p.user_id = f.follow_user_id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
 WHERE f.user_id = $1 AND rp.post_id IS NULL
 ORDER BY p.updated_at DESC
 OFFSET $2
@@ -44,11 +54,16 @@ SELECT p.*,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
-  	END AS liked
+  	END AS liked,
+	CASE 
+    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	ELSE FALSE 
+  	END AS repost
 FROM posts p
-LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id
+LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
 WHERE rp.post_id IS NULL AND p.visibility = 'public'
 ORDER BY
     recent_post DESC,

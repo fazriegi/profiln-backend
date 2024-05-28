@@ -1,4 +1,8 @@
 ALTER TABLE "posts"
+DROP COLUMN "repost",
+DROP COLUMN "original_post_id";
+
+ALTER TABLE "posts"
 ADD COLUMN "title" TEXT NOT NULL DEFAULT '',
 ADD COLUMN "visibility" VARCHAR(10) NOT NULL DEFAULT 'public';
 

@@ -75,19 +75,17 @@ type LikedPost struct {
 }
 
 type Post struct {
-	ID             int64
-	UserID         sql.NullInt64
-	Content        sql.NullString
-	ImageUrl       sql.NullString
-	LikeCount      sql.NullInt32
-	CommentCount   sql.NullInt32
-	RepostCount    sql.NullInt32
-	Repost         sql.NullBool
-	OriginalPostID sql.NullInt64
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
-	Title          string
-	Visibility     string
+	ID           int64
+	UserID       sql.NullInt64
+	Content      sql.NullString
+	ImageUrl     sql.NullString
+	LikeCount    sql.NullInt32
+	CommentCount sql.NullInt32
+	RepostCount  sql.NullInt32
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	Title        string
+	Visibility   string
 }
 
 type PostComment struct {
@@ -121,6 +119,12 @@ type ReportedPost struct {
 	PostID  sql.NullInt64
 	Reason  sql.NullString
 	Message sql.NullString
+}
+
+type RepostedPost struct {
+	ID     int64
+	UserID sql.NullInt64
+	PostID sql.NullInt64
 }
 
 type School struct {

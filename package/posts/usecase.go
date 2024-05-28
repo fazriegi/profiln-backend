@@ -12,7 +12,7 @@ import (
 
 type IPostsUsecase interface {
 	InsertReportedPost(userId int64, data *model.ReportPostRequest) (resp model.Response)
-	GetDetailPost(postId int64) (resp model.Response)
+	GetDetailPost(postId, userId int64) (resp model.Response)
 	GetPostComments(postId int64, pagination model.PaginationRequest) (resp model.Response)
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
 	UpdatePostLikeCount(postId int64) (resp model.Response)
@@ -52,8 +52,8 @@ func (u *PostsUsecase) InsertReportedPost(userId int64, props *model.ReportPostR
 	return
 }
 
-func (u *PostsUsecase) GetDetailPost(postId int64) (resp model.Response) {
-	data, err := u.repository.GetDetailPost(postId)
+func (u *PostsUsecase) GetDetailPost(postId, userId int64) (resp model.Response) {
+	data, err := u.repository.GetDetailPost(postId, userId)
 
 	if err != nil && err == sql.ErrNoRows {
 		return model.Response{
@@ -75,16 +75,15 @@ func (u *PostsUsecase) GetDetailPost(postId int64) (resp model.Response) {
 			Bio:        data.Bio.String,
 			OpenToWork: data.OpenToWork.Bool,
 		},
-		Title:          data.Title,
-		Content:        data.Content.String,
-		ImageUrl:       data.ImageUrl.String,
-		LikeCount:      data.LikeCount.Int32,
-		CommentCount:   data.CommentCount.Int32,
-		RepostCount:    data.RepostCount.Int32,
-		IsRepost:       data.Repost.Bool,
-		OriginalPostID: data.OriginalPostID.Int64,
-		IsLiked:        data.Liked,
-		UpdatedAt:      data.UpdatedAt.Time,
+		Title:        data.Title,
+		Content:      data.Content.String,
+		ImageUrl:     data.ImageUrl.String,
+		LikeCount:    data.LikeCount.Int32,
+		CommentCount: data.CommentCount.Int32,
+		RepostCount:  data.RepostCount.Int32,
+		IsRepost:     data.Repost,
+		IsLiked:      data.Liked,
+		UpdatedAt:    data.UpdatedAt.Time,
 	}
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success get detail post")

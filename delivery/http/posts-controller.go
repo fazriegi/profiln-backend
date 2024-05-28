@@ -80,6 +80,9 @@ func (c *PostsController) ReportPost(ctx *gin.Context) {
 func (c *PostsController) GetDetailPost(ctx *gin.Context) {
 	var response model.Response
 
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
 	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
 		response.Status =
@@ -89,7 +92,7 @@ func (c *PostsController) GetDetailPost(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.GetDetailPost(postId)
+	response = c.usecase.GetDetailPost(postId, userId)
 	ctx.JSON(response.Status.Code, response)
 }
 
