@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"time"
 )
 
 type CompanyRequest struct {
@@ -28,13 +29,12 @@ type UserSkillRequest struct {
 }
 
 type CertificateRequest struct {
-	// UserID                int64        `validate:"required"`
-	Name                  string       `validate:"required"`
-	IssuingOrganizationID int64        `validate:"required"`
-	IssueDate             sql.NullTime `validate:"required"`
-	ExpirationDate        sql.NullTime `validate:"required"`
-	CredentialID          string       `validate:"required"`
-	Url                   string       `validate:"required"`
+	Name                  string  `validate:"required"`
+	IssuingOrganizationID int64   `validate:"required"`
+	IssueDate             string  `validate:"required"`
+	ExpirationDate        *string `validate:"omitempty"`
+	CredentialID          string  `validate:"required"`
+	Url                   string  `validate:"required"`
 }
 
 type WorkExperienceRequest struct {
@@ -175,4 +175,77 @@ type UpdateWorkExperience struct {
 type Company struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name" validate:"required"`
+}
+
+type AboutProfileResponse struct {
+	ID        *int64     `json:"id"`
+	UserID    *int64     `json:"user_id"`
+	About     *string    `json:"about"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+type UserProfileResponse struct {
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	FullName string `json:"fullname"`
+}
+
+type UserAboutResponse struct {
+	About AboutProfileResponse
+	User  UserProfileResponse
+}
+
+type InsertCertificateResponse struct {
+	ID                    int64     `json:"id"`
+	UserID                int64     `json:"user_id"`
+	Name                  string    `json:"name"`
+	IssuingOrganizationID int64     `json:"issuing_organization_id"`
+	IssueDate             time.Time `json:"issue_date"`
+	ExpirationDate        time.Time `json:"expiration_date"`
+	CredentialID          string    `json:"credential_id"`
+	Url                   string    `json:"url"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+type UserCertificatesResponse struct {
+	User         UserProfileResponse
+	Certificates any
+}
+
+type CertificatesResponse struct {
+	ID             int64      `json:"id"`
+	Name           string     `json:"name"`
+	Organization   string     `json:"origanization"`
+	IssueDate      time.Time  `json:"issue_date"`
+	ExpirationDate *time.Time `json:"expiration_date"`
+	CredentialID   string     `json:"credential_id"`
+	Url            string     `json:"url"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type UserDetailResponse struct {
+	ID              *int64     `json:"id"`
+	UserID          *int64     `json:"user_id"`
+	PhoneNumber     *string    `json:"phone_number"`
+	Gender          *string    `json:"gender"`
+	Location        *string    `json:"location"`
+	PortfolioUrl    *string    `json:"portfolio_url"`
+	About           *string    `json:"about"`
+	HidePhoneNumber *bool      `json:"hide_phone_number"`
+	CreatedAt       *time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
+}
+
+type SkillsResponse struct {
+	ID   *int64  `json:"id"`
+	Name *string `json:"name"`
+}
+
+type UserSkillsLocationResponse struct {
+	User       UserProfileResponse
+	Skills     []SkillsResponse
+	UserDetail UserDetailResponse
 }

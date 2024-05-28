@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -24,7 +26,7 @@ type IProfileUsecase interface {
 	InsertEducation(props *model.EducationRequest, id int64) (resp model.Response)
 	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
 	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
-	InsertUserSkill(props *model.UserSkillRequest, id int64) (resp model.Response)
+	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
 	GetSkills(pagination model.PaginationRequest) (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
@@ -32,6 +34,9 @@ type IProfileUsecase interface {
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
+	GetUserSkillsLocationPortofolio(id int64) (resp model.Response)
+	GetUserCertificates(id int64) (resp model.Response)
+	GetUserAbout(id int64) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -46,6 +51,188 @@ func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Log
 		log,
 		googleBucket,
 	}
+}
+
+func (u *ProfileUsecase) GetUserAbout(id int64) (resp model.Response) {
+	var (
+		idAbout    *int64
+		userId     *int64
+		about      *string
+		created_at *time.Time
+		updated_at *time.Time
+	)
+
+	userAbout, err := u.repository.GetUserAbout(id)
+
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		u.log.Errorf("repository.GetUserAbout: %v", err)
+		return
+	}
+
+	if userAbout.ID.Valid {
+		idAbout = &userAbout.ID.Int64
+		userId = &userAbout.UserID.Int64
+		about = &userAbout.About.String
+		created_at = &userAbout.CreatedAt.Time
+		updated_at = &userAbout.UpdatedAt.Time
+	}
+
+	userAboutResponse := model.UserAboutResponse{
+		About: model.AboutProfileResponse{
+			ID:        idAbout,
+			UserID:    userId,
+			About:     about,
+			CreatedAt: created_at,
+			UpdatedAt: updated_at,
+		},
+		User: model.UserProfileResponse{
+			ID:       int(userAbout.ID_2),
+			Email:    userAbout.Email,
+			FullName: userAbout.FullName,
+		},
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success to create user about")
+	resp.Data = userAboutResponse
+	return resp
+}
+
+func (u *ProfileUsecase) GetUserCertificates(id int64) (resp model.Response) {
+	userCertificates, err := u.repository.GetUserCertificates(id)
+
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		u.log.Errorf("repository.GetUserCertificates: %v", err)
+		return
+	}
+
+	certificates := make([]any, len(userCertificates))
+
+	if userCertificates[0].ID_2.Int64 == 0 {
+		certificates = make([]any, 0)
+	} else {
+		for i, v := range userCertificates {
+
+			var expirationDate *time.Time
+			if v.ExpirationDate.Valid {
+				expirationDate = &v.ExpirationDate.Time
+			}
+
+			certificates[i] = model.CertificatesResponse{
+				ID:             v.ID_2.Int64,
+				Name:           v.Name.String,
+				Organization:   v.Name_2.String,
+				IssueDate:      v.IssueDate.Time,
+				ExpirationDate: expirationDate,
+				CredentialID:   v.CredentialID.String,
+				Url:            v.Url.String,
+				CreatedAt:      v.CreatedAt.Time,
+				UpdatedAt:      v.UpdatedAt.Time,
+			}
+		}
+	}
+
+	userCertificatesResponse := model.UserCertificatesResponse{
+		User: model.UserProfileResponse{
+			ID:       int(userCertificates[0].ID),
+			Email:    userCertificates[0].Email,
+			FullName: userCertificates[0].FullName,
+		},
+		Certificates: certificates,
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusOK, "Success to create user about")
+	resp.Data = userCertificatesResponse
+	return resp
+}
+
+func (u *ProfileUsecase) GetUserSkillsLocationPortofolio(id int64) (resp model.Response) {
+	var (
+		idUserDetail    *int64
+		userId          *int64
+		phoneNumber     *string
+		gender          *string
+		location        *string
+		portfolioUrl    *string
+		about           *string
+		hidePhoneNumber *bool
+		createdAt       *time.Time
+		updatedAt       *time.Time
+	)
+
+	userSkillsLocationPorto, err := u.repository.GetUserSkillsLocationAndPortofolio(id)
+
+	if err != nil && err == sql.ErrNoRows {
+		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
+
+		return
+	} else if err != nil {
+		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
+
+		u.log.Errorf("repository.GetUserSkillsAndLocation: %v", err)
+		return
+	}
+
+	skills := make([]model.SkillsResponse, 0)
+
+	if userSkillsLocationPorto[0].ID_2.Valid {
+		skills = make([]model.SkillsResponse, len(userSkillsLocationPorto))
+		for i, v := range userSkillsLocationPorto {
+			skills[i] = model.SkillsResponse{
+				ID:   &v.ID_2.Int64,
+				Name: &v.Name.String,
+			}
+		}
+	}
+
+	if userSkillsLocationPorto[0].ID_3.Valid {
+		idUserDetail = &userSkillsLocationPorto[0].ID_3.Int64
+		userId = &userSkillsLocationPorto[0].UserID.Int64
+		phoneNumber = &userSkillsLocationPorto[0].PhoneNumber.String
+		gender = &userSkillsLocationPorto[0].Gender.String
+		location = &userSkillsLocationPorto[0].Location.String
+		portfolioUrl = &userSkillsLocationPorto[0].PortfolioUrl.String
+		about = &userSkillsLocationPorto[0].About.String
+		hidePhoneNumber = &userSkillsLocationPorto[0].HidePhoneNumber.Bool
+		createdAt = &userSkillsLocationPorto[0].CreatedAt.Time
+		updatedAt = &userSkillsLocationPorto[0].UpdatedAt.Time
+	}
+
+	userSkillsLocationPortoResponse := model.UserSkillsLocationResponse{
+		User: model.UserProfileResponse{
+			ID:       int(id),
+			Email:    userSkillsLocationPorto[0].Email,
+			FullName: userSkillsLocationPorto[0].FullName,
+		},
+		Skills: skills,
+		UserDetail: model.UserDetailResponse{
+			ID:              idUserDetail,
+			UserID:          userId,
+			PhoneNumber:     phoneNumber,
+			Gender:          gender,
+			Location:        location,
+			PortfolioUrl:    portfolioUrl,
+			About:           about,
+			HidePhoneNumber: hidePhoneNumber,
+			CreatedAt:       createdAt,
+			UpdatedAt:       updatedAt,
+		},
+	}
+
+	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to get user skills and location")
+	resp.Data = userSkillsLocationPortoResponse
+	return resp
 }
 
 func (u *ProfileUsecase) InsertCompany(props *model.CompanyRequest) (resp model.Response) {
@@ -100,39 +287,58 @@ func (u *ProfileUsecase) InsertSkill(props *model.SkillRequest) (resp model.Resp
 	return resp
 }
 
-func (u *ProfileUsecase) InsertUserSkill(props *model.UserSkillRequest, id int64) (resp model.Response) {
-	skill, err := u.repository.InsertSkill(props.Skills)
+func (u *ProfileUsecase) InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response) {
+	data := strings.Split(props.Name, ",")
 
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertSkill %v", err)
+	for _, value := range data {
+
+		skill, err := u.repository.InsertSkill(strings.ToLower(value))
+
+		if err != nil {
+			resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
+			u.log.Errorf("repository.InsertSkill %v, while %v", err, value)
+			return
+		}
+
+		userSkillParams := profileSqlc.InsertUserSkillParams{
+			UserID:    sql.NullInt64{Int64: id, Valid: true},
+			SkillID:   sql.NullInt64{Int64: skill.ID, Valid: true},
+			MainSkill: sql.NullBool{Bool: false, Valid: true},
+		}
+
+		_, err = u.repository.InsertUserSkill(userSkillParams)
+
+		if err != nil {
+			resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
+			u.log.Errorf("repository.InsertUserSkill %v", err)
+			return
+		}
 	}
 
-	userSkillParams := profileSqlc.InsertUserSkillParams{
-		UserID:    sql.NullInt64{Int64: id, Valid: true},
-		SkillID:   sql.NullInt64{Int64: skill.ID, Valid: true},
-		MainSkill: sql.NullBool{Bool: false, Valid: true},
-	}
-
-	userSkill, err := u.repository.InsertUserSkill(userSkillParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertUserSkill %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create skill")
-	resp.Data = userSkill
+	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create skills")
+	resp.Data = data
 	return resp
 }
 
 func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response) {
+	issueDate, err := libs.ParseTime(props.IssueDate)
+	if err != nil {
+		u.log.Errorf("libs.ParseTime IssueDate, %v", err)
+		return
+	}
+
+	expDate, err := libs.ParseTimeWithNill(props.ExpirationDate)
+	if err != nil {
+		u.log.Errorf("libs.ParseTimeWithNill IssueDate, %v", err)
+		return
+	}
+
 	certificateParams := profileSqlc.InsertCertificateParams{
 		UserID:                sql.NullInt64{Int64: id, Valid: true},
 		Name:                  sql.NullString{String: props.Name, Valid: true},
 		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganizationID, Valid: true},
-		IssueDate:             sql.NullTime{Time: props.IssueDate.Time, Valid: true},
-		ExpirationDate:        sql.NullTime{Time: props.ExpirationDate.Time, Valid: true},
+		IssueDate:             sql.NullTime{Time: issueDate, Valid: true},
+		ExpirationDate:        sql.NullTime{Time: expDate.Time, Valid: expDate.Valid},
 		CredentialID:          sql.NullString{String: props.CredentialID, Valid: true},
 		Url:                   sql.NullString{String: props.Url, Valid: true},
 	}
@@ -144,8 +350,21 @@ func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id i
 		u.log.Errorf("repository.InsertCertificate %v", err)
 	}
 
+	certificateResponse := model.InsertCertificateResponse{
+		ID:                    certificate.ID,
+		UserID:                certificate.UserID.Int64,
+		Name:                  certificate.Name.String,
+		IssuingOrganizationID: certificate.IssuingOrganizationID.Int64,
+		IssueDate:             certificate.IssueDate.Time,
+		ExpirationDate:        certificate.ExpirationDate.Time,
+		CredentialID:          certificate.CredentialID.String,
+		Url:                   certificate.Url.String,
+		CreatedAt:             certificate.CreatedAt.Time,
+		UpdatedAt:             certificate.UpdatedAt.Time,
+	}
+
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create certificate")
-	resp.Data = certificate
+	resp.Data = certificateResponse
 	return resp
 }
 

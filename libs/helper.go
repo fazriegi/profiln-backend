@@ -3,12 +3,14 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
+	"database/sql"
 	"html/template"
 	"io"
 	"mime/multipart"
 	"path/filepath"
 	"profiln-be/model"
 	"strings"
+	"time"
 )
 
 func CustomResponse(code int, message string) model.Status {
@@ -87,4 +89,27 @@ func IsFileExtensionAllowed(allowedExtensions []string, file *multipart.FileHead
 	}
 
 	return false
+}
+
+func ParseTimeWithNill(dateString *string) (sql.NullTime, error) {
+	if dateString == nil || *dateString == "" {
+		return sql.NullTime{Valid: false}, nil
+	}
+
+	date, err := time.Parse("2006-01-02", *dateString)
+	if err != nil {
+		return sql.NullTime{}, err
+	}
+
+	return sql.NullTime{Time: date, Valid: true}, nil
+}
+
+func ParseTime(dateString string) (time.Time, error) {
+	date, err := time.Parse("2006-01-02", dateString)
+
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return date, nil
 }

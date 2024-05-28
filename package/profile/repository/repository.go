@@ -35,6 +35,9 @@ type IProfileRepository interface {
 	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
+	GetUserAbout(id int64) (profileSqlc.GetUserAboutRow, error)
+	GetUserCertificates(id int64) ([]profileSqlc.GetUserCertificatesRow, error)
+	GetUserSkillsLocationAndPortofolio(id int64) ([]profileSqlc.GetUserSkillsAndLocationRow, error)
 }
 
 type ProfileRepository struct {
@@ -47,6 +50,26 @@ func NewProfileRepository(db *sql.DB) IProfileRepository {
 		db:    db,
 		query: profileSqlc.New(db),
 	}
+}
+
+func (r *ProfileRepository) GetUserCertificates(id int64) ([]profileSqlc.GetUserCertificatesRow, error) {
+	certificates, err := r.query.GetUserCertificates(context.Background(), id)
+
+	if err != nil {
+		return []profileSqlc.GetUserCertificatesRow{}, err
+	}
+
+	return certificates, nil
+}
+
+func (r *ProfileRepository) GetUserSkillsLocationAndPortofolio(id int64) ([]profileSqlc.GetUserSkillsAndLocationRow, error) {
+	userSkillsLocationPorto, err := r.query.GetUserSkillsAndLocation(context.Background(), id)
+	if err != nil {
+		fmt.Println("error")
+		return []profileSqlc.GetUserSkillsAndLocationRow{}, err
+	}
+
+	return userSkillsLocationPorto, nil
 }
 
 func (r *ProfileRepository) InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error) {

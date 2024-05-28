@@ -22,6 +22,11 @@ type IProfileController interface {
 	UpdateUserInformation(ctx *gin.Context)
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
+	GetUserAbout(ctx *gin.Context)
+	InsertCertificate(ctx *gin.Context)
+	GetUserCertificates(ctx *gin.Context)
+	InsertUserSkills(ctx *gin.Context)
+	GetUserSkillsLocationPortofolio(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -32,6 +37,111 @@ func NewProfileController(usecase profile.IProfileUsecase) IProfileController {
 	return &ProfileController{
 		usecase,
 	}
+}
+
+func (c *ProfileController) GetUserSkillsLocationPortofolio(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response = c.usecase.GetUserSkillsLocationPortofolio(userId)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
+	var (
+		reqBody  model.SkillRequest
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.InsertUserSkill(&reqBody, userId)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserCertificates(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response = c.usecase.GetUserCertificates(userId)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
+	var (
+		reqBody  model.CertificateRequest
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.InsertCertificate(&reqBody, userId)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserAbout(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response = c.usecase.GetUserAbout(userId)
+
+	ctx.JSON(response.Status.Code, response)
 }
 
 func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {

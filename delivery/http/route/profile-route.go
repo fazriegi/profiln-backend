@@ -33,4 +33,9 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile.PUT("/my-information", controller.UpdateUserInformation)
 	profile.PUT("/educations/:educationId", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.UpdateUserEducation)
 	profile.PUT("/work-experiences/:workExperienceId", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.UpdateUserWorkExperience)
+	profile.POST("/user/certificate", controller.InsertCertificate)
+	profile.POST("/user/skill", controller.InsertUserSkills)
+	profile.GET("/user/about", controller.GetUserAbout)
+	profile.GET("/user/certificate", controller.GetUserCertificates)
+	profile.GET("/user/skill", controller.GetUserSkillsLocationPortofolio)
 }
