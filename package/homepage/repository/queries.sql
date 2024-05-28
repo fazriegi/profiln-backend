@@ -10,7 +10,7 @@ FROM posts p
 LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN users u ON p.user_id = u.id 
 LEFT JOIN liked_posts lp ON p.id = lp.post_id
-WHERE rp.post_id IS NULL
+WHERE rp.post_id IS NULL AND p.visibility = 'public'
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3;
@@ -49,7 +49,7 @@ FROM posts p
 LEFT JOIN reported_posts rp ON p.id = rp.post_id AND rp.user_id = $1
 LEFT JOIN users u ON p.user_id = u.id
 LEFT JOIN liked_posts lp ON p.id = lp.post_id
-WHERE rp.post_id IS NULL
+WHERE rp.post_id IS NULL AND p.visibility = 'public'
 ORDER BY
     recent_post DESC,
     (p.like_count + p.comment_count + p.repost_count) DESC
