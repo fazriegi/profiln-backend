@@ -25,6 +25,8 @@ type IPostsController interface {
 	InsertPost(ctx *gin.Context)
 	UpdatePost(ctx *gin.Context)
 	DeletePost(ctx *gin.Context)
+	RepostPost(ctx *gin.Context)
+	UnrepostPost(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -470,5 +472,43 @@ func (c *PostsController) DeletePost(ctx *gin.Context) {
 	}
 
 	response = c.usecase.DeletePost(userId, postId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) RepostPost(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.RepostPost(userId, postId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UnrepostPost(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnrepostPost(userId, postId)
 	ctx.JSON(response.Status.Code, response)
 }

@@ -140,6 +140,24 @@ func (q *Queries) DeletePostById(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteRepostedPost = `-- name: DeleteRepostedPost :one
+DELETE FROM reposted_posts
+WHERE user_id = $1::bigint AND post_id = $2::bigint
+RETURNING id
+`
+
+type DeleteRepostedPostParams struct {
+	UserID int64
+	PostID int64
+}
+
+func (q *Queries) DeleteRepostedPost(ctx context.Context, arg DeleteRepostedPostParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteRepostedPost, arg.UserID, arg.PostID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getDetailPost = `-- name: GetDetailPost :one
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
@@ -513,6 +531,25 @@ func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPost
 	return i, err
 }
 
+const insertRepostedPost = `-- name: InsertRepostedPost :one
+INSERT INTO reposted_posts (user_id, post_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, post_id) DO NOTHING
+RETURNING id
+`
+
+type InsertRepostedPostParams struct {
+	UserID int64
+	PostID int64
+}
+
+func (q *Queries) InsertRepostedPost(ctx context.Context, arg InsertRepostedPostParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertRepostedPost, arg.UserID, arg.PostID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const listLikedPostsByUserId = `-- name: ListLikedPostsByUserId :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
@@ -866,5 +903,29 @@ func (q *Queries) UpdatePostLikeCount(ctx context.Context, arg UpdatePostLikeCou
 	row := q.db.QueryRowContext(ctx, updatePostLikeCount, arg.Value, arg.ID)
 	var i UpdatePostLikeCountRow
 	err := row.Scan(&i.ID, &i.LikeCount)
+	return i, err
+}
+
+const updatePostRepostCount = `-- name: UpdatePostRepostCount :one
+UPDATE posts
+SET repost_count = repost_count + $1::smallint
+WHERE id = $2::bigint
+RETURNING id, repost_count
+`
+
+type UpdatePostRepostCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostRepostCountRow struct {
+	ID          int64
+	RepostCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostRepostCount(ctx context.Context, arg UpdatePostRepostCountParams) (UpdatePostRepostCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostRepostCount, arg.Value, arg.ID)
+	var i UpdatePostRepostCountRow
+	err := row.Scan(&i.ID, &i.RepostCount)
 	return i, err
 }

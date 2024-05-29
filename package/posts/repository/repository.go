@@ -26,6 +26,8 @@ type IPostsRepository interface {
 	GetPostById(postId int64) (model.Post, error)
 	GetPostImagesUrl(postId int64) ([]string, error)
 	DeletePost(postId int64) error
+	RepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error)
+	UnrepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error)
 }
 
 type PostsRepository struct {
@@ -577,46 +579,6 @@ func (r *PostsRepository) DeletePost(postId int64) error {
 		go deleteFunc(postId)
 	}
 
-	// wg.Add(1)
-	// go func(postId int64) {
-	// 	defer wg.Done()
-	// 	if err = qtx.BatchDeleteReportedPostsByPost(ctx, postId); err != nil {
-	// 		errChan <- fmt.Errorf("could not batch delete reported post: %w", err)
-	// 	}
-	// }(postId)
-
-	// wg.Add(1)
-	// go func(postId int64) {
-	// 	defer wg.Done()
-	// 	if err = qtx.BatchDeleteLikedPostByPost(ctx, postId); err != nil {
-	// 		errChan <- fmt.Errorf("could not batch delete liked post: %w", err)
-	// 	}
-	// }(postId)
-
-	// wg.Add(1)
-	// go func(postId int64) {
-	// 	defer wg.Done()
-	// 	if err = qtx.BatchDeleteRepostedPostByPost(ctx, postId); err != nil {
-	// 		errChan <- fmt.Errorf("could not batch delete reposted post: %w", err)
-	// 	}
-	// }(postId)
-
-	// wg.Add(1)
-	// go func(postId int64) {
-	// 	defer wg.Done()
-	// 	if err = qtx.BatchDeletePostCommentRepliesByPost(ctx, postId); err != nil {
-	// 		errChan <- fmt.Errorf("could not batch delete post comment replies: %w", err)
-	// 	}
-	// }(postId)
-
-	// wg.Add(1)
-	// go func(postId int64) {
-	// 	defer wg.Done()
-	// 	if err = qtx.BatchDeletePostImagesByPost(ctx, postId); err != nil {
-	// 		errChan <- fmt.Errorf("could not batch delete post images: %w", err)
-	// 	}
-	// }(postId)
-
 	wg.Wait()
 	close(errChan)
 
@@ -639,4 +601,102 @@ func (r *PostsRepository) DeletePost(postId int64) error {
 	}
 
 	return nil
+}
+
+func (r *PostsRepository) RepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error) {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockPostForUpdate(ctx, postId)
+	if err != nil {
+		return nil, fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	post, err := qtx.UpdatePostRepostCount(ctx, postSqlc.UpdatePostRepostCountParams{
+		ID:    postId,
+		Value: 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update repost count: %w", err)
+	}
+
+	_, err = qtx.InsertRepostedPost(ctx, postSqlc.InsertRepostedPostParams{
+		UserID: userId,
+		PostID: postId,
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			post = postSqlc.UpdatePostRepostCountRow{
+				ID:          post.ID,
+				RepostCount: sql.NullInt32{Int32: post.RepostCount.Int32 - 1, Valid: true},
+			}
+
+			return &post, nil
+		}
+
+		return nil, fmt.Errorf("could not insert reposted post: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return &post, nil
+}
+
+func (r *PostsRepository) UnrepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error) {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockPostForUpdate(ctx, postId)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	post, err := qtx.UpdatePostRepostCount(ctx, postSqlc.UpdatePostRepostCountParams{
+		ID:    postId,
+		Value: -1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update repost count: %w", err)
+	}
+
+	_, err = qtx.DeleteRepostedPost(ctx, postSqlc.DeleteRepostedPostParams{
+		UserID: userId,
+		PostID: postId,
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			post = postSqlc.UpdatePostRepostCountRow{
+				ID:          post.ID,
+				RepostCount: sql.NullInt32{Int32: post.RepostCount.Int32 + 1, Valid: true},
+			}
+
+			return &post, nil
+		}
+
+		return nil, fmt.Errorf("could not delete reposted post: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return &post, nil
 }

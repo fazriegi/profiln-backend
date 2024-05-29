@@ -26,6 +26,8 @@ type IPostsUsecase interface {
 	InsertPost(imageFile []*multipart.FileHeader, props *model.CreatePostRequest) model.Response
 	UpdatePost(imageFiles []*multipart.FileHeader, props *model.UpdatePostRequest) model.Response
 	DeletePost(userId, postId int64) model.Response
+	RepostPost(userId, postId int64) model.Response
+	UnrepostPost(userId, postId int64) model.Response
 }
 
 type PostsUsecase struct {
@@ -526,5 +528,58 @@ func (u *PostsUsecase) DeletePost(userId, postId int64) model.Response {
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success delete post"),
+	}
+}
+
+func (u *PostsUsecase) RepostPost(userId, postId int64) model.Response {
+	post, err := u.repository.GetPostById(postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if post.User.ID == userId {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusUnprocessableEntity, "Can't repost own post"),
+		}
+	}
+
+	data, err := u.repository.RepostPost(userId, postId)
+	if err != nil {
+		u.log.Errorf("repository.RepostPost: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success repost post"),
+		Data: map[string]any{
+			"id":           data.ID,
+			"repost_count": data.RepostCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnrepostPost(userId, postId int64) model.Response {
+	data, err := u.repository.UnrepostPost(userId, postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnrepostPost: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unrepost post"),
+		Data: map[string]any{
+			"id":           data.ID,
+			"repost_count": data.RepostCount.Int32,
+		},
 	}
 }

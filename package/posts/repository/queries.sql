@@ -206,3 +206,20 @@ RETURNING id;
 DELETE FROM liked_posts
 WHERE user_id = @user_id::bigint AND post_id = @post_id::bigint
 RETURNING id;
+
+-- name: UpdatePostRepostCount :one
+UPDATE posts
+SET repost_count = repost_count + @value::smallint
+WHERE id = @id::bigint
+RETURNING id, repost_count;
+
+-- name: InsertRepostedPost :one
+INSERT INTO reposted_posts (user_id, post_id)
+VALUES (@user_id::bigint, @post_id::bigint)
+ON CONFLICT (user_id, post_id) DO NOTHING
+RETURNING id;
+
+-- name: DeleteRepostedPost :one
+DELETE FROM reposted_posts
+WHERE user_id = @user_id::bigint AND post_id = @post_id::bigint
+RETURNING id;
