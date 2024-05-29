@@ -24,6 +24,7 @@ type IPostsUsecase interface {
 	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	InsertPost(imageFile []*multipart.FileHeader, props *model.CreatePostRequest) model.Response
 	UpdatePost(imageFiles []*multipart.FileHeader, props *model.UpdatePostRequest) model.Response
+	DeletePost(userId, postId int64) model.Response
 }
 
 type PostsUsecase struct {
@@ -350,7 +351,7 @@ func (u *PostsUsecase) UpdatePost(imageFiles []*multipart.FileHeader, props *mod
 		err error
 	)
 
-	// Check if user education exists
+	// Check if user post exists
 	_, err = u.repository.GetPostById(props.ID)
 	if err == sql.ErrNoRows {
 		return model.Response{
@@ -358,7 +359,7 @@ func (u *PostsUsecase) UpdatePost(imageFiles []*multipart.FileHeader, props *mod
 		}
 	}
 
-	// Get all current education file urls
+	// Get all current post file urls
 	currentObjectUrls, err := u.repository.GetPostImagesUrl(props.ID)
 	if err != nil {
 		u.log.Errorf("repository.GetPostImagesUrl (user id: %d): %v", props.UserId, err)
@@ -449,5 +450,51 @@ func (u *PostsUsecase) UpdatePost(imageFiles []*multipart.FileHeader, props *mod
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success update post"),
 		Data:   props,
+	}
+}
+
+func (u *PostsUsecase) DeletePost(userId, postId int64) model.Response {
+	// Check if user post exists
+	currentPost, err := u.repository.GetPostById(postId)
+	if err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if currentPost.User.ID != userId {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusUnauthorized, "Unauthorized"),
+		}
+	}
+
+	// Get all current post file urls
+	currentObjectUrls, err := u.repository.GetPostImagesUrl(postId)
+	if err != nil {
+		u.log.Errorf("repository.GetPostImagesUrl (post id: %d): %v", postId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	err = u.repository.DeletePost(postId)
+	if err != nil {
+		u.log.Errorf("repository.DeletePost(%d): %v", postId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if len(currentObjectUrls) > 1 {
+		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", userId, err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete post"),
 	}
 }

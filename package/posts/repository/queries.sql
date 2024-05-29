@@ -153,6 +153,10 @@ SET title = @title::text,
     visibility = @visibility::varchar(10)
 WHERE id = @id::bigint AND user_id = @user_id::bigint;
 
+-- name: DeletePostById :exec
+DELETE FROM posts
+WHERE id = @id::bigint;
+
 -- name: BatchInsertPostImages :many
 INSERT INTO post_images
 	(post_id, url)
@@ -166,3 +170,28 @@ WHERE post_id = @post_id::bigint;
 -- name: BatchDeletePostImagesByPost :exec
 DELETE FROM post_images
 WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeleteReportedPostsByPost :exec
+DELETE FROM reported_posts
+WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeleteLikedPostByPost :exec
+DELETE FROM liked_posts
+WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeleteRepostedPostByPost :exec
+DELETE FROM reposted_posts
+WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeletePostCommentsByPost :exec
+DELETE FROM post_comments
+WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeletePostCommentRepliesByPost :exec
+WITH post_comments AS (
+	SELECT id 
+	FROM post_comments 
+	WHERE post_id = @post_id::bigint
+)
+DELETE FROM post_comment_replies
+WHERE post_comment_id IN (SELECT id FROM post_comments);

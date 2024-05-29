@@ -23,6 +23,7 @@ type IPostsController interface {
 	ListRepostedPostsByUserId(ctx *gin.Context)
 	InsertPost(ctx *gin.Context)
 	UpdatePost(ctx *gin.Context)
+	DeletePost(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -425,5 +426,26 @@ func (c *PostsController) UpdatePost(ctx *gin.Context) {
 	reqBody.ID = postId
 
 	response = c.usecase.UpdatePost(files, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) DeletePost(ctx *gin.Context) {
+	var (
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeletePost(userId, postId)
 	ctx.JSON(response.Status.Code, response)
 }

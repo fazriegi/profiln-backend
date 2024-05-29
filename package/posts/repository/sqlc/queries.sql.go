@@ -12,6 +12,41 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchDeleteLikedPostByPost = `-- name: BatchDeleteLikedPostByPost :exec
+DELETE FROM liked_posts
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteLikedPostByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteLikedPostByPost, postID)
+	return err
+}
+
+const batchDeletePostCommentRepliesByPost = `-- name: BatchDeletePostCommentRepliesByPost :exec
+WITH post_comments AS (
+	SELECT id 
+	FROM post_comments 
+	WHERE post_id = $1::bigint
+)
+DELETE FROM post_comment_replies
+WHERE post_comment_id IN (SELECT id FROM post_comments)
+`
+
+func (q *Queries) BatchDeletePostCommentRepliesByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeletePostCommentRepliesByPost, postID)
+	return err
+}
+
+const batchDeletePostCommentsByPost = `-- name: BatchDeletePostCommentsByPost :exec
+DELETE FROM post_comments
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) BatchDeletePostCommentsByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeletePostCommentsByPost, postID)
+	return err
+}
+
 const batchDeletePostImagesByPost = `-- name: BatchDeletePostImagesByPost :exec
 DELETE FROM post_images
 WHERE post_id = $1::bigint
@@ -19,6 +54,26 @@ WHERE post_id = $1::bigint
 
 func (q *Queries) BatchDeletePostImagesByPost(ctx context.Context, postID int64) error {
 	_, err := q.db.ExecContext(ctx, batchDeletePostImagesByPost, postID)
+	return err
+}
+
+const batchDeleteReportedPostsByPost = `-- name: BatchDeleteReportedPostsByPost :exec
+DELETE FROM reported_posts
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteReportedPostsByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteReportedPostsByPost, postID)
+	return err
+}
+
+const batchDeleteRepostedPostByPost = `-- name: BatchDeleteRepostedPostByPost :exec
+DELETE FROM reposted_posts
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteRepostedPostByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteRepostedPostByPost, postID)
 	return err
 }
 
@@ -55,6 +110,16 @@ func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPost
 		return nil, err
 	}
 	return items, nil
+}
+
+const deletePostById = `-- name: DeletePostById :exec
+DELETE FROM posts
+WHERE id = $1::bigint
+`
+
+func (q *Queries) DeletePostById(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePostById, id)
+	return err
 }
 
 const getDetailPost = `-- name: GetDetailPost :one

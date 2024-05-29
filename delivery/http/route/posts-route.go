@@ -36,4 +36,5 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
 	myPosts.POST("/", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats), controller.InsertPost)
 	myPosts.PUT("/:postId", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats), controller.UpdatePost)
+	myPosts.DELETE("/:postId", controller.DeletePost)
 }

@@ -7,6 +7,7 @@ import (
 	"profiln-be/model"
 	postSqlc "profiln-be/package/posts/repository/sqlc"
 	"strings"
+	"sync"
 )
 
 type IPostsRepository interface {
@@ -22,6 +23,7 @@ type IPostsRepository interface {
 	UpdatePostById(props *model.UpdatePostRequest) error
 	GetPostById(postId int64) (model.Post, error)
 	GetPostImagesUrl(postId int64) ([]string, error)
+	DeletePost(postId int64) error
 }
 
 type PostsRepository struct {
@@ -447,4 +449,121 @@ func (r *PostsRepository) GetPostImagesUrl(postId int64) ([]string, error) {
 	}
 
 	return urls, nil
+}
+
+func (r *PostsRepository) DeletePost(postId int64) error {
+	var (
+		errChan = make(chan error, 5)
+		wg      sync.WaitGroup
+	)
+
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	deleteFuncs := []func(int64){
+		func(postId int64) {
+			defer wg.Done()
+			if err := qtx.BatchDeleteReportedPostsByPost(ctx, postId); err != nil {
+				errChan <- fmt.Errorf("could not batch delete reported post: %w", err)
+			}
+		},
+		func(postId int64) {
+			defer wg.Done()
+			if err := qtx.BatchDeleteLikedPostByPost(ctx, postId); err != nil {
+				errChan <- fmt.Errorf("could not batch delete liked post: %w", err)
+			}
+		},
+		func(postId int64) {
+			defer wg.Done()
+			if err := qtx.BatchDeleteRepostedPostByPost(ctx, postId); err != nil {
+				errChan <- fmt.Errorf("could not batch delete reposted post: %w", err)
+			}
+		},
+		func(postId int64) {
+			defer wg.Done()
+			if err := qtx.BatchDeletePostCommentRepliesByPost(ctx, postId); err != nil {
+				errChan <- fmt.Errorf("could not batch delete post comment replies: %w", err)
+			}
+		},
+		func(postId int64) {
+			defer wg.Done()
+			if err := qtx.BatchDeletePostImagesByPost(ctx, postId); err != nil {
+				errChan <- fmt.Errorf("could not batch delete post images: %w", err)
+			}
+		},
+	}
+
+	for _, deleteFunc := range deleteFuncs {
+		wg.Add(1)
+		go deleteFunc(postId)
+	}
+
+	// wg.Add(1)
+	// go func(postId int64) {
+	// 	defer wg.Done()
+	// 	if err = qtx.BatchDeleteReportedPostsByPost(ctx, postId); err != nil {
+	// 		errChan <- fmt.Errorf("could not batch delete reported post: %w", err)
+	// 	}
+	// }(postId)
+
+	// wg.Add(1)
+	// go func(postId int64) {
+	// 	defer wg.Done()
+	// 	if err = qtx.BatchDeleteLikedPostByPost(ctx, postId); err != nil {
+	// 		errChan <- fmt.Errorf("could not batch delete liked post: %w", err)
+	// 	}
+	// }(postId)
+
+	// wg.Add(1)
+	// go func(postId int64) {
+	// 	defer wg.Done()
+	// 	if err = qtx.BatchDeleteRepostedPostByPost(ctx, postId); err != nil {
+	// 		errChan <- fmt.Errorf("could not batch delete reposted post: %w", err)
+	// 	}
+	// }(postId)
+
+	// wg.Add(1)
+	// go func(postId int64) {
+	// 	defer wg.Done()
+	// 	if err = qtx.BatchDeletePostCommentRepliesByPost(ctx, postId); err != nil {
+	// 		errChan <- fmt.Errorf("could not batch delete post comment replies: %w", err)
+	// 	}
+	// }(postId)
+
+	// wg.Add(1)
+	// go func(postId int64) {
+	// 	defer wg.Done()
+	// 	if err = qtx.BatchDeletePostImagesByPost(ctx, postId); err != nil {
+	// 		errChan <- fmt.Errorf("could not batch delete post images: %w", err)
+	// 	}
+	// }(postId)
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = qtx.BatchDeletePostCommentsByPost(ctx, postId); err != nil {
+		return fmt.Errorf("could not batch delete post comments: %w", err)
+	}
+
+	if err = qtx.DeletePostById(ctx, postId); err != nil {
+		return fmt.Errorf("could not delete post: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
 }
