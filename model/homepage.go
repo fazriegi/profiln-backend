@@ -6,7 +6,7 @@ type ListPostsResponse struct {
 	ID           int64     `json:"id"`
 	User         User      `json:"user"`
 	Content      string    `json:"content"`
-	ImageUrl     string    `json:"image_url"`
+	ImageUrls    []string  `json:"image_urls"`
 	LikeCount    int32     `json:"like_count"`
 	CommentCount int32     `json:"comment_count"`
 	RepostCount  int32     `json:"repost_count"`
