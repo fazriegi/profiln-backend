@@ -112,6 +112,24 @@ func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPost
 	return items, nil
 }
 
+const deleteLikedPost = `-- name: DeleteLikedPost :one
+DELETE FROM liked_posts
+WHERE user_id = $1::bigint AND post_id = $2::bigint
+RETURNING id
+`
+
+type DeleteLikedPostParams struct {
+	UserID int64
+	PostID int64
+}
+
+func (q *Queries) DeleteLikedPost(ctx context.Context, arg DeleteLikedPostParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteLikedPost, arg.UserID, arg.PostID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deletePostById = `-- name: DeletePostById :exec
 DELETE FROM posts
 WHERE id = $1::bigint

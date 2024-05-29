@@ -19,6 +19,7 @@ type IPostsUsecase interface {
 	GetPostComments(postId int64, pagination model.PaginationRequest) (resp model.Response)
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
 	LikePost(userId, postId int64) model.Response
+	UnlikePost(userId, postId int64) model.Response
 	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
@@ -191,7 +192,29 @@ func (u *PostsUsecase) LikePost(userId, postId int64) model.Response {
 	}
 
 	return model.Response{
-		Status: libs.CustomResponse(http.StatusOK, "Success update post like count"),
+		Status: libs.CustomResponse(http.StatusOK, "Success like post"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnlikePost(userId, postId int64) model.Response {
+	data, err := u.repository.UnlikePost(userId, postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnlikePost: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unlike post"),
 		Data: map[string]any{
 			"id":         data.ID,
 			"like_count": data.LikeCount.Int32,

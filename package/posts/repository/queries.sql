@@ -201,3 +201,8 @@ INSERT INTO liked_posts (user_id, post_id)
 VALUES (@user_id::bigint, @post_id::bigint)
 ON CONFLICT (user_id, post_id) DO NOTHING
 RETURNING id;
+
+-- name: DeleteLikedPost :one
+DELETE FROM liked_posts
+WHERE user_id = @user_id::bigint AND post_id = @post_id::bigint
+RETURNING id;
