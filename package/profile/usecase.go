@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -19,11 +18,7 @@ import (
 )
 
 type IProfileUsecase interface {
-	InsertCompany(props *model.CompanyRequest) (resp model.Response)
-	InsertIssuingOrganization(props *model.IssuingOrganizationRequest) (resp model.Response)
-	InsertUserDetail(props *model.UserDetailRequest, id int64) (resp model.Response)
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
-	InsertEducation(props *model.EducationRequest, id int64) (resp model.Response)
 	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
 	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
@@ -34,9 +29,6 @@ type IProfileUsecase interface {
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
-	GetUserSkillsLocationPortofolio(id int64) (resp model.Response)
-	GetUserCertificates(id int64) (resp model.Response)
-	GetUserAbout(id int64) (resp model.Response)
 }
 
 type ProfileUsecase struct {
@@ -51,227 +43,6 @@ func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Log
 		log,
 		googleBucket,
 	}
-}
-
-func (u *ProfileUsecase) GetUserAbout(id int64) (resp model.Response) {
-	var (
-		idAbout    *int64
-		userId     *int64
-		about      *string
-		created_at *time.Time
-		updated_at *time.Time
-	)
-
-	userAbout, err := u.repository.GetUserAbout(id)
-
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserAbout: %v", err)
-		return
-	}
-
-	if userAbout.ID.Valid {
-		idAbout = &userAbout.ID.Int64
-		userId = &userAbout.UserID.Int64
-		about = &userAbout.About.String
-		created_at = &userAbout.CreatedAt.Time
-		updated_at = &userAbout.UpdatedAt.Time
-	}
-
-	userAboutResponse := model.UserAboutResponse{
-		About: model.AboutProfileResponse{
-			ID:        idAbout,
-			UserID:    userId,
-			About:     about,
-			CreatedAt: created_at,
-			UpdatedAt: updated_at,
-		},
-		User: model.UserProfileResponse{
-			ID:       int(userAbout.ID_2),
-			Email:    userAbout.Email,
-			FullName: userAbout.FullName,
-		},
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusOK, "Success to create user about")
-	resp.Data = userAboutResponse
-	return resp
-}
-
-func (u *ProfileUsecase) GetUserCertificates(id int64) (resp model.Response) {
-	userCertificates, err := u.repository.GetUserCertificates(id)
-
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserCertificates: %v", err)
-		return
-	}
-
-	certificates := make([]any, len(userCertificates))
-
-	if userCertificates[0].ID_2.Int64 == 0 {
-		certificates = make([]any, 0)
-	} else {
-		for i, v := range userCertificates {
-
-			var expirationDate *time.Time
-			if v.ExpirationDate.Valid {
-				expirationDate = &v.ExpirationDate.Time
-			}
-
-			certificates[i] = model.CertificatesResponse{
-				ID:             v.ID_2.Int64,
-				Name:           v.Name.String,
-				Organization:   v.Name_2.String,
-				IssueDate:      v.IssueDate.Time,
-				ExpirationDate: expirationDate,
-				CredentialID:   v.CredentialID.String,
-				Url:            v.Url.String,
-				CreatedAt:      v.CreatedAt.Time,
-				UpdatedAt:      v.UpdatedAt.Time,
-			}
-		}
-	}
-
-	userCertificatesResponse := model.UserCertificatesResponse{
-		User: model.UserProfileResponse{
-			ID:       int(userCertificates[0].ID),
-			Email:    userCertificates[0].Email,
-			FullName: userCertificates[0].FullName,
-		},
-		Certificates: certificates,
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusOK, "Success to create user about")
-	resp.Data = userCertificatesResponse
-	return resp
-}
-
-func (u *ProfileUsecase) GetUserSkillsLocationPortofolio(id int64) (resp model.Response) {
-	var (
-		idUserDetail    *int64
-		userId          *int64
-		phoneNumber     *string
-		gender          *string
-		location        *string
-		portfolioUrl    *string
-		about           *string
-		hidePhoneNumber *bool
-		createdAt       *time.Time
-		updatedAt       *time.Time
-	)
-
-	userSkillsLocationPorto, err := u.repository.GetUserSkillsLocationAndPortofolio(id)
-
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserSkillsAndLocation: %v", err)
-		return
-	}
-
-	skills := make([]model.SkillsResponse, 0)
-
-	if userSkillsLocationPorto[0].ID_2.Valid {
-		skills = make([]model.SkillsResponse, len(userSkillsLocationPorto))
-		for i, v := range userSkillsLocationPorto {
-			skills[i] = model.SkillsResponse{
-				ID:   &v.ID_2.Int64,
-				Name: &v.Name.String,
-			}
-		}
-	}
-
-	if userSkillsLocationPorto[0].ID_3.Valid {
-		idUserDetail = &userSkillsLocationPorto[0].ID_3.Int64
-		userId = &userSkillsLocationPorto[0].UserID.Int64
-		phoneNumber = &userSkillsLocationPorto[0].PhoneNumber.String
-		gender = &userSkillsLocationPorto[0].Gender.String
-		location = &userSkillsLocationPorto[0].Location.String
-		portfolioUrl = &userSkillsLocationPorto[0].PortfolioUrl.String
-		about = &userSkillsLocationPorto[0].About.String
-		hidePhoneNumber = &userSkillsLocationPorto[0].HidePhoneNumber.Bool
-		createdAt = &userSkillsLocationPorto[0].CreatedAt.Time
-		updatedAt = &userSkillsLocationPorto[0].UpdatedAt.Time
-	}
-
-	userSkillsLocationPortoResponse := model.UserSkillsLocationResponse{
-		User: model.UserProfileResponse{
-			ID:       int(id),
-			Email:    userSkillsLocationPorto[0].Email,
-			FullName: userSkillsLocationPorto[0].FullName,
-		},
-		Skills: skills,
-		UserDetail: model.UserDetailResponse{
-			ID:              idUserDetail,
-			UserID:          userId,
-			PhoneNumber:     phoneNumber,
-			Gender:          gender,
-			Location:        location,
-			PortfolioUrl:    portfolioUrl,
-			About:           about,
-			HidePhoneNumber: hidePhoneNumber,
-			CreatedAt:       createdAt,
-			UpdatedAt:       updatedAt,
-		},
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to get user skills and location")
-	resp.Data = userSkillsLocationPortoResponse
-	return resp
-}
-
-func (u *ProfileUsecase) InsertCompany(props *model.CompanyRequest) (resp model.Response) {
-	company, err := u.repository.InsertCompany(props.Name)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertCompany %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create company")
-	resp.Data = company
-	return resp
-}
-
-func (u *ProfileUsecase) InsertIssuingOrganization(props *model.IssuingOrganizationRequest) (resp model.Response) {
-	issueOriganization, err := u.repository.InsertIssuingOrganization(props.Name)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertIssuingOrganization %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create issue origanization")
-	resp.Data = issueOriganization
-	return resp
-}
-
-func (u *ProfileUsecase) InsertSchool(props *model.SchoolRequest) (resp model.Response) {
-	school, err := u.repository.InsertSchool(props.Name)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertSchool %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create school")
-	resp.Data = school
-	return resp
 }
 
 func (u *ProfileUsecase) InsertSkill(props *model.SkillRequest) (resp model.Response) {
@@ -393,30 +164,6 @@ func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest
 	return resp
 }
 
-func (u *ProfileUsecase) InsertEducation(props *model.EducationRequest, id int64) (resp model.Response) {
-	educationParams := profileSqlc.InsertEducationParams{
-		UserID:       sql.NullInt64{Int64: id, Valid: true},
-		SchoolID:     sql.NullInt64{Int64: props.SchoolID, Valid: true},
-		Degree:       sql.NullString{String: props.Degree, Valid: true},
-		FieldOfStudy: sql.NullString{String: props.FieldOfStudy, Valid: true},
-		Gpa:          sql.NullString{String: props.Gpa, Valid: true},
-		StartDate:    sql.NullTime{Time: props.StartDate.Time, Valid: true},
-		// FinishDate:   sql.NullTime{Time: time.Time{}, Valid: false},
-		FinishDate: sql.NullTime{Time: props.FinishDate.Time, Valid: true},
-	}
-
-	education, err := u.repository.InsertEducation(educationParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertEducation %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create education")
-	resp.Data = education
-	return resp
-}
-
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
 	insertAboutParams := profileSqlc.InsertUserDetailAboutParams{
 		About:  sql.NullString{String: props.About, Valid: true},
@@ -444,37 +191,6 @@ func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutReque
 
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
 	resp.Data = about.About.String
-	return resp
-}
-
-func (u *ProfileUsecase) InsertUserDetail(props *model.UserDetailRequest, id int64) (resp model.Response) {
-	userDetailParams := profileSqlc.InsertUserDetailParams{
-		UserID:      sql.NullInt64{Int64: id, Valid: true},
-		PhoneNumber: sql.NullString{String: props.PhoneNumber, Valid: true},
-		Gender:      sql.NullString{String: props.Gender, Valid: true},
-	}
-
-	userDetail, err := u.repository.InsertUserDetail(userDetailParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertUserDetail %v", err)
-	}
-
-	avatarParams := profileSqlc.InsertUserAvatarParams{
-		AvatarUrl: sql.NullString{String: "", Valid: true},
-		ID:        id,
-	}
-
-	err = u.repository.InsertUserAvatar(avatarParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertUserAvatar %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
-	resp.Data = userDetail
 	return resp
 }
 

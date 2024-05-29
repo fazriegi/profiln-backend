@@ -27,9 +27,9 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	profile.Use(middleware.Authentication())
 	profile.POST("/user/certificate", controller.InsertCertificate)
 	profile.POST("/user/skill", controller.InsertUserSkills)
-	profile.GET("/user/about", controller.GetUserAbout)
-	profile.GET("/user/certificate", controller.GetUserCertificates)
-	profile.GET("/user/skill", controller.GetUserSkillsLocationPortofolio)
+	// profile.GET("/user/about", controller.GetUserAbout)
+	// profile.GET("/user/certificate", controller.GetUserCertificates)
+	// profile.GET("/user/skill", controller.GetUserSkillsLocationPortofolio)
 
 	app.Use(middleware.Authentication())
 	app.GET("/skills", controller.GetSkills)

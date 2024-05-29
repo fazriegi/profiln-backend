@@ -22,11 +22,8 @@ type IProfileController interface {
 	UpdateUserInformation(ctx *gin.Context)
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
-	GetUserAbout(ctx *gin.Context)
 	InsertCertificate(ctx *gin.Context)
-	GetUserCertificates(ctx *gin.Context)
 	InsertUserSkills(ctx *gin.Context)
-	GetUserSkillsLocationPortofolio(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -37,17 +34,6 @@ func NewProfileController(usecase profile.IProfileUsecase) IProfileController {
 	return &ProfileController{
 		usecase,
 	}
-}
-
-func (c *ProfileController) GetUserSkillsLocationPortofolio(ctx *gin.Context) {
-	var response model.Response
-
-	userData := ctx.MustGet("userData").(jwt.MapClaims)
-	userId := int64(userData["id"].(float64))
-
-	response = c.usecase.GetUserSkillsLocationPortofolio(userId)
-
-	ctx.JSON(response.Status.Code, response)
 }
 
 func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
@@ -86,17 +72,6 @@ func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *ProfileController) GetUserCertificates(ctx *gin.Context) {
-	var response model.Response
-
-	userData := ctx.MustGet("userData").(jwt.MapClaims)
-	userId := int64(userData["id"].(float64))
-
-	response = c.usecase.GetUserCertificates(userId)
-
-	ctx.JSON(response.Status.Code, response)
-}
-
 func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
 	var (
 		reqBody  model.CertificateRequest
@@ -129,17 +104,6 @@ func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
 	}
 
 	response = c.usecase.InsertCertificate(&reqBody, userId)
-
-	ctx.JSON(response.Status.Code, response)
-}
-
-func (c *ProfileController) GetUserAbout(ctx *gin.Context) {
-	var response model.Response
-
-	userData := ctx.MustGet("userData").(jwt.MapClaims)
-	userId := int64(userData["id"].(float64))
-
-	response = c.usecase.GetUserAbout(userId)
 
 	ctx.JSON(response.Status.Code, response)
 }

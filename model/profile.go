@@ -5,18 +5,6 @@ import (
 	"time"
 )
 
-type CompanyRequest struct {
-	Name string `validate:"required"`
-}
-
-type IssuingOrganizationRequest struct {
-	Name string `validate:"required"`
-}
-
-type SchoolRequest struct {
-	Name string `validate:"required"`
-}
-
 type SkillRequest struct {
 	Name string `validate:"required"`
 }
@@ -122,17 +110,6 @@ type UpdateUserInformation struct {
 	PortfolioUrl string   `json:"portfolio_url"`
 }
 
-type UserDetail struct {
-	ID              int64
-	UserId          int64
-	PhoneNumber     string
-	Gender          string
-	Location        string
-	PortfolioUrl    string
-	About           string
-	HidePhoneNumber bool
-}
-
 type UpdateEducationRequest struct {
 	ID           int64    `json:"id"`
 	UserId       int64    `json:"user_id"`
@@ -185,17 +162,6 @@ type AboutProfileResponse struct {
 	UpdatedAt *time.Time `json:"updated_at"`
 }
 
-type UserProfileResponse struct {
-	ID       int    `json:"id"`
-	Email    string `json:"email"`
-	FullName string `json:"fullname"`
-}
-
-type UserAboutResponse struct {
-	About AboutProfileResponse
-	User  UserProfileResponse
-}
-
 type InsertCertificateResponse struct {
 	ID                    int64     `json:"id"`
 	UserID                int64     `json:"user_id"`
@@ -207,11 +173,6 @@ type InsertCertificateResponse struct {
 	Url                   string    `json:"url"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
-}
-
-type UserCertificatesResponse struct {
-	User         UserProfileResponse
-	Certificates any
 }
 
 type CertificatesResponse struct {
@@ -244,8 +205,17 @@ type SkillsResponse struct {
 	Name *string `json:"name"`
 }
 
-type UserSkillsLocationResponse struct {
-	User       UserProfileResponse
-	Skills     []SkillsResponse
-	UserDetail UserDetailResponse
+type UserProfile struct {
+	User            User
+	FollowingCount  int64
+	SocialLinks     []SocialLinks
+	Skills          UserSkills
+	Location        string
+	WebPortfolioUrl string
+	About           string
+}
+
+type UserSkills struct {
+	MainSkills  []string
+	OtherSkills []string
 }

@@ -10,13 +10,8 @@ import (
 )
 
 type IProfileRepository interface {
-	InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error)
 	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error)
-	InsertCompany(name string) (profileSqlc.Company, error)
-	InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error)
-	InsertSchool(name string) (profileSqlc.School, error)
 	InsertCertificate(arg profileSqlc.InsertCertificateParams) (profileSqlc.Certificate, error)
-	InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error)
 	InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error)
 	InsertSkill(name string) (profileSqlc.Skill, error)
 	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
@@ -35,9 +30,6 @@ type IProfileRepository interface {
 	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
-	GetUserAbout(id int64) (profileSqlc.GetUserAboutRow, error)
-	GetUserCertificates(id int64) ([]profileSqlc.GetUserCertificatesRow, error)
-	GetUserSkillsLocationAndPortofolio(id int64) ([]profileSqlc.GetUserSkillsAndLocationRow, error)
 }
 
 type ProfileRepository struct {
@@ -50,36 +42,6 @@ func NewProfileRepository(db *sql.DB) IProfileRepository {
 		db:    db,
 		query: profileSqlc.New(db),
 	}
-}
-
-func (r *ProfileRepository) GetUserCertificates(id int64) ([]profileSqlc.GetUserCertificatesRow, error) {
-	certificates, err := r.query.GetUserCertificates(context.Background(), id)
-
-	if err != nil {
-		return []profileSqlc.GetUserCertificatesRow{}, err
-	}
-
-	return certificates, nil
-}
-
-func (r *ProfileRepository) GetUserSkillsLocationAndPortofolio(id int64) ([]profileSqlc.GetUserSkillsAndLocationRow, error) {
-	userSkillsLocationPorto, err := r.query.GetUserSkillsAndLocation(context.Background(), id)
-	if err != nil {
-		fmt.Println("error")
-		return []profileSqlc.GetUserSkillsAndLocationRow{}, err
-	}
-
-	return userSkillsLocationPorto, nil
-}
-
-func (r *ProfileRepository) InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error) {
-	userDetail, err := r.query.InsertUserDetail(context.Background(), arg)
-
-	if err != nil {
-		return profileSqlc.UserDetail{}, err
-	}
-
-	return userDetail, nil
 }
 
 func (r *ProfileRepository) InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error {
@@ -112,36 +74,6 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDeta
 	return nil
 }
 
-func (r *ProfileRepository) InsertCompany(name string) (profileSqlc.Company, error) {
-	company, err := r.query.InsertCompany(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.Company{}, err
-	}
-
-	return company, nil
-}
-
-func (r *ProfileRepository) InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error) {
-	education, err := r.query.InsertEducation(context.Background(), arg)
-
-	if err != nil {
-		return profileSqlc.Education{}, err
-	}
-
-	return education, nil
-}
-
-func (r *ProfileRepository) InsertSchool(name string) (profileSqlc.School, error) {
-	school, err := r.query.InsertSchool(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.School{}, err
-	}
-
-	return school, nil
-}
-
 func (r *ProfileRepository) InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error) {
 	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
 
@@ -162,16 +94,6 @@ func (r *ProfileRepository) InsertCertificate(arg profileSqlc.InsertCertificateP
 	return certificate, nil
 }
 
-func (r *ProfileRepository) InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error) {
-	issueOrganization, err := r.query.InsertIssuingOrganization(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.IssuingOrganization{}, err
-	}
-
-	return issueOrganization, nil
-}
-
 func (r *ProfileRepository) InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error) {
 	userSkill, err := r.query.InsertUserSkill(context.Background(), arg)
 
@@ -190,16 +112,6 @@ func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) 
 	}
 
 	return skill, nil
-}
-
-func (r *ProfileRepository) GetUserAbout(id int64) (profileSqlc.GetUserAboutRow, error) {
-	about, err := r.query.GetUserAbout(context.Background(), id)
-
-	if err != nil {
-		return profileSqlc.GetUserAboutRow{}, err
-	}
-
-	return about, nil
 }
 
 func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
