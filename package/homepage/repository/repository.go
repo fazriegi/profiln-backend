@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"profiln-be/model"
 	homepageSqlc "profiln-be/package/homepage/repository/sqlc"
+	"strings"
 )
 
 type IHomepageRepository interface {
@@ -46,6 +47,14 @@ func (r *HomepageRepository) ListNewestPosts(userId int64, offset, limit int32) 
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -57,6 +66,7 @@ func (r *HomepageRepository) ListNewestPosts(userId int64, offset, limit int32) 
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,
@@ -89,6 +99,14 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -100,6 +118,7 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,
@@ -132,6 +151,14 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -143,6 +170,7 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,

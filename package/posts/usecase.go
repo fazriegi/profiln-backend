@@ -73,27 +73,8 @@ func (u *PostsUsecase) GetDetailPost(postId, userId int64) (resp model.Response)
 		}
 	}
 
-	post := model.Post{
-		ID: data.ID,
-		User: model.User{
-			ID:         data.ID_2,
-			Fullname:   data.FullName,
-			AvatarUrl:  data.AvatarUrl.String,
-			Bio:        data.Bio.String,
-			OpenToWork: data.OpenToWork.Bool,
-		},
-		Title:        data.Title,
-		Content:      data.Content.String,
-		LikeCount:    data.LikeCount.Int32,
-		CommentCount: data.CommentCount.Int32,
-		RepostCount:  data.RepostCount.Int32,
-		IsRepost:     data.Repost,
-		IsLiked:      data.Liked,
-		UpdatedAt:    data.UpdatedAt.Time,
-	}
-
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success get detail post")
-	resp.Data = post
+	resp.Data = data
 	return
 }
 

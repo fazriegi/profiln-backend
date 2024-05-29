@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"profiln-be/model"
 	postSqlc "profiln-be/package/posts/repository/sqlc"
+	"strings"
 )
 
 type IPostsRepository interface {
 	InsertReportedPost(userId, postId int64, reason, message string) (postSqlc.ReportedPost, error)
-	GetDetailPost(postId, userId int64) (postSqlc.GetDetailPostRow, error)
+	GetDetailPost(postId, userId int64) (model.Post, error)
 	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
 	UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
@@ -48,16 +49,44 @@ func (r *PostsRepository) InsertReportedPost(userId, postId int64, reason, messa
 	return reportedPost, nil
 }
 
-func (r *PostsRepository) GetDetailPost(postId, userId int64) (postSqlc.GetDetailPostRow, error) {
+func (r *PostsRepository) GetDetailPost(postId, userId int64) (model.Post, error) {
 	data, err := r.query.GetDetailPost(context.Background(), postSqlc.GetDetailPostParams{
 		ID:     postId,
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 	})
 	if err != nil {
-		return postSqlc.GetDetailPostRow{}, err
+		return model.Post{}, err
 	}
 
-	return data, nil
+	var imageUrls []string
+
+	// Convert to array
+	if data.ImageUrls != nil {
+		imageUrlsString := strings.Trim(string(data.ImageUrls.([]uint8)), "{}")
+		imageUrls = strings.Split(imageUrlsString, ",")
+	}
+
+	post := model.Post{
+		ID: data.ID,
+		User: model.User{
+			ID:         data.ID_2,
+			Fullname:   data.FullName,
+			AvatarUrl:  data.AvatarUrl.String,
+			Bio:        data.Bio.String,
+			OpenToWork: data.OpenToWork.Bool,
+		},
+		Title:        data.Title,
+		Content:      data.Content.String,
+		ImageUrls:    imageUrls,
+		LikeCount:    data.LikeCount.Int32,
+		CommentCount: data.CommentCount.Int32,
+		RepostCount:  data.RepostCount.Int32,
+		IsRepost:     data.Repost,
+		IsLiked:      data.Liked,
+		UpdatedAt:    data.UpdatedAt.Time,
+	}
+
+	return post, nil
 }
 
 func (r *PostsRepository) GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error) {
@@ -151,6 +180,14 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -162,6 +199,7 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,
@@ -194,6 +232,14 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -205,6 +251,7 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,
@@ -237,6 +284,14 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 
 	posts := make([]model.Post, len(data))
 	for i, v := range data {
+		var imageUrls []string
+
+		// Convert to array
+		if v.ImageUrls != nil {
+			imageUrlsString := strings.Trim(string(v.ImageUrls.([]uint8)), "{}")
+			imageUrls = strings.Split(imageUrlsString, ",")
+		}
+
 		posts[i] = model.Post{
 			ID: v.ID,
 			User: model.User{
@@ -248,6 +303,7 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 			},
 			Title:        v.Title,
 			Content:      v.Content.String,
+			ImageUrls:    imageUrls,
 			LikeCount:    v.LikeCount.Int32,
 			CommentCount: v.CommentCount.Int32,
 			RepostCount:  v.RepostCount.Int32,

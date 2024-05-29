@@ -15,10 +15,11 @@ type ReportPostResponse struct {
 }
 
 type CreatePostRequest struct {
-	UserId     int64  `json:"user_id"`
-	Title      string `json:"title" form:"title" validate:"required"`
-	Content    string `json:"content" form:"content"`
-	Visibility string `json:"visibility" form:"visibility" validate:"required"`
+	UserId     int64    `json:"user_id"`
+	Title      string   `json:"title" form:"title" validate:"required"`
+	Content    string   `json:"content" form:"content"`
+	ImageUrls  []string `json:"image_urls"`
+	Visibility string   `json:"visibility" form:"visibility" validate:"required"`
 }
 
 type Post struct {
@@ -26,6 +27,7 @@ type Post struct {
 	User         User      `json:"author"`
 	Title        string    `json:"title"`
 	Content      string    `json:"content"`
+	ImageUrls    []string  `json:"image_urls"`
 	LikeCount    int32     `json:"like_count"`
 	CommentCount int32     `json:"comment_count"`
 	RepostCount  int32     `json:"repost_count"`

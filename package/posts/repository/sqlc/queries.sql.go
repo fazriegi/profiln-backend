@@ -13,6 +13,7 @@ import (
 const getDetailPost = `-- name: GetDetailPost :one
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
+	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
@@ -25,7 +26,10 @@ FROM posts p
 JOIN users pu ON p.user_id = pu.id
 LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $2
 LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $2
+LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE p.id = $1
+GROUP BY 
+    p.id, pu.id, lp.user_id, rpp.user_id
 `
 
 type GetDetailPostParams struct {
@@ -49,6 +53,7 @@ type GetDetailPostRow struct {
 	FullName     string
 	Bio          sql.NullString
 	OpenToWork   sql.NullBool
+	ImageUrls    interface{}
 	Liked        bool
 	Repost       bool
 }
@@ -72,6 +77,7 @@ func (q *Queries) GetDetailPost(ctx context.Context, arg GetDetailPostParams) (G
 		&i.FullName,
 		&i.Bio,
 		&i.OpenToWork,
+		&i.ImageUrls,
 		&i.Liked,
 		&i.Repost,
 	)
@@ -308,7 +314,8 @@ func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPost
 
 const listLikedPostsByUserId = `-- name: ListLikedPostsByUserId :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
-	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
+	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
@@ -322,7 +329,10 @@ FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
 LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
 LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE lp.user_id = $1
+GROUP BY 
+    p.id, u.id, lp.user_id, rpp.user_id
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3
@@ -350,6 +360,7 @@ type ListLikedPostsByUserIdRow struct {
 	AvatarUrl    sql.NullString
 	Bio          sql.NullString
 	OpenToWork   sql.NullBool
+	ImageUrls    interface{}
 	TotalRows    int64
 	Liked        bool
 	Repost       bool
@@ -380,6 +391,7 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 			&i.AvatarUrl,
 			&i.Bio,
 			&i.OpenToWork,
+			&i.ImageUrls,
 			&i.TotalRows,
 			&i.Liked,
 			&i.Repost,
@@ -399,7 +411,8 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 
 const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
-	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
+	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
@@ -413,7 +426,10 @@ FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
 LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
 LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE p.user_id = $1
+GROUP BY 
+    p.id, u.id, lp.user_id, rpp.user_id
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3
@@ -441,6 +457,7 @@ type ListNewestPostsByUserIdRow struct {
 	AvatarUrl    sql.NullString
 	Bio          sql.NullString
 	OpenToWork   sql.NullBool
+	ImageUrls    interface{}
 	TotalRows    int64
 	Liked        bool
 	Repost       bool
@@ -471,6 +488,7 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 			&i.AvatarUrl,
 			&i.Bio,
 			&i.OpenToWork,
+			&i.ImageUrls,
 			&i.TotalRows,
 			&i.Liked,
 			&i.Repost,
@@ -490,7 +508,8 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 
 const listRepostedPostsByUserId = `-- name: ListRepostedPostsByUserId :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
-	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
+	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
+	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
@@ -504,7 +523,10 @@ FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
 LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
 LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE rpp.user_id = $1
+GROUP BY 
+    p.id, u.id, lp.user_id, rpp.user_id
 ORDER BY p.updated_at DESC
 OFFSET $2
 LIMIT $3
@@ -532,6 +554,7 @@ type ListRepostedPostsByUserIdRow struct {
 	AvatarUrl    sql.NullString
 	Bio          sql.NullString
 	OpenToWork   sql.NullBool
+	ImageUrls    interface{}
 	TotalRows    int64
 	Liked        bool
 	Repost       bool
@@ -562,6 +585,7 @@ func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListReposte
 			&i.AvatarUrl,
 			&i.Bio,
 			&i.OpenToWork,
+			&i.ImageUrls,
 			&i.TotalRows,
 			&i.Liked,
 			&i.Repost,
