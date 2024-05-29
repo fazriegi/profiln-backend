@@ -352,10 +352,16 @@ func (u *PostsUsecase) UpdatePost(imageFiles []*multipart.FileHeader, props *mod
 	)
 
 	// Check if user post exists
-	_, err = u.repository.GetPostById(props.ID)
+	currentPost, err := u.repository.GetPostById(props.ID)
 	if err == sql.ErrNoRows {
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if currentPost.User.ID != props.UserId {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusUnauthorized, "Unauthorized"),
 		}
 	}
 
