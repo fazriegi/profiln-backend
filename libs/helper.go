@@ -21,6 +21,7 @@ func CustomResponse(code int, message string) model.Status {
 		401: "unauthorized",
 		400: "bad request",
 		303: "redirect",
+		204: "no content",
 		201: "created",
 		200: "success",
 	}

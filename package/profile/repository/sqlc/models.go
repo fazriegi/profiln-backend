@@ -68,18 +68,23 @@ type JobPosition struct {
 	Name sql.NullString
 }
 
+type LikedPost struct {
+	ID     int64
+	UserID sql.NullInt64
+	PostID sql.NullInt64
+}
+
 type Post struct {
-	ID             int64
-	UserID         sql.NullInt64
-	Content        sql.NullString
-	ImageUrl       sql.NullString
-	LikeCount      sql.NullInt32
-	CommentCount   sql.NullInt32
-	RepostCount    sql.NullInt32
-	Repost         sql.NullBool
-	OriginalPostID sql.NullInt64
-	CreatedAt      sql.NullTime
-	UpdatedAt      sql.NullTime
+	ID           int64
+	UserID       sql.NullInt64
+	Content      sql.NullString
+	LikeCount    sql.NullInt32
+	CommentCount sql.NullInt32
+	RepostCount  sql.NullInt32
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	Title        string
+	Visibility   string
 }
 
 type PostComment struct {
@@ -107,12 +112,24 @@ type PostCommentReply struct {
 	UpdatedAt     sql.NullTime
 }
 
+type PostImage struct {
+	ID     int64
+	PostID sql.NullInt64
+	Url    sql.NullString
+}
+
 type ReportedPost struct {
 	ID      int64
 	UserID  sql.NullInt64
 	PostID  sql.NullInt64
 	Reason  sql.NullString
 	Message sql.NullString
+}
+
+type RepostedPost struct {
+	ID     int64
+	UserID sql.NullInt64
+	PostID sql.NullInt64
 }
 
 type School struct {
