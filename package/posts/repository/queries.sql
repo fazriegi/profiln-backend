@@ -140,3 +140,9 @@ INSERT INTO posts
 (user_id, title, content, visibility)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
+
+-- name: BatchInsertPostImages :many
+INSERT INTO post_images
+	(post_id, url)
+SELECT @post_id::bigint, UNNEST(@url::TEXT[])
+RETURNING *;

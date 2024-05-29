@@ -343,18 +343,12 @@ func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
 
 func (c *PostsController) InsertPost(ctx *gin.Context) {
 	var (
-		reqBody   model.CreatePostRequest
-		response  model.Response
-		imageFile *multipart.FileHeader
+		reqBody  model.CreatePostRequest
+		response model.Response
 	)
+	imageFiles := ctx.MustGet("files").([]*multipart.FileHeader)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
-
-	// Get the first file
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
-	if files != nil {
-		imageFile = files[0]
-	}
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
 		response.Status =
@@ -381,6 +375,6 @@ func (c *PostsController) InsertPost(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertPost(imageFile, &reqBody)
+	response = c.usecase.InsertPost(imageFiles, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

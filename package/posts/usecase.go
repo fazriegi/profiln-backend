@@ -22,7 +22,7 @@ type IPostsUsecase interface {
 	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	InsertPost(imageFile *multipart.FileHeader, props *model.CreatePostRequest) model.Response
+	InsertPost(imageFile []*multipart.FileHeader, props *model.CreatePostRequest) model.Response
 }
 
 type PostsUsecase struct {
@@ -280,32 +280,51 @@ func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.
 	return
 }
 
-func (u *PostsUsecase) InsertPost(imageFile *multipart.FileHeader, props *model.CreatePostRequest) model.Response {
-	if imageFile != nil {
+func (u *PostsUsecase) InsertPost(imageFiles []*multipart.FileHeader, props *model.CreatePostRequest) model.Response {
+	if imageFiles != nil {
 		var wg sync.WaitGroup
 		objectPath := fmt.Sprintf("users/%d/posts", props.UserId)
 
-		errChan := make(chan error, 1)
+		errChan := make(chan error, len(imageFiles))
+		urlChan := make(chan string, len(imageFiles))
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			var err error
+		// Loop through the imageFiles
+		for _, file := range imageFiles {
+			wg.Add(1)
+			file := file
 
-			_, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
-			if err != nil {
-				errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
-			}
-		}()
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
 		wg.Wait()
 		close(errChan)
+		close(urlChan)
 
-		if err, ok := <-errChan; ok {
-			u.log.Errorf("goroutine error: %v", err)
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				u.log.Error(err)
 
-			return model.Response{
-				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+				return model.Response{
+					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+				}
 			}
+		}
+
+		for url := range urlChan {
+			props.ImageUrls = append(props.ImageUrls, url)
 		}
 	}
 

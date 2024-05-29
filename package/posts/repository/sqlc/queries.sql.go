@@ -8,7 +8,44 @@ package posts
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
+
+const batchInsertPostImages = `-- name: BatchInsertPostImages :many
+INSERT INTO post_images
+	(post_id, url)
+SELECT $1::bigint, UNNEST($2::TEXT[])
+RETURNING id, post_id, url
+`
+
+type BatchInsertPostImagesParams struct {
+	PostID int64
+	Url    []string
+}
+
+func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPostImagesParams) ([]PostImage, error) {
+	rows, err := q.db.QueryContext(ctx, batchInsertPostImages, arg.PostID, pq.Array(arg.Url))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PostImage
+	for rows.Next() {
+		var i PostImage
+		if err := rows.Scan(&i.ID, &i.PostID, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const getDetailPost = `-- name: GetDetailPost :one
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 

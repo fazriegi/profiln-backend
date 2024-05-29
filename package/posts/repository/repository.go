@@ -317,16 +317,37 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 }
 
 func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post, error) {
-	arg := postSqlc.InsertPostParams{
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return model.Post{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	insertPostArg := postSqlc.InsertPostParams{
 		UserID:     sql.NullInt64{Int64: props.UserId, Valid: true},
 		Title:      props.Title,
 		Content:    sql.NullString{String: props.Content, Valid: true},
 		Visibility: props.Visibility,
 	}
 
-	createdPost, err := r.query.InsertPost(context.Background(), arg)
+	createdPost, err := qtx.InsertPost(ctx, insertPostArg)
 	if err != nil {
-		return model.Post{}, err
+		return model.Post{}, fmt.Errorf("could not insert post: %w", err)
+	}
+
+	_, err = qtx.BatchInsertPostImages(ctx, postSqlc.BatchInsertPostImagesParams{
+		PostID: createdPost.ID,
+		Url:    props.ImageUrls,
+	})
+	if err != nil {
+		return model.Post{}, fmt.Errorf("could not insert post images: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.Post{}, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	data := model.Post{
@@ -336,6 +357,7 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 		},
 		Title:        createdPost.Title,
 		Content:      createdPost.Content.String,
+		ImageUrls:    props.ImageUrls,
 		LikeCount:    createdPost.LikeCount.Int32,
 		CommentCount: createdPost.CommentCount.Int32,
 		RepostCount:  createdPost.RepostCount.Int32,
