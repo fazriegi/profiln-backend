@@ -1,7 +1,7 @@
 -- name: InsertReportedPost :one
 INSERT INTO reported_posts
 (user_id, post_id, reason, message)
-VALUES ($1, $2, $3, $4)
+SELECT @user_id::bigint, @post_id::bigint, UNNEST(@reason::varchar(15)[]), @message::text
 RETURNING *;
 
 -- name: GetDetailPost :one

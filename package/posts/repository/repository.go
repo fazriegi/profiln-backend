@@ -12,7 +12,7 @@ import (
 )
 
 type IPostsRepository interface {
-	InsertReportedPost(userId, postId int64, reason, message string) (postSqlc.ReportedPost, error)
+	InsertReportedPost(userId int64, props *model.ReportPost) (postSqlc.ReportedPost, error)
 	GetDetailPost(postId, userId int64) (model.Post, error)
 	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
@@ -42,12 +42,12 @@ func NewPostsRepository(db *sql.DB) IPostsRepository {
 	}
 }
 
-func (r *PostsRepository) InsertReportedPost(userId, postId int64, reason, message string) (postSqlc.ReportedPost, error) {
+func (r *PostsRepository) InsertReportedPost(userId int64, props *model.ReportPost) (postSqlc.ReportedPost, error) {
 	arg := postSqlc.InsertReportedPostParams{
-		UserID:  sql.NullInt64{Int64: userId, Valid: true},
-		PostID:  sql.NullInt64{Int64: postId, Valid: true},
-		Reason:  sql.NullString{String: reason, Valid: true},
-		Message: sql.NullString{String: message, Valid: true},
+		UserID:  userId,
+		PostID:  props.PostId,
+		Reason:  props.Reason,
+		Message: props.Message,
 	}
 
 	reportedPost, err := r.query.InsertReportedPost(context.Background(), arg)

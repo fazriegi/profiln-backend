@@ -41,7 +41,7 @@ func NewPostsController(usecase posts.IPostsUsecase) IPostsController {
 
 func (c *PostsController) ReportPost(ctx *gin.Context) {
 	var (
-		reqBody  model.ReportPostRequest
+		reqBody  model.ReportPost
 		response model.Response
 	)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)

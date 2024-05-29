@@ -502,22 +502,22 @@ func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, e
 const insertReportedPost = `-- name: InsertReportedPost :one
 INSERT INTO reported_posts
 (user_id, post_id, reason, message)
-VALUES ($1, $2, $3, $4)
+SELECT $1::bigint, $2::bigint, UNNEST($3::varchar(15)[]), $4::text
 RETURNING id, user_id, post_id, reason, message
 `
 
 type InsertReportedPostParams struct {
-	UserID  sql.NullInt64
-	PostID  sql.NullInt64
-	Reason  sql.NullString
-	Message sql.NullString
+	UserID  int64
+	PostID  int64
+	Reason  []string
+	Message string
 }
 
 func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPostParams) (ReportedPost, error) {
 	row := q.db.QueryRowContext(ctx, insertReportedPost,
 		arg.UserID,
 		arg.PostID,
-		arg.Reason,
+		pq.Array(arg.Reason),
 		arg.Message,
 	)
 	var i ReportedPost

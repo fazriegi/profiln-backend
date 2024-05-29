@@ -14,7 +14,7 @@ import (
 )
 
 type IPostsUsecase interface {
-	InsertReportedPost(userId int64, data *model.ReportPostRequest) (resp model.Response)
+	InsertReportedPost(userId int64, props *model.ReportPost) (resp model.Response)
 	GetDetailPost(postId, userId int64) (resp model.Response)
 	GetPostComments(postId int64, pagination model.PaginationRequest) (resp model.Response)
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
@@ -44,23 +44,22 @@ func NewPostsUsecase(repository repository.IPostsRepository, log *logrus.Logger,
 	}
 }
 
-func (u *PostsUsecase) InsertReportedPost(userId int64, props *model.ReportPostRequest) (resp model.Response) {
-	reportedPost, err :=
-		u.repository.InsertReportedPost(userId, props.PostId, props.Reason, props.Message)
+func (u *PostsUsecase) InsertReportedPost(userId int64, props *model.ReportPost) (resp model.Response) {
+	_, err := u.repository.InsertReportedPost(userId, props)
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.InsertReportedPost: %v", err)
 		return
 	}
 
-	data := model.ReportPostResponse{
-		PostId:  reportedPost.PostID.Int64,
-		Reason:  reportedPost.Reason.String,
-		Message: reportedPost.Message.String,
-	}
+	// data := model.ReportPost{
+	// 	PostId:  reportedPost.PostID.Int64,
+	// 	Reason:  reportedPost.Reason.String,
+	// 	Message: reportedPost.Message.String,
+	// }
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success report post")
-	resp.Data = data
+	resp.Data = props
 	return
 }
 
