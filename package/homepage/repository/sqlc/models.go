@@ -78,7 +78,6 @@ type Post struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -111,6 +110,12 @@ type PostCommentReply struct {
 	IsPostAuthor  sql.NullBool
 	CreatedAt     sql.NullTime
 	UpdatedAt     sql.NullTime
+}
+
+type PostImage struct {
+	ID     int64
+	PostID sql.NullInt64
+	Url    sql.NullString
 }
 
 type ReportedPost struct {

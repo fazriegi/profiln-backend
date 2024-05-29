@@ -11,7 +11,7 @@ import (
 )
 
 const getDetailPost = `-- name: GetDetailPost :one
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
@@ -37,7 +37,6 @@ type GetDetailPostRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -61,7 +60,6 @@ func (q *Queries) GetDetailPost(ctx context.Context, arg GetDetailPostParams) (G
 		&i.ID,
 		&i.UserID,
 		&i.Content,
-		&i.ImageUrl,
 		&i.LikeCount,
 		&i.CommentCount,
 		&i.RepostCount,
@@ -241,16 +239,15 @@ func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams
 
 const insertPost = `-- name: InsertPost :one
 INSERT INTO posts
-(user_id, title, content, image_url, visibility)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, content, image_url, like_count, comment_count, repost_count, created_at, updated_at, title, visibility
+(user_id, title, content, visibility)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, content, like_count, comment_count, repost_count, created_at, updated_at, title, visibility
 `
 
 type InsertPostParams struct {
 	UserID     sql.NullInt64
 	Title      string
 	Content    sql.NullString
-	ImageUrl   sql.NullString
 	Visibility string
 }
 
@@ -259,7 +256,6 @@ func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, e
 		arg.UserID,
 		arg.Title,
 		arg.Content,
-		arg.ImageUrl,
 		arg.Visibility,
 	)
 	var i Post
@@ -267,7 +263,6 @@ func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, e
 		&i.ID,
 		&i.UserID,
 		&i.Content,
-		&i.ImageUrl,
 		&i.LikeCount,
 		&i.CommentCount,
 		&i.RepostCount,
@@ -312,7 +307,7 @@ func (q *Queries) InsertReportedPost(ctx context.Context, arg InsertReportedPost
 }
 
 const listLikedPostsByUserId = `-- name: ListLikedPostsByUserId :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
@@ -343,7 +338,6 @@ type ListLikedPostsByUserIdRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -374,7 +368,6 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,
@@ -405,7 +398,7 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 }
 
 const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
@@ -436,7 +429,6 @@ type ListNewestPostsByUserIdRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -467,7 +459,6 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,
@@ -498,7 +489,7 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 }
 
 const listRepostedPostsByUserId = `-- name: ListRepostedPostsByUserId :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
@@ -529,7 +520,6 @@ type ListRepostedPostsByUserIdRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -560,7 +550,6 @@ func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListReposte
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,

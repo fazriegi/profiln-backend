@@ -121,6 +121,6 @@ LIMIT $3;
 
 -- name: InsertPost :one
 INSERT INTO posts
-(user_id, title, content, image_url, visibility)
-VALUES ($1, $2, $3, $4, $5)
+(user_id, title, content, visibility)
+VALUES ($1, $2, $3, $4)
 RETURNING *;

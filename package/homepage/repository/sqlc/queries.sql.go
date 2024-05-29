@@ -72,7 +72,7 @@ func (q *Queries) GetFollowsRecommendationForUserId(ctx context.Context, arg Get
 }
 
 const listNewestPosts = `-- name: ListNewestPosts :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
@@ -104,7 +104,6 @@ type ListNewestPostsRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -135,7 +134,6 @@ func (q *Queries) ListNewestPosts(ctx context.Context, arg ListNewestPostsParams
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,
@@ -166,7 +164,7 @@ func (q *Queries) ListNewestPosts(ctx context.Context, arg ListNewestPostsParams
 }
 
 const listPopularPosts = `-- name: ListPopularPosts :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, 
 	COUNT(p.id) OVER () AS total_rows,
     CASE
@@ -204,7 +202,6 @@ type ListPopularPostsRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -236,7 +233,6 @@ func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsPara
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,
@@ -268,7 +264,7 @@ func (q *Queries) ListPopularPosts(ctx context.Context, arg ListPopularPostsPara
 }
 
 const listPostsByFollowing = `-- name: ListPostsByFollowing :many
-SELECT p.id, p.user_id, p.content, p.image_url, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility,
+SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility,
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
@@ -301,7 +297,6 @@ type ListPostsByFollowingRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
-	ImageUrl     sql.NullString
 	LikeCount    sql.NullInt32
 	CommentCount sql.NullInt32
 	RepostCount  sql.NullInt32
@@ -332,7 +327,6 @@ func (q *Queries) ListPostsByFollowing(ctx context.Context, arg ListPostsByFollo
 			&i.ID,
 			&i.UserID,
 			&i.Content,
-			&i.ImageUrl,
 			&i.LikeCount,
 			&i.CommentCount,
 			&i.RepostCount,

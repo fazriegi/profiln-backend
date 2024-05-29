@@ -84,7 +84,6 @@ func (u *PostsUsecase) GetDetailPost(postId, userId int64) (resp model.Response)
 		},
 		Title:        data.Title,
 		Content:      data.Content.String,
-		ImageUrl:     data.ImageUrl.String,
 		LikeCount:    data.LikeCount.Int32,
 		CommentCount: data.CommentCount.Int32,
 		RepostCount:  data.RepostCount.Int32,
@@ -301,8 +300,6 @@ func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.
 }
 
 func (u *PostsUsecase) InsertPost(imageFile *multipart.FileHeader, props *model.CreatePostRequest) model.Response {
-	var imageUrl string
-
 	if imageFile != nil {
 		var wg sync.WaitGroup
 		objectPath := fmt.Sprintf("users/%d/posts", props.UserId)
@@ -314,7 +311,7 @@ func (u *PostsUsecase) InsertPost(imageFile *multipart.FileHeader, props *model.
 			defer wg.Done()
 			var err error
 
-			imageUrl, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
+			_, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
 			if err != nil {
 				errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
 			}
@@ -331,7 +328,6 @@ func (u *PostsUsecase) InsertPost(imageFile *multipart.FileHeader, props *model.
 		}
 	}
 
-	props.ImageUrl = imageUrl
 	data, err := u.repository.InsertPost(props)
 
 	if err != nil {
