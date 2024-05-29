@@ -17,7 +17,7 @@ type IPostsController interface {
 	GetDetailPost(ctx *gin.Context)
 	GetPostComments(ctx *gin.Context)
 	GetPostCommentReplies(ctx *gin.Context)
-	UpdatePostLikeCount(ctx *gin.Context)
+	LikePost(ctx *gin.Context)
 	ListNewestPostsByUserId(ctx *gin.Context)
 	ListLikedPostsByUserId(ctx *gin.Context)
 	ListRepostedPostsByUserId(ctx *gin.Context)
@@ -204,8 +204,11 @@ func (c *PostsController) GetPostCommentReplies(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) UpdatePostLikeCount(ctx *gin.Context) {
+func (c *PostsController) LikePost(ctx *gin.Context) {
 	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
 
 	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
 	if err != nil {
@@ -216,7 +219,7 @@ func (c *PostsController) UpdatePostLikeCount(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.UpdatePostLikeCount(postId)
+	response = c.usecase.LikePost(userId, postId)
 	ctx.JSON(response.Status.Code, response)
 }
 

@@ -21,6 +21,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket)
 	controller := http.NewPostsController(usecase)
+
 	app.Use(middleware.Authentication())
 
 	posts := app.Group("posts")
@@ -28,7 +29,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.GET("/:postId", controller.GetDetailPost)
 	posts.GET("/:postId/comments", controller.GetPostComments)
 	posts.GET("/:postId/comments/:postCommentId/replies", controller.GetPostCommentReplies)
-	posts.POST("/:postId/like", controller.UpdatePostLikeCount)
+	posts.PATCH("/:postId/like", controller.LikePost)
 
 	myPosts := app.Group("users/me/posts")
 	myPosts.GET("/", controller.ListNewestPostsByUserId)

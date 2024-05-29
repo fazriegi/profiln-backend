@@ -407,6 +407,25 @@ func (q *Queries) GetPostImagesUrl(ctx context.Context, postID int64) ([]sql.Nul
 	return items, nil
 }
 
+const insertLikedPost = `-- name: InsertLikedPost :one
+INSERT INTO liked_posts (user_id, post_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, post_id) DO NOTHING
+RETURNING id
+`
+
+type InsertLikedPostParams struct {
+	UserID int64
+	PostID int64
+}
+
+func (q *Queries) InsertLikedPost(ctx context.Context, arg InsertLikedPostParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertLikedPost, arg.UserID, arg.PostID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertPost = `-- name: InsertPost :one
 INSERT INTO posts
 (user_id, title, content, visibility)
@@ -810,18 +829,23 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) error {
 
 const updatePostLikeCount = `-- name: UpdatePostLikeCount :one
 UPDATE posts
-SET like_count = like_count + 1
-WHERE id = $1
+SET like_count = like_count + $1::smallint
+WHERE id = $2::bigint
 RETURNING id, like_count
 `
+
+type UpdatePostLikeCountParams struct {
+	Value int16
+	ID    int64
+}
 
 type UpdatePostLikeCountRow struct {
 	ID        int64
 	LikeCount sql.NullInt32
 }
 
-func (q *Queries) UpdatePostLikeCount(ctx context.Context, id int64) (UpdatePostLikeCountRow, error) {
-	row := q.db.QueryRowContext(ctx, updatePostLikeCount, id)
+func (q *Queries) UpdatePostLikeCount(ctx context.Context, arg UpdatePostLikeCountParams) (UpdatePostLikeCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostLikeCount, arg.Value, arg.ID)
 	var i UpdatePostLikeCountRow
 	err := row.Scan(&i.ID, &i.LikeCount)
 	return i, err

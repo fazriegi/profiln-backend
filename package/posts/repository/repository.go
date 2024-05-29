@@ -3,6 +3,7 @@ package posts
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"profiln-be/model"
 	postSqlc "profiln-be/package/posts/repository/sqlc"
@@ -15,7 +16,7 @@ type IPostsRepository interface {
 	GetDetailPost(postId, userId int64) (model.Post, error)
 	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
-	UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
+	LikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
 	ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
@@ -135,7 +136,7 @@ func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, off
 	return data, count, nil
 }
 
-func (r *PostsRepository) UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePostLikeCountRow, error) {
+func (r *PostsRepository) LikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error) {
 	ctx := context.Background()
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -152,9 +153,30 @@ func (r *PostsRepository) UpdatePostLikeCount(postId int64) (*postSqlc.UpdatePos
 		return nil, fmt.Errorf("could not lock post for update: %w", err)
 	}
 
-	post, err := qtx.UpdatePostLikeCount(ctx, postId)
+	post, err := qtx.UpdatePostLikeCount(ctx, postSqlc.UpdatePostLikeCountParams{
+		ID:    postId,
+		Value: 1,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not update like count: %w", err)
+	}
+
+	_, err = qtx.InsertLikedPost(ctx, postSqlc.InsertLikedPostParams{
+		UserID: userId,
+		PostID: postId,
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			post = postSqlc.UpdatePostLikeCountRow{
+				ID:        post.ID,
+				LikeCount: sql.NullInt32{Int32: post.LikeCount.Int32 - 1, Valid: true},
+			}
+
+			return &post, nil
+		}
+
+		return nil, fmt.Errorf("could not insert liked post: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

@@ -56,8 +56,8 @@ FOR UPDATE;
 
 -- name: UpdatePostLikeCount :one
 UPDATE posts
-SET like_count = like_count + 1
-WHERE id = $1
+SET like_count = like_count + @value::smallint
+WHERE id = @id::bigint
 RETURNING id, like_count;
 
 -- name: ListNewestPostsByUserId :many
@@ -195,3 +195,9 @@ WITH post_comments AS (
 )
 DELETE FROM post_comment_replies
 WHERE post_comment_id IN (SELECT id FROM post_comments);
+
+-- name: InsertLikedPost :one
+INSERT INTO liked_posts (user_id, post_id)
+VALUES (@user_id::bigint, @post_id::bigint)
+ON CONFLICT (user_id, post_id) DO NOTHING
+RETURNING id;
