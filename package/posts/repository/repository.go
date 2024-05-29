@@ -19,6 +19,9 @@ type IPostsRepository interface {
 	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	InsertPost(props *model.CreatePostRequest) (model.Post, error)
+	UpdatePostById(props *model.UpdatePostRequest) error
+	GetPostById(postId int64) (model.Post, error)
+	GetPostImagesUrl(postId int64) ([]string, error)
 }
 
 type PostsRepository struct {
@@ -367,4 +370,81 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 	}
 
 	return data, nil
+}
+
+func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
+	ctx := context.Background()
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.BatchDeletePostImagesByPost(ctx, props.ID)
+	if err != nil {
+		return fmt.Errorf("could not batch delete post images: %w", err)
+	}
+
+	updatePostArg := postSqlc.UpdatePostParams{
+		ID:         props.ID,
+		UserID:     props.UserId,
+		Title:      props.Title,
+		Content:    props.Content,
+		Visibility: props.Visibility,
+	}
+	if err = qtx.UpdatePost(ctx, updatePostArg); err != nil {
+		return fmt.Errorf("could not update post: %w", err)
+	}
+
+	_, err = qtx.BatchInsertPostImages(ctx, postSqlc.BatchInsertPostImagesParams{
+		PostID: props.ID,
+		Url:    props.ImageUrls,
+	})
+	if err != nil {
+		return fmt.Errorf("could not insert post images: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *PostsRepository) GetPostById(postId int64) (model.Post, error) {
+	data, err := r.query.GetPostById(context.Background(), postId)
+	if err != nil {
+		return model.Post{}, err
+	}
+
+	post := model.Post{
+		ID: data.ID,
+		User: model.User{
+			ID: data.UserID.Int64,
+		},
+		Title:        data.Title,
+		Content:      data.Content.String,
+		LikeCount:    data.LikeCount.Int32,
+		CommentCount: data.CommentCount.Int32,
+		RepostCount:  data.RepostCount.Int32,
+		UpdatedAt:    data.UpdatedAt.Time,
+	}
+
+	return post, nil
+}
+
+func (r *PostsRepository) GetPostImagesUrl(postId int64) ([]string, error) {
+	data, err := r.query.GetPostImagesUrl(context.Background(), postId)
+	if err != nil {
+		return nil, err
+	}
+
+	urls := make([]string, len(data))
+	for i, v := range data {
+		urls[i] = v.String
+	}
+
+	return urls, nil
 }

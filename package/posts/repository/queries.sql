@@ -141,8 +141,28 @@ INSERT INTO posts
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
+-- name: GetPostById :one
+SELECT * FROM posts
+WHERE id = $1
+LIMIT 1;
+
+-- name: UpdatePost :exec
+UPDATE posts
+SET title = @title::text,
+    content = @content::text,
+    visibility = @visibility::varchar(10)
+WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
 -- name: BatchInsertPostImages :many
 INSERT INTO post_images
 	(post_id, url)
 SELECT @post_id::bigint, UNNEST(@url::TEXT[])
 RETURNING *;
+
+-- name: GetPostImagesUrl :many
+SELECT url FROM post_images
+WHERE post_id = @post_id::bigint;
+
+-- name: BatchDeletePostImagesByPost :exec
+DELETE FROM post_images
+WHERE post_id = @post_id::bigint;

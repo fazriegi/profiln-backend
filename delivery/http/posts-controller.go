@@ -22,6 +22,7 @@ type IPostsController interface {
 	ListLikedPostsByUserId(ctx *gin.Context)
 	ListRepostedPostsByUserId(ctx *gin.Context)
 	InsertPost(ctx *gin.Context)
+	UpdatePost(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -376,5 +377,53 @@ func (c *PostsController) InsertPost(ctx *gin.Context) {
 	reqBody.UserId = userId
 
 	response = c.usecase.InsertPost(imageFiles, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UpdatePost(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.UpdatePostRequest
+	)
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+	reqBody.ID = postId
+
+	response = c.usecase.UpdatePost(files, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

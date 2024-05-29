@@ -12,6 +12,16 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchDeletePostImagesByPost = `-- name: BatchDeletePostImagesByPost :exec
+DELETE FROM post_images
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) BatchDeletePostImagesByPost(ctx context.Context, postID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeletePostImagesByPost, postID)
+	return err
+}
+
 const batchInsertPostImages = `-- name: BatchInsertPostImages :many
 INSERT INTO post_images
 	(post_id, url)
@@ -117,6 +127,30 @@ func (q *Queries) GetDetailPost(ctx context.Context, arg GetDetailPostParams) (G
 		&i.ImageUrls,
 		&i.Liked,
 		&i.Repost,
+	)
+	return i, err
+}
+
+const getPostById = `-- name: GetPostById :one
+SELECT id, user_id, content, like_count, comment_count, repost_count, created_at, updated_at, title, visibility FROM posts
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetPostById(ctx context.Context, id int64) (Post, error) {
+	row := q.db.QueryRowContext(ctx, getPostById, id)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Content,
+		&i.LikeCount,
+		&i.CommentCount,
+		&i.RepostCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Visibility,
 	)
 	return i, err
 }
@@ -270,6 +304,34 @@ func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPostImagesUrl = `-- name: GetPostImagesUrl :many
+SELECT url FROM post_images
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) GetPostImagesUrl(ctx context.Context, postID int64) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, getPostImagesUrl, postID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullString
+	for rows.Next() {
+		var url sql.NullString
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -652,6 +714,33 @@ func (q *Queries) LockPostForUpdate(ctx context.Context, id int64) (int32, error
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const updatePost = `-- name: UpdatePost :exec
+UPDATE posts
+SET title = $1::text,
+    content = $2::text,
+    visibility = $3::varchar(10)
+WHERE id = $4::bigint AND user_id = $5::bigint
+`
+
+type UpdatePostParams struct {
+	Title      string
+	Content    string
+	Visibility string
+	ID         int64
+	UserID     int64
+}
+
+func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) error {
+	_, err := q.db.ExecContext(ctx, updatePost,
+		arg.Title,
+		arg.Content,
+		arg.Visibility,
+		arg.ID,
+		arg.UserID,
+	)
+	return err
 }
 
 const updatePostLikeCount = `-- name: UpdatePostLikeCount :one
