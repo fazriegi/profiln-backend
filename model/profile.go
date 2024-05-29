@@ -84,8 +84,8 @@ type UpdateProfileResponse struct {
 }
 
 type SocialLinks struct {
-	Name string `json:"name" form:"name" validate:"required"`
-	URL  string `json:"url" form:"url" validate:"required"`
+	Platform string `json:"platform" form:"platform" validate:"required"`
+	URL      string `json:"url" form:"url" validate:"required"`
 }
 
 type UpdateCertificate struct {

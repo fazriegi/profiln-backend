@@ -331,12 +331,10 @@ func (q *Queries) GetEducationById(ctx context.Context, id int64) (Education, er
 }
 
 const getProfile = `-- name: GetProfile :many
-SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
+SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users
 LEFT JOIN user_social_links
 ON users.id = user_social_links.user_id
-LEFT JOIN social_links
-ON user_social_links.social_link_id = social_links.id
 LEFT JOIN user_skills
 ON users.id = user_skills.user_id
 LEFT JOIN skills
@@ -348,9 +346,9 @@ type GetProfileRow struct {
 	FullName        string
 	Bio             sql.NullString
 	Url             sql.NullString
-	Name            sql.NullString
+	Platform        sql.NullString
 	MainSkill       sql.NullBool
-	Name_2          sql.NullString
+	Name            sql.NullString
 	FollowersCount  sql.NullInt32
 	FollowingsCount sql.NullInt32
 }
@@ -368,9 +366,9 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, er
 			&i.FullName,
 			&i.Bio,
 			&i.Url,
-			&i.Name,
+			&i.Platform,
 			&i.MainSkill,
-			&i.Name_2,
+			&i.Name,
 			&i.FollowersCount,
 			&i.FollowingsCount,
 		); err != nil {
@@ -1388,26 +1386,19 @@ func (q *Queries) UpdateUserWorkExperience(ctx context.Context, arg UpdateUserWo
 }
 
 const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec
-WITH social_link AS (
-    SELECT id
-    FROM social_links
-    WHERE name = $2
-    LIMIT 1
-)
-INSERT INTO user_social_links (user_id, social_link_id, url)
-SELECT $1, sl.id, $3
-FROM social_link sl
+INSERT INTO user_social_links (user_id, platform, url)
+SELECT $1, $2, $3
 ON CONFLICT (user_id, social_link_id) DO UPDATE
 SET url = EXCLUDED.url
 `
 
 type UpsertUserSocialLinkParams struct {
-	UserID sql.NullInt64
-	Name   string
-	Url    sql.NullString
+	UserID   sql.NullInt64
+	Platform sql.NullString
+	Url      sql.NullString
 }
 
 func (q *Queries) UpsertUserSocialLink(ctx context.Context, arg UpsertUserSocialLinkParams) error {
-	_, err := q.db.ExecContext(ctx, upsertUserSocialLink, arg.UserID, arg.Name, arg.Url)
+	_, err := q.db.ExecContext(ctx, upsertUserSocialLink, arg.UserID, arg.Platform, arg.Url)
 	return err
 }

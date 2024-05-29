@@ -142,11 +142,6 @@ type Skill struct {
 	Name string
 }
 
-type SocialLink struct {
-	ID   int16
-	Name string
-}
-
 type User struct {
 	ID              int64
 	Email           string
@@ -208,10 +203,10 @@ type UserSkill struct {
 }
 
 type UserSocialLink struct {
-	ID           int64
-	UserID       sql.NullInt64
-	SocialLinkID sql.NullInt16
-	Url          sql.NullString
+	ID       int64
+	UserID   sql.NullInt64
+	Url      sql.NullString
+	Platform sql.NullString
 }
 
 type WorkExperience struct {

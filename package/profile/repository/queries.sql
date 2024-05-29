@@ -96,12 +96,10 @@ WHERE u.id = $1
 LIMIT 1;
 
 -- name: GetProfile :many
-SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
+SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users
 LEFT JOIN user_social_links
 ON users.id = user_social_links.user_id
-LEFT JOIN social_links
-ON user_social_links.social_link_id = social_links.id
 LEFT JOIN user_skills
 ON users.id = user_skills.user_id
 LEFT JOIN skills
@@ -182,15 +180,8 @@ WHERE user_id = $1
 RETURNING hide_phone_number, phone_number, gender;
 
 -- name: UpsertUserSocialLink :exec
-WITH social_link AS (
-    SELECT id
-    FROM social_links
-    WHERE name = $2
-    LIMIT 1
-)
-INSERT INTO user_social_links (user_id, social_link_id, url)
-SELECT $1, sl.id, $3
-FROM social_link sl
+INSERT INTO user_social_links (user_id, platform, url)
+SELECT $1, $2, $3
 ON CONFLICT (user_id, social_link_id) DO UPDATE
 SET url = EXCLUDED.url;
 

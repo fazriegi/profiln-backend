@@ -196,9 +196,9 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	// update or insert user social links
 	for _, v := range props.SocialLinks {
 		err := qtx.UpsertUserSocialLink(ctx, profileSqlc.UpsertUserSocialLinkParams{
-			UserID: sql.NullInt64{Int64: props.UserId, Valid: true},
-			Name:   v.Name,
-			Url:    sql.NullString{String: v.URL, Valid: true},
+			UserID:   sql.NullInt64{Int64: props.UserId, Valid: true},
+			Platform: sql.NullString{String: v.Platform, Valid: true},
+			Url:      sql.NullString{String: v.URL, Valid: true},
 		})
 		if err != nil {
 			return fmt.Errorf("could not upsert user social links: %w", err)
