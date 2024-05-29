@@ -16,8 +16,7 @@ func NewHomepageRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	usecase := homepage.NewHomepageUsecase(repository, log)
 	controller := http.NewHomepageController(usecase)
 
-	homepage := app.Group("homepage")
-	homepage.Use(middleware.Authentication())
-	homepage.GET("/posts", controller.ListPosts)
-	homepage.GET("/follows-recommendation", controller.ListFollowsRecommendation)
+	app.Use(middleware.Authentication())
+	app.GET("/posts", controller.ListPosts)
+	app.GET("/users/follow-recommendations", controller.ListFollowsRecommendation)
 }

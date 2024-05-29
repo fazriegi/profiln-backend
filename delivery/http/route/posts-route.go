@@ -21,9 +21,9 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket)
 	controller := http.NewPostsController(usecase)
+	app.Use(middleware.Authentication())
 
 	posts := app.Group("posts")
-	posts.Use(middleware.Authentication())
 	posts.POST("/:postId/report", controller.ReportPost)
 	posts.GET("/:postId", controller.GetDetailPost)
 	posts.GET("/:postId/comments", controller.GetPostComments)
@@ -31,9 +31,8 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.POST("/:postId/like", controller.UpdatePostLikeCount)
 
 	myPosts := app.Group("users/me/posts")
-	myPosts.Use(middleware.Authentication())
 	myPosts.GET("/", controller.ListNewestPostsByUserId)
-	myPosts.GET("/liked", controller.ListLikedPostsByUserId)
-	myPosts.GET("/reposted", controller.ListRepostedPostsByUserId)
+	myPosts.GET("/like", controller.ListLikedPostsByUserId)
+	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
 	myPosts.POST("/", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats), controller.InsertPost)
 }
