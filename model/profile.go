@@ -206,16 +206,16 @@ type SkillsResponse struct {
 }
 
 type UserProfile struct {
-	User            User
-	FollowingCount  int64
-	SocialLinks     []SocialLinks
-	Skills          UserSkills
-	Location        string
-	WebPortfolioUrl string
-	About           string
+	User            User          `json:"user"`
+	FollowingCount  int64         `json:"following_count"`
+	SocialLinks     []SocialLinks `json:"social_links"`
+	Skills          UserSkills    `json:"skills"`
+	Location        string        `json:"location"`
+	WebPortfolioUrl string        `json:"web_portfolio_url"`
+	About           string        `json:"about"`
 }
 
 type UserSkills struct {
-	MainSkills  []string
-	OtherSkills []string
+	MainSkills  []string `json:"main_skills"`
+	OtherSkills []string `json:"other_skills"`
 }

@@ -24,6 +24,7 @@ type IProfileController interface {
 	UpdateUserWorkExperience(ctx *gin.Context)
 	InsertCertificate(ctx *gin.Context)
 	InsertUserSkills(ctx *gin.Context)
+	GetUserProfile(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -437,5 +438,23 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	reqBody.ID = workExperienceId
 
 	response = c.usecase.UpdateUserWorkExperience(files, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserProfile(ctx *gin.Context) {
+	var (
+		response model.Response
+	)
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.GetUserProfile(userId)
 	ctx.JSON(response.Status.Code, response)
 }

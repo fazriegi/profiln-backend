@@ -306,23 +306,41 @@ SELECT us.id FROM user_skills us
 JOIN skills s ON us.skill_id = s.id
 WHERE s.name = ANY(@name::text[]);
 
--- name: GetUserCertificates :many
-SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name 
-FROM users u 
-LEFT JOIN certificates c 
-ON u.id = c.user_id 
-LEFT JOIN 
-issuing_organizations i 
-ON c.issuing_organization_id = i.id
-WHERE u.id = $1;
+-- -- name: GetUserCertificates :many
+-- SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name 
+-- FROM users u 
+-- LEFT JOIN certificates c 
+-- ON u.id = c.user_id 
+-- LEFT JOIN 
+-- issuing_organizations i 
+-- ON c.issuing_organization_id = i.id
+-- WHERE u.id = $1;
 
--- name: GetUserSkillsAndLocation :many
-SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
+-- -- name: GetUserSkillsAndLocation :many
+-- SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
+-- FROM users u
+-- LEFT JOIN user_skills us
+-- ON u.id = us.user_id
+-- LEFT JOIN skills s
+-- ON us.skill_id = s.id
+-- LEFT JOIN user_details ud
+-- ON u.id = ud.user_id
+-- WHERE u.id = $1;
+
+-- name: GetUserProfile :one
+SELECT 
+    u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
 FROM users u
-LEFT JOIN user_skills us
-ON u.id = us.user_id
-LEFT JOIN skills s
-ON us.skill_id = s.id
-LEFT JOIN user_details ud
-ON u.id = ud.user_id
-WHERE u.id = $1;
+LEFT JOIN user_details ud ON u.id = ud.user_id 
+WHERE u.id = $1
+LIMIT 1;
+
+-- name: GetUserSocialLinks :many
+SELECT platform, url FROM user_social_links
+WHERE user_id = @user_id::bigint;
+
+-- name: GetUserSkills :many
+SELECT us.main_skill, s.name FROM user_skills us
+LEFT JOIN skills s ON us.skill_id = s.id
+WHERE us.user_id = @user_id::bigint;

@@ -504,84 +504,6 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
-const getUserCertificates = `-- name: GetUserCertificates :many
-SELECT u.id, u.email, u.password, u.full_name, u.verified_email, u.avatar_url, u.bio, u.open_to_work, u.created_at, u.updated_at, u.deleted_at, u.followers_count, u.followings_count, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name 
-FROM users u 
-LEFT JOIN certificates c 
-ON u.id = c.user_id 
-LEFT JOIN 
-issuing_organizations i 
-ON c.issuing_organization_id = i.id
-WHERE u.id = $1
-`
-
-type GetUserCertificatesRow struct {
-	ID              int64
-	Email           string
-	Password        sql.NullString
-	FullName        string
-	VerifiedEmail   sql.NullBool
-	AvatarUrl       sql.NullString
-	Bio             sql.NullString
-	OpenToWork      sql.NullBool
-	CreatedAt       sql.NullTime
-	UpdatedAt       sql.NullTime
-	DeletedAt       sql.NullTime
-	FollowersCount  sql.NullInt32
-	FollowingsCount sql.NullInt32
-	ID_2            sql.NullInt64
-	Name            sql.NullString
-	IssueDate       sql.NullTime
-	ExpirationDate  sql.NullTime
-	CredentialID    sql.NullString
-	Url             sql.NullString
-	Name_2          sql.NullString
-}
-
-func (q *Queries) GetUserCertificates(ctx context.Context, id int64) ([]GetUserCertificatesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserCertificates, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetUserCertificatesRow
-	for rows.Next() {
-		var i GetUserCertificatesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Password,
-			&i.FullName,
-			&i.VerifiedEmail,
-			&i.AvatarUrl,
-			&i.Bio,
-			&i.OpenToWork,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.FollowersCount,
-			&i.FollowingsCount,
-			&i.ID_2,
-			&i.Name,
-			&i.IssueDate,
-			&i.ExpirationDate,
-			&i.CredentialID,
-			&i.Url,
-			&i.Name_2,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getUserDetail = `-- name: GetUserDetail :one
 SELECT id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at FROM user_details
 WHERE user_id = $1::bigint
@@ -634,6 +556,72 @@ func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int6
 	return items, nil
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+
+
+SELECT 
+    u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
+FROM users u
+LEFT JOIN user_details ud ON u.id = ud.user_id 
+WHERE u.id = $1
+LIMIT 1
+`
+
+type GetUserProfileRow struct {
+	ID              int64
+	FullName        string
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+	Location        sql.NullString
+	PortfolioUrl    sql.NullString
+	About           sql.NullString
+}
+
+// -- name: GetUserCertificates :many
+// SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name
+// FROM users u
+// LEFT JOIN certificates c
+// ON u.id = c.user_id
+// LEFT JOIN
+// issuing_organizations i
+// ON c.issuing_organization_id = i.id
+// WHERE u.id = $1;
+// -- name: GetUserSkillsAndLocation :many
+// SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
+// FROM users u
+// LEFT JOIN user_skills us
+// ON u.id = us.user_id
+// LEFT JOIN skills s
+// ON us.skill_id = s.id
+// LEFT JOIN user_details ud
+// ON u.id = ud.user_id
+// WHERE u.id = $1;
+func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.OpenToWork,
+		&i.FollowersCount,
+		&i.FollowingsCount,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+	)
+	return i, err
+}
+
 const getUserSkillIDsByName = `-- name: GetUserSkillIDsByName :many
 SELECT us.id FROM user_skills us
 JOIN skills s ON us.skill_id = s.id
@@ -663,62 +651,60 @@ func (q *Queries) GetUserSkillIDsByName(ctx context.Context, name []string) ([]i
 	return items, nil
 }
 
-const getUserSkillsAndLocation = `-- name: GetUserSkillsAndLocation :many
-SELECT u.id, u.email, u.full_name, s.id, s.name, ud.id, ud.user_id, ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about, ud.hide_phone_number, ud.created_at, ud.updated_at
-FROM users u
-LEFT JOIN user_skills us
-ON u.id = us.user_id
-LEFT JOIN skills s
-ON us.skill_id = s.id
-LEFT JOIN user_details ud
-ON u.id = ud.user_id
-WHERE u.id = $1
+const getUserSkills = `-- name: GetUserSkills :many
+SELECT us.main_skill, s.name FROM user_skills us
+LEFT JOIN skills s ON us.skill_id = s.id
+WHERE us.user_id = $1::bigint
 `
 
-type GetUserSkillsAndLocationRow struct {
-	ID              int64
-	Email           string
-	FullName        string
-	ID_2            sql.NullInt64
-	Name            sql.NullString
-	ID_3            sql.NullInt64
-	UserID          sql.NullInt64
-	PhoneNumber     sql.NullString
-	Gender          sql.NullString
-	Location        sql.NullString
-	PortfolioUrl    sql.NullString
-	About           sql.NullString
-	HidePhoneNumber sql.NullBool
-	CreatedAt       sql.NullTime
-	UpdatedAt       sql.NullTime
+type GetUserSkillsRow struct {
+	MainSkill sql.NullBool
+	Name      sql.NullString
 }
 
-func (q *Queries) GetUserSkillsAndLocation(ctx context.Context, id int64) ([]GetUserSkillsAndLocationRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserSkillsAndLocation, id)
+func (q *Queries) GetUserSkills(ctx context.Context, userID int64) ([]GetUserSkillsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSkills, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserSkillsAndLocationRow
+	var items []GetUserSkillsRow
 	for rows.Next() {
-		var i GetUserSkillsAndLocationRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.FullName,
-			&i.ID_2,
-			&i.Name,
-			&i.ID_3,
-			&i.UserID,
-			&i.PhoneNumber,
-			&i.Gender,
-			&i.Location,
-			&i.PortfolioUrl,
-			&i.About,
-			&i.HidePhoneNumber,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i GetUserSkillsRow
+		if err := rows.Scan(&i.MainSkill, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserSocialLinks = `-- name: GetUserSocialLinks :many
+SELECT platform, url FROM user_social_links
+WHERE user_id = $1::bigint
+`
+
+type GetUserSocialLinksRow struct {
+	Platform sql.NullString
+	Url      sql.NullString
+}
+
+func (q *Queries) GetUserSocialLinks(ctx context.Context, userID int64) ([]GetUserSocialLinksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSocialLinks, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserSocialLinksRow
+	for rows.Next() {
+		var i GetUserSocialLinksRow
+		if err := rows.Scan(&i.Platform, &i.Url); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

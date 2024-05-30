@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"profiln-be/model"
 	profileSqlc "profiln-be/package/profile/repository/sqlc"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,7 @@ type IProfileRepository interface {
 	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
+	GetUserProfile(userId int64) (model.UserProfile, error)
 }
 
 type ProfileRepository struct {
@@ -566,6 +568,136 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	}
 
 	return nil
+}
+
+func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, error) {
+	var (
+		wg sync.WaitGroup
+	)
+
+	userChan := make(chan profileSqlc.GetUserProfileRow, 1)
+	socialLinksChan := make(chan []model.SocialLinks, 1)
+	userSkillsChan := make(chan model.UserSkills, 1)
+	errChan := make(chan error, 3)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.query.GetUserProfile(context.Background(), userId)
+		if err != nil {
+			errChan <- err
+			close(userChan)
+			return
+		}
+
+		userChan <- data
+		close(userChan)
+	}(userId)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.getUserSocialLinks(userId)
+		if err != nil {
+			errChan <- err
+			close(socialLinksChan)
+			return
+		}
+
+		socialLinksChan <- data
+		close(socialLinksChan)
+	}(userId)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.getUserSkills(userId)
+		if err != nil {
+			errChan <- err
+			close(userSkillsChan)
+			return
+		}
+
+		userSkillsChan <- data
+		close(userSkillsChan)
+	}(userId)
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return model.UserProfile{}, err
+		}
+	}
+
+	user := <-userChan
+	socialLinks := <-socialLinksChan
+	userSkills := <-userSkillsChan
+
+	data := model.UserProfile{
+		User: model.User{
+			ID:         user.ID,
+			AvatarUrl:  user.AvatarUrl.String,
+			Fullname:   user.FullName,
+			Bio:        user.Bio.String,
+			OpenToWork: user.OpenToWork.Bool,
+		},
+		FollowingCount:  int64(user.FollowingsCount.Int32),
+		SocialLinks:     socialLinks,
+		Skills:          userSkills,
+		Location:        user.Location.String,
+		WebPortfolioUrl: user.PortfolioUrl.String,
+		About:           user.About.String,
+	}
+
+	return data, nil
+}
+
+func (r *ProfileRepository) getUserSocialLinks(userId int64) ([]model.SocialLinks, error) {
+	socialLinks, err := r.query.GetUserSocialLinks(context.Background(), userId)
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]model.SocialLinks, len(socialLinks))
+
+	for i, v := range socialLinks {
+		data[i] = model.SocialLinks{
+			Platform: v.Platform.String,
+			URL:      v.Url.String,
+		}
+	}
+
+	return data, nil
+}
+
+func (r *ProfileRepository) getUserSkills(userId int64) (model.UserSkills, error) {
+	userSkills, err := r.query.GetUserSkills(context.Background(), userId)
+	if err != nil {
+		return model.UserSkills{}, err
+	}
+
+	var (
+		mainSkills  []string
+		otherSkills []string
+	)
+
+	for _, userSkill := range userSkills {
+		if userSkill.MainSkill.Bool {
+			mainSkills = append(mainSkills, userSkill.Name.String)
+			continue
+		}
+
+		otherSkills = append(otherSkills, userSkill.Name.String)
+	}
+
+	data := model.UserSkills{
+		MainSkills:  mainSkills,
+		OtherSkills: otherSkills,
+	}
+
+	return data, nil
 }
 
 func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {

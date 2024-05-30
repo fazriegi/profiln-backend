@@ -29,6 +29,7 @@ type IProfileUsecase interface {
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
+	GetUserProfile(userId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -562,5 +563,25 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success update user's work experience"),
 		Data:   props,
+	}
+}
+
+func (u *ProfileUsecase) GetUserProfile(userId int64) model.Response {
+	data, err := u.repository.GetUserProfile(userId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.GetUserProfile(%d): %v", userId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch user profile"),
+		Data:   data,
 	}
 }
