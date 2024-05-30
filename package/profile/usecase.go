@@ -35,6 +35,7 @@ type IProfileUsecase interface {
 	GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetUserBasicInformation(userId int64) model.Response
 	DeleteUserOpenToWork(userId int64) model.Response
+	DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -420,7 +421,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	}
 
 	// If previous objects exists, delete it from gcloud storage
-	if len(currentObjectUrls) > 1 && files != nil {
+	if len(currentObjectUrls) > 0 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletionc (user id: %d): %v", props.UserId, err)
@@ -522,7 +523,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	}
 
 	// If previous objects exists, delete it from gcloud storage
-	if len(currentObjectUrls) > 1 && files != nil {
+	if len(currentObjectUrls) > 0 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, err)
@@ -718,5 +719,36 @@ func (u *ProfileUsecase) DeleteUserOpenToWork(userId int64) model.Response {
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success delete user open to work"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response {
+	fileUrls, err := u.repository.GetWorkExperienceFileURLs(workExperienceId)
+	if err != nil {
+		u.log.Errorf("repository.GetWorkExperienceFileURLs: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	err = u.repository.DeleteUserWorkExperienceById(userId, workExperienceId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserWorkExperienceById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if len(fileUrls) > 0 {
+		err := u.googleBucket.HandleObjectDeletion(fileUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete work experience"),
 	}
 }

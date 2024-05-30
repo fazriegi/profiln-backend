@@ -429,3 +429,7 @@ WHERE user_id = @user_id::bigint;
 -- name: BatchDeleteUserEmploymentTypeInterests :exec
 DELETE FROM user_employment_type_interests
 WHERE user_id = @user_id::bigint;
+
+-- name: DeleteWorkExperienceById :exec
+DELETE FROM work_experiences
+WHERE id = @id::bigint AND user_id = @user_id::bigint;

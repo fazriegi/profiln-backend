@@ -341,6 +341,21 @@ func (q *Queries) DeleteEducationSkillsByEducation(ctx context.Context, educatio
 	return items, nil
 }
 
+const deleteWorkExperienceById = `-- name: DeleteWorkExperienceById :exec
+DELETE FROM work_experiences
+WHERE id = $1::bigint AND user_id = $2::bigint
+`
+
+type DeleteWorkExperienceByIdParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteWorkExperienceById(ctx context.Context, arg DeleteWorkExperienceByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteWorkExperienceById, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteWorkExperienceFilesByWorkExperienceId = `-- name: DeleteWorkExperienceFilesByWorkExperienceId :exec
 DELETE FROM work_experience_files
 WHERE work_experience_id = $1::bigint

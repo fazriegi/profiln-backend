@@ -31,6 +31,7 @@ type IProfileController interface {
 	GetFollowedUsersByUser(ctx *gin.Context)
 	GetUserBasicInformation(ctx *gin.Context)
 	DeleteUserOpenToWork(ctx *gin.Context)
+	DeleteUserWorkExperience(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -666,5 +667,23 @@ func (c *ProfileController) DeleteUserOpenToWork(ctx *gin.Context) {
 	userId := int64(userData["id"].(float64))
 
 	response := c.usecase.DeleteUserOpenToWork(userId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserWorkExperience(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	workExperienceId, err := strconv.ParseInt(ctx.Param("workExperienceId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeleteUserWorkExperienceById(userId, workExperienceId)
 	ctx.JSON(response.Status.Code, response)
 }

@@ -38,6 +38,7 @@ type IProfileRepository interface {
 	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
 	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
 	DeleteUserOpenToWork(userId int64) error
+	DeleteUserWorkExperienceById(userId, workExperienceId int64) error
 }
 
 type ProfileRepository struct {
@@ -1063,6 +1064,41 @@ func (r *ProfileRepository) deleteOpenToWorkDataByUserId(ctx context.Context, qt
 
 	for err := range errChan {
 		return err
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserWorkExperienceById(userId, workExperienceId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.DeleteWorkExperienceFilesByWorkExperienceId(ctx, workExperienceId)
+	if err != nil {
+		return fmt.Errorf("could not delete work experience files: %w", err)
+	}
+
+	_, err = qtx.DeleteWorkExperienceSkillsByWorkExperience(ctx, workExperienceId)
+	if err != nil {
+		return fmt.Errorf("could not delete work experience skills: %w", err)
+	}
+
+	err = qtx.DeleteWorkExperienceById(ctx, db.DeleteWorkExperienceByIdParams{
+		UserID: userId,
+		ID:     workExperienceId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete work experience: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return nil

@@ -43,6 +43,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	me.PUT("/work-experiences/:workExperienceId", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.UpdateUserWorkExperience)
 	me.POST("/open-to-work", controller.AddUserOpenToWork)
 	me.DELETE("/open-to-work", controller.DeleteUserOpenToWork)
+	me.DELETE("/work-experiences/:workExperienceId", controller.DeleteUserWorkExperience)
 	me.GET("/", controller.GetUserBasicInformation)
 
 	users := app.Group("users")
