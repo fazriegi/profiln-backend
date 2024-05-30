@@ -23,6 +23,7 @@ type IProfileRepository interface {
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
+	AddUserOpenToWork(props *model.OpenToWork) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
 	UpdateUserEducation(props *model.UpdateEducationRequest) error
@@ -36,6 +37,7 @@ type IProfileRepository interface {
 	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
 	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
 	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
+	DeleteUserOpenToWork(userId int64) error
 }
 
 type ProfileRepository struct {
@@ -933,4 +935,135 @@ func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit
 	}
 
 	return data, count, nil
+}
+
+func (r *ProfileRepository) AddUserOpenToWork(props *model.OpenToWork) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = r.deleteOpenToWorkDataByUserId(ctx, qtx, props.UserId)
+	if err != nil {
+		return err
+	}
+
+	_, err = qtx.UpdateUserOpenToWork(ctx, db.UpdateUserOpenToWorkParams{
+		UserID:     props.UserId,
+		OpenToWork: props.OpenToWork,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user open to work: %w", err)
+	}
+
+	var jobPositionIds []int64
+	for i, jobPosition := range props.JobPositions {
+		if jobPosition.ID < 1 {
+			createdJobPosition, err := qtx.InsertJobPosition(ctx, sql.NullString{String: jobPosition.Name, Valid: true})
+			if err != nil {
+				return fmt.Errorf("could not insert job position: %w", err)
+			}
+			props.JobPositions[i].ID = createdJobPosition.ID
+		}
+
+		jobPositionIds = append(jobPositionIds, props.JobPositions[i].ID)
+	}
+
+	err = qtx.BatchInsertUserJobInterests(ctx, db.BatchInsertUserJobInterestsParams{
+		UserID:        props.UserId,
+		JobPositionID: jobPositionIds,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user job interests: %w", err)
+	}
+
+	err = qtx.BatchInsertUserLocationTypeInterests(ctx, db.BatchInsertUserLocationTypeInterestsParams{
+		UserID:       props.UserId,
+		LocationType: props.LocationTypes,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user location type interests: %w", err)
+	}
+
+	err = qtx.BatchInsertUserEmploymentTypeInterests(ctx, db.BatchInsertUserEmploymentTypeInterestsParams{
+		UserID:         props.UserId,
+		EmploymentType: props.EmploymentTypes,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user employment type interests: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserOpenToWork(userId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.UpdateUserOpenToWork(ctx, db.UpdateUserOpenToWorkParams{
+		UserID:     userId,
+		OpenToWork: false,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user open to work: %w", err)
+	}
+
+	err = r.deleteOpenToWorkDataByUserId(ctx, qtx, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) deleteOpenToWorkDataByUserId(ctx context.Context, qtx *db.Queries, userId int64) error {
+	errChan := make(chan error, 3)
+	var wg sync.WaitGroup
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserJobInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user job interests: %w", err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserLocationTypeInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user location type interests: %w", err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserEmploymentTypeInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user employment type interests: %w", err)
+		}
+	}()
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		return err
+	}
+
+	return nil
 }

@@ -393,3 +393,39 @@ LEFT JOIN users u ON f.follow_user_id = u.id
 WHERE f.user_id = @user_id::bigint
 OFFSET $1
 LIMIT $2;
+
+-- name: UpdateUserOpenToWork :one
+UPDATE users
+SET open_to_work = @open_to_work::boolean
+WHERE id = @user_id::bigint
+RETURNING id;
+
+-- name: InsertJobPosition :one
+INSERT INTO job_positions (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
+RETURNING *;
+
+-- name: BatchInsertUserJobInterests :exec
+INSERT INTO user_job_interests (user_id, job_position_id)
+SELECT @user_id::bigint, UNNEST(@job_position_id::bigint[]);
+
+-- name: BatchInsertUserLocationTypeInterests :exec
+INSERT INTO user_location_type_interests (user_id, location_type)
+SELECT @user_id::bigint, UNNEST(@location_type::varchar(10)[]);
+
+-- name: BatchInsertUserEmploymentTypeInterests :exec
+INSERT INTO user_employment_type_interests (user_id, employment_type)
+SELECT @user_id::bigint, UNNEST(@employment_type::varchar(10)[]);
+
+-- name: BatchDeleteUserJobInterests :exec
+DELETE FROM user_job_interests
+WHERE user_id = @user_id::bigint;
+
+-- name: BatchDeleteUserLocationTypeInterests :exec
+DELETE FROM user_location_type_interests
+WHERE user_id = @user_id::bigint;
+
+-- name: BatchDeleteUserEmploymentTypeInterests :exec
+DELETE FROM user_employment_type_interests
+WHERE user_id = @user_id::bigint;

@@ -129,6 +129,14 @@ type UpdateWorkExperience struct {
 	Skills         []string `json:"skills" form:"skills"`
 }
 
+type OpenToWork struct {
+	UserId          int64         `json:"user_id"`
+	OpenToWork      bool          `json:"open_to_work"`
+	JobPositions    []JobPosition `json:"job_positions" validate:"required"`
+	LocationTypes   []string      `json:"location_types" validate:"required"`
+	EmploymentTypes []string      `json:"employment_types" validate:"required"`
+}
+
 type AboutProfileResponse struct {
 	ID        *int64     `json:"id"`
 	UserID    *int64     `json:"user_id"`

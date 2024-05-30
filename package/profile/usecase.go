@@ -27,12 +27,14 @@ type IProfileUsecase interface {
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
+	AddUserOpenToWork(props *model.OpenToWork) model.Response
 	GetUserProfile(userId int64) model.Response
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetEducationsByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetCertificatesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetUserBasicInformation(userId int64) model.Response
+	DeleteUserOpenToWork(userId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -686,5 +688,35 @@ func (u *ProfileUsecase) GetUserBasicInformation(userId int64) model.Response {
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success fetch user basic information"),
 		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) AddUserOpenToWork(props *model.OpenToWork) model.Response {
+	props.OpenToWork = true
+	err := u.repository.AddUserOpenToWork(props)
+	if err != nil {
+		u.log.Errorf("repository.AddUserOpenToWork: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Data:   props,
+		Status: libs.CustomResponse(http.StatusOK, "Success update user open to work"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserOpenToWork(userId int64) model.Response {
+	err := u.repository.DeleteUserOpenToWork(userId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserOpenToWork: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user open to work"),
 	}
 }

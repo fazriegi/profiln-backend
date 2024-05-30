@@ -13,6 +13,36 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchDeleteUserEmploymentTypeInterests = `-- name: BatchDeleteUserEmploymentTypeInterests :exec
+DELETE FROM user_employment_type_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserEmploymentTypeInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserEmploymentTypeInterests, userID)
+	return err
+}
+
+const batchDeleteUserJobInterests = `-- name: BatchDeleteUserJobInterests :exec
+DELETE FROM user_job_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserJobInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserJobInterests, userID)
+	return err
+}
+
+const batchDeleteUserLocationTypeInterests = `-- name: BatchDeleteUserLocationTypeInterests :exec
+DELETE FROM user_location_type_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserLocationTypeInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserLocationTypeInterests, userID)
+	return err
+}
+
 const batchInsertEducationFiles = `-- name: BatchInsertEducationFiles :many
 INSERT INTO education_files
   (education_id, url)
@@ -72,6 +102,51 @@ ON CONFLICT (name) DO NOTHING
 
 func (q *Queries) BatchInsertSkills(ctx context.Context, names []string) error {
 	_, err := q.db.ExecContext(ctx, batchInsertSkills, pq.Array(names))
+	return err
+}
+
+const batchInsertUserEmploymentTypeInterests = `-- name: BatchInsertUserEmploymentTypeInterests :exec
+INSERT INTO user_employment_type_interests (user_id, employment_type)
+SELECT $1::bigint, UNNEST($2::varchar(10)[])
+`
+
+type BatchInsertUserEmploymentTypeInterestsParams struct {
+	UserID         int64
+	EmploymentType []string
+}
+
+func (q *Queries) BatchInsertUserEmploymentTypeInterests(ctx context.Context, arg BatchInsertUserEmploymentTypeInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserEmploymentTypeInterests, arg.UserID, pq.Array(arg.EmploymentType))
+	return err
+}
+
+const batchInsertUserJobInterests = `-- name: BatchInsertUserJobInterests :exec
+INSERT INTO user_job_interests (user_id, job_position_id)
+SELECT $1::bigint, UNNEST($2::bigint[])
+`
+
+type BatchInsertUserJobInterestsParams struct {
+	UserID        int64
+	JobPositionID []int64
+}
+
+func (q *Queries) BatchInsertUserJobInterests(ctx context.Context, arg BatchInsertUserJobInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserJobInterests, arg.UserID, pq.Array(arg.JobPositionID))
+	return err
+}
+
+const batchInsertUserLocationTypeInterests = `-- name: BatchInsertUserLocationTypeInterests :exec
+INSERT INTO user_location_type_interests (user_id, location_type)
+SELECT $1::bigint, UNNEST($2::varchar(10)[])
+`
+
+type BatchInsertUserLocationTypeInterestsParams struct {
+	UserID       int64
+	LocationType []string
+}
+
+func (q *Queries) BatchInsertUserLocationTypeInterests(ctx context.Context, arg BatchInsertUserLocationTypeInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserLocationTypeInterests, arg.UserID, pq.Array(arg.LocationType))
 	return err
 }
 
@@ -1142,6 +1217,20 @@ func (q *Queries) InsertIssuingOrganization(ctx context.Context, name string) (I
 	return i, err
 }
 
+const insertJobPosition = `-- name: InsertJobPosition :one
+INSERT INTO job_positions (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
+RETURNING id, name
+`
+
+func (q *Queries) InsertJobPosition(ctx context.Context, name sql.NullString) (JobPosition, error) {
+	row := q.db.QueryRowContext(ctx, insertJobPosition, name)
+	var i JobPosition
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const insertSchool = `-- name: InsertSchool :one
 INSERT INTO schools (name)
 VALUES ($1)
@@ -1564,6 +1653,25 @@ AND main_skill = true
 func (q *Queries) UpdateUserMainSkillToFalse(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, updateUserMainSkillToFalse, userID)
 	return err
+}
+
+const updateUserOpenToWork = `-- name: UpdateUserOpenToWork :one
+UPDATE users
+SET open_to_work = $1::boolean
+WHERE id = $2::bigint
+RETURNING id
+`
+
+type UpdateUserOpenToWorkParams struct {
+	OpenToWork bool
+	UserID     int64
+}
+
+func (q *Queries) UpdateUserOpenToWork(ctx context.Context, arg UpdateUserOpenToWorkParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, updateUserOpenToWork, arg.OpenToWork, arg.UserID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateUserWorkExperience = `-- name: UpdateUserWorkExperience :one

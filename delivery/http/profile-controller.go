@@ -21,6 +21,7 @@ type IProfileController interface {
 	UpdateUserInformation(ctx *gin.Context)
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
+	AddUserOpenToWork(ctx *gin.Context)
 	InsertCertificate(ctx *gin.Context)
 	InsertUserSkills(ctx *gin.Context)
 	GetUserProfile(ctx *gin.Context)
@@ -29,6 +30,7 @@ type IProfileController interface {
 	GetUserCertificates(ctx *gin.Context)
 	GetFollowedUsersByUser(ctx *gin.Context)
 	GetUserBasicInformation(ctx *gin.Context)
+	DeleteUserOpenToWork(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -619,5 +621,50 @@ func (c *ProfileController) GetUserBasicInformation(ctx *gin.Context) {
 	userId := int64(userData["id"].(float64))
 
 	response = c.usecase.GetUserBasicInformation(userId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) AddUserOpenToWork(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.OpenToWork
+	)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.AddUserOpenToWork(&reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserOpenToWork(ctx *gin.Context) {
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response := c.usecase.DeleteUserOpenToWork(userId)
 	ctx.JSON(response.Status.Code, response)
 }
