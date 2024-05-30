@@ -21,7 +21,6 @@ type IProfileUsecase interface {
 	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
 	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
-	GetSkills(pagination model.PaginationRequest) (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
@@ -197,42 +196,6 @@ func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutReque
 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
 	resp.Data = about.About.String
 	return resp
-}
-
-func (u *ProfileUsecase) GetSkills(pagination model.PaginationRequest) (resp model.Response) {
-	offset := (pagination.Page - 1) * pagination.Limit
-
-	skills, totalRows, err := u.repository.GetSkills(int32(offset), int32(pagination.Limit))
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetSkills: %v", err)
-		return
-	}
-
-	data := make([]model.GetSkillsResponse, len(skills))
-	for i, v := range skills {
-		data[i] = model.GetSkillsResponse{
-			ID:   v.ID,
-			Name: v.Name,
-		}
-	}
-
-	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
-
-	paginate := model.PaginationResponse{
-		Page:             pagination.Page,
-		TotalRows:        totalRows,
-		TotalPages:       totalPages,
-		CurrentRowsCount: len(data),
-	}
-
-	return model.Response{
-		Status: libs.CustomResponse(http.StatusOK, "Success fetch skills"),
-		Data: map[string]any{
-			"pagination": paginate,
-			"data":       data,
-		},
-	}
 }
 
 func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response) {

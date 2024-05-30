@@ -36,3 +36,12 @@ sql:
         package: "db"
         out: "db/sqlc"
 
+  # data sqlc
+  - engine: "postgresql"
+    queries: "package/data/repository/data-queries.sql"
+    schema: "db/migrations"
+    gen:
+      go:
+        package: "db"
+        out: "db/sqlc"
+

@@ -57,11 +57,6 @@ type UserDetailRequest struct {
 	Gender      string `validate:"required"`
 }
 
-type GetSkillsResponse struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
 type UpdateProfileRequest struct {
 	UserId          int64         `json:"user_id" form:"user_id"`
 	Fullname        string        `json:"fullname" form:"fullname" validate:"required"`
@@ -98,11 +93,6 @@ type UpdateCertificate struct {
 	Url                 string              `json:"url"`
 }
 
-type IssuingOrganization struct {
-	ID   int64  `json:"id" validate:"required"`
-	Name string `json:"name" validate:"required"`
-}
-
 type UpdateUserInformation struct {
 	UserId       int64    `json:"user_id"`
 	Skills       []string `json:"skills"`
@@ -124,16 +114,6 @@ type UpdateEducationRequest struct {
 	Skills       []string `json:"skills" form:"skills"`
 }
 
-type School struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name" validate:"required"`
-}
-
-type Skill struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name" validate:"required"`
-}
-
 type UpdateWorkExperience struct {
 	ID             int64    `json:"id"`
 	UserId         int64    `json:"user_id"`
@@ -147,11 +127,6 @@ type UpdateWorkExperience struct {
 	Description    string   `json:"description"  form:"description" validate:"required"`
 	FileURLs       []string `json:"file_urls"`
 	Skills         []string `json:"skills" form:"skills"`
-}
-
-type Company struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name" validate:"required"`
 }
 
 type AboutProfileResponse struct {

@@ -15,7 +15,6 @@ import (
 
 type IProfileController interface {
 	InsertUserAbout(ctx *gin.Context)
-	GetSkills(ctx *gin.Context)
 	UpdateProfile(ctx *gin.Context)
 	UpdateAboutMe(ctx *gin.Context)
 	UpdateUserCertificate(ctx *gin.Context)
@@ -147,43 +146,6 @@ func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {
 
 	response = c.usecase.InsertUserDetailAbout(&reqBody, userId)
 
-	ctx.JSON(response.Status.Code, response)
-}
-
-func (c *ProfileController) GetSkills(ctx *gin.Context) {
-	var response model.Response
-
-	page, err := strconv.Atoi(ctx.Query("page"))
-	if err != nil {
-		response.Status =
-			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
-
-		ctx.JSON(response.Status.Code, response)
-		return
-	}
-
-	limit, err := strconv.Atoi(ctx.Query("limit"))
-	if err != nil {
-		response.Status =
-			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
-
-		ctx.JSON(response.Status.Code, response)
-		return
-	}
-
-	if page <= 0 || limit <= 0 {
-		response.Status =
-			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
-
-		ctx.JSON(response.Status.Code, response)
-		return
-	}
-
-	pagination := model.PaginationRequest{
-		Page:  page,
-		Limit: limit,
-	}
-	response = c.usecase.GetSkills(pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
