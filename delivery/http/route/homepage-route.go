@@ -18,5 +18,5 @@ func NewHomepageRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 
 	app.Use(middleware.Authentication())
 	app.GET("/posts", controller.ListPosts)
-	app.GET("/users/follow-recommendations", controller.ListFollowsRecommendation)
+	app.GET("/users/me/follow-recommendations", controller.ListFollowsRecommendation)
 }
