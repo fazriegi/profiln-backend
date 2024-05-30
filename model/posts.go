@@ -4,15 +4,9 @@ import "time"
 
 type ReportPost struct {
 	PostId  int64    `json:"post_id"`
-	Reason  []string `json:"reason" validate:"required"`
+	Reason  []string `json:"reason" validate:"required,isNotEmptyArray"`
 	Message string   `json:"message" validate:"required"`
 }
-
-// type ReportPostResponse struct {
-// 	PostId  int64  `json:"post_id"`
-// 	Reason  string `json:"reason"`
-// 	Message string `json:"message"`
-// }
 
 type CreatePostRequest struct {
 	UserId     int64    `json:"user_id"`

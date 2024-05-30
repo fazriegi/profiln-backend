@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"reflect"
 	"regexp"
 
 	"github.com/go-playground/validator"
@@ -16,7 +17,8 @@ func ValidateRequest(data any) []ValidationErrResponse {
 	var validationErrors []ValidationErrResponse
 
 	validate := validator.New()
-	validate.RegisterValidation("password", Password) // register custom validator
+	validate.RegisterValidation("password", Password)               // register custom validator
+	validate.RegisterValidation("isNotEmptyArray", isNotEmptyArray) // register custom validator
 
 	err := validate.Struct(data)
 	if err != nil {
@@ -46,4 +48,14 @@ func Password(fl validator.FieldLevel) bool {
 	}
 
 	return true
+}
+
+func isNotEmptyArray(fl validator.FieldLevel) bool {
+	field := fl.Field()
+	switch field.Kind() {
+	case reflect.Slice, reflect.Array:
+		return field.Len() > 0
+	default:
+		return false
+	}
 }

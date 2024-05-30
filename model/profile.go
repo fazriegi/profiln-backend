@@ -9,12 +9,12 @@ type SkillRequest struct {
 	Name string `validate:"required"`
 }
 
-type UserSkillRequest struct {
-	UserID    int64  `validate:"required"`
-	SkillID   int64  `validate:"required"`
-	MainSkill bool   `validate:"required"`
-	Skills    string `validate:"required"`
-}
+// type UserSkillRequest struct {
+// 	UserID    int64  `validate:"required"`
+// 	SkillID   int64  `validate:"required"`
+// 	MainSkill bool   `validate:"required"`
+// 	Skills    string `validate:"required"`
+// }
 
 type CertificateRequest struct {
 	Name                  string  `validate:"required"`
@@ -60,11 +60,11 @@ type UserDetailRequest struct {
 type UpdateProfileRequest struct {
 	UserId          int64         `json:"user_id" form:"user_id"`
 	Fullname        string        `json:"fullname" form:"fullname" validate:"required"`
-	HidePhoneNumber bool          `json:"hide_phone_number" form:"hide_phone_number" validate:"required"`
+	HidePhoneNumber bool          `json:"hide_phone_number" form:"hide_phone_number" validate:"required,boolean"`
 	MainSkills      []string      `json:"main_skills" form:"main_skills" validate:"required"`
 	PhoneNumber     string        `json:"phone_number" form:"phone_number" validate:"required"`
 	Gender          string        `json:"gender" form:"gender" validate:"required"`
-	SocialLinks     []SocialLinks `json:"social_links" form:"social_links" validate:"required"`
+	SocialLinks     []SocialLinks `json:"social_links" form:"social_links" validate:"required,isNotEmptyArray"`
 }
 
 type UpdateProfileResponse struct {
@@ -132,9 +132,9 @@ type UpdateWorkExperience struct {
 type OpenToWork struct {
 	UserId          int64         `json:"user_id"`
 	OpenToWork      bool          `json:"open_to_work"`
-	JobPositions    []JobPosition `json:"job_positions" validate:"required"`
-	LocationTypes   []string      `json:"location_types" validate:"required"`
-	EmploymentTypes []string      `json:"employment_types" validate:"required"`
+	JobPositions    []JobPosition `json:"job_positions" validate:"required,isNotEmptyArray"`
+	LocationTypes   []string      `json:"location_types" validate:"required,isNotEmptyArray"`
+	EmploymentTypes []string      `json:"employment_types" validate:"required,isNotEmptyArray"`
 }
 
 type AboutProfileResponse struct {
