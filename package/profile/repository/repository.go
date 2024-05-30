@@ -4,32 +4,32 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	db "profiln-be/db/sqlc"
 	"profiln-be/model"
-	profileSqlc "profiln-be/package/profile/repository/sqlc"
 	"strings"
 	"sync"
 	"time"
 )
 
 type IProfileRepository interface {
-	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error)
-	InsertCertificate(arg profileSqlc.InsertCertificateParams) (profileSqlc.Certificate, error)
-	InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error)
-	InsertSkill(name string) (profileSqlc.Skill, error)
-	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
-	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
+	InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error)
+	InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error)
+	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
+	InsertSkill(name string) (db.Skill, error)
+	InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error)
+	InsertUserAvatar(arg db.InsertUserAvatarParams) error
 	GetUserById(id int64) (model.User, error)
-	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
-	GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error)
+	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
+	GetSkills(offset, limit int32) ([]db.GetSkillsRow, int64, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
 	UpdateUserEducation(props *model.UpdateEducationRequest) error
-	GetEducationById(id int64) (profileSqlc.Education, error)
+	GetEducationById(id int64) (db.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
-	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
+	GetWorkExperienceById(id int64) (db.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 	GetUserProfile(userId int64) (model.UserProfile, error)
@@ -40,18 +40,18 @@ type IProfileRepository interface {
 }
 
 type ProfileRepository struct {
-	db    *sql.DB
-	query *profileSqlc.Queries
+	dbConn *sql.DB
+	query  *db.Queries
 }
 
-func NewProfileRepository(db *sql.DB) IProfileRepository {
+func NewProfileRepository(dbConn *sql.DB) IProfileRepository {
 	return &ProfileRepository{
-		db:    db,
-		query: profileSqlc.New(db),
+		dbConn: dbConn,
+		query:  db.New(dbConn),
 	}
 }
 
-func (r *ProfileRepository) InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error {
+func (r *ProfileRepository) InsertUserAvatar(arg db.InsertUserAvatarParams) error {
 	err := r.query.InsertUserAvatar(context.Background(), arg)
 
 	if err != nil {
@@ -61,17 +61,17 @@ func (r *ProfileRepository) InsertUserAvatar(arg profileSqlc.InsertUserAvatarPar
 	return nil
 }
 
-func (r *ProfileRepository) InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error) {
+func (r *ProfileRepository) InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error) {
 	userAbout, err := r.query.InsertUserDetailAbout(context.Background(), arg)
 
 	if err != nil {
-		return profileSqlc.UserDetail{}, err
+		return db.UserDetail{}, err
 	}
 
 	return userAbout, nil
 }
 
-func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error {
+func (r *ProfileRepository) UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error {
 	err := r.query.UpdateUserDetailAbout(context.Background(), arg)
 
 	if err != nil {
@@ -81,41 +81,41 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDeta
 	return nil
 }
 
-func (r *ProfileRepository) InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error) {
+func (r *ProfileRepository) InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error) {
 	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
 
 	if err != nil {
-		return profileSqlc.WorkExperience{}, err
+		return db.WorkExperience{}, err
 	}
 
 	return workExperience, nil
 }
 
-func (r *ProfileRepository) InsertCertificate(arg profileSqlc.InsertCertificateParams) (profileSqlc.Certificate, error) {
+func (r *ProfileRepository) InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error) {
 	certificate, err := r.query.InsertCertificate(context.Background(), arg)
 
 	if err != nil {
-		return profileSqlc.Certificate{}, err
+		return db.Certificate{}, err
 	}
 
 	return certificate, nil
 }
 
-func (r *ProfileRepository) InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error) {
+func (r *ProfileRepository) InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error) {
 	userSkill, err := r.query.InsertUserSkill(context.Background(), arg)
 
 	if err != nil {
-		return profileSqlc.UserSkill{}, err
+		return db.UserSkill{}, err
 	}
 
 	return userSkill, nil
 }
 
-func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) {
+func (r *ProfileRepository) InsertSkill(name string) (db.Skill, error) {
 	skill, err := r.query.InsertSkill(context.Background(), name)
 
 	if err != nil {
-		return profileSqlc.Skill{}, err
+		return db.Skill{}, err
 	}
 
 	return skill, nil
@@ -139,15 +139,15 @@ func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 	return data, nil
 }
 
-func (r *ProfileRepository) GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error) {
-	arg := profileSqlc.GetSkillsParams{
+func (r *ProfileRepository) GetSkills(offset, limit int32) ([]db.GetSkillsRow, int64, error) {
+	arg := db.GetSkillsParams{
 		Offset: offset,
 		Limit:  limit,
 	}
 
 	skills, err := r.query.GetSkills(context.Background(), arg)
 	if err != nil {
-		return []profileSqlc.GetSkillsRow{}, 0, err
+		return []db.GetSkillsRow{}, 0, err
 	}
 
 	var count int64
@@ -160,7 +160,7 @@ func (r *ProfileRepository) GetSkills(offset, limit int32) ([]profileSqlc.GetSki
 
 func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin edit profile transaction: %w", err)
 	}
@@ -169,7 +169,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	qtx := r.query.WithTx(tx)
 
 	// update users table
-	_, err = qtx.UpdateUser(ctx, profileSqlc.UpdateUserParams{
+	_, err = qtx.UpdateUser(ctx, db.UpdateUserParams{
 		ID:        props.UserId,
 		FullName:  props.Fullname,
 		AvatarUrl: sql.NullString{String: avatar_url, Valid: true},
@@ -179,7 +179,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	}
 
 	// update user details table
-	_, err = qtx.UpdateUserDetailByUserId(ctx, profileSqlc.UpdateUserDetailByUserIdParams{
+	_, err = qtx.UpdateUserDetailByUserId(ctx, db.UpdateUserDetailByUserIdParams{
 		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
 		HidePhoneNumber: sql.NullBool{Bool: props.HidePhoneNumber, Valid: true},
 		PhoneNumber:     sql.NullString{String: props.PhoneNumber, Valid: true},
@@ -200,7 +200,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	}
 
 	// insert user main skills
-	_, err = qtx.BatchInsertUserMainSkills(ctx, profileSqlc.BatchInsertUserMainSkillsParams{
+	_, err = qtx.BatchInsertUserMainSkills(ctx, db.BatchInsertUserMainSkillsParams{
 		UserID: props.UserId,
 		Names:  props.MainSkills,
 	})
@@ -210,7 +210,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 
 	// update or insert user social links
 	for _, v := range props.SocialLinks {
-		err := qtx.UpsertUserSocialLink(ctx, profileSqlc.UpsertUserSocialLinkParams{
+		err := qtx.UpsertUserSocialLink(ctx, db.UpsertUserSocialLinkParams{
 			UserID:   sql.NullInt64{Int64: props.UserId, Valid: true},
 			Platform: sql.NullString{String: v.Platform, Valid: true},
 			Url:      sql.NullString{String: v.URL, Valid: true},
@@ -228,7 +228,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 }
 
 func (r *ProfileRepository) UpdateAboutMe(userId int64, aboutMe string) error {
-	arg := profileSqlc.UpdateUserDetailAboutParams{
+	arg := db.UpdateUserDetailAboutParams{
 		UserID: userId,
 		About:  aboutMe,
 	}
@@ -248,7 +248,7 @@ func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Upd
 	)
 
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -279,7 +279,7 @@ func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Upd
 		}
 	}
 
-	arg := profileSqlc.UpdateUserCertificateParams{
+	arg := db.UpdateUserCertificateParams{
 		Name:                  props.Name,
 		IssuingOrganizationID: props.IssuingOrganization.ID,
 		IssueDate:             issueDate,
@@ -313,7 +313,7 @@ func (r *ProfileRepository) GetUserAvatarById(id int64) (string, error) {
 
 func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInformation) error {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -326,7 +326,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 		return fmt.Errorf("could not get user detail: %w", err)
 	}
 
-	updateUserDetailArg := profileSqlc.UpdateUserDetailParams{
+	updateUserDetailArg := db.UpdateUserDetailParams{
 		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
 		PhoneNumber:     sql.NullString{String: currentUserDetail.PhoneNumber.String, Valid: true},
 		Gender:          sql.NullString{String: currentUserDetail.Gender.String, Valid: true},
@@ -360,7 +360,7 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 	)
 
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -386,7 +386,7 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 		return fmt.Errorf("could not batch insert user skills: %w", err)
 	}
 
-	err = qtx.BatchInsertEducationSkills(ctx, profileSqlc.BatchInsertEducationSkillsParams{
+	err = qtx.BatchInsertEducationSkills(ctx, db.BatchInsertEducationSkillsParams{
 		EducationID: props.ID,
 		UserSkillID: userSkillIDs,
 	})
@@ -416,7 +416,7 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 		}
 	}
 
-	arg := profileSqlc.UpdateUserEducationParams{
+	arg := db.UpdateUserEducationParams{
 		ID:           props.ID,
 		SchoolID:     sql.NullInt64{Int64: props.School.ID, Valid: true},
 		Degree:       sql.NullString{String: props.Degree, Valid: true},
@@ -442,10 +442,10 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 	return nil
 }
 
-func (r *ProfileRepository) GetEducationById(id int64) (profileSqlc.Education, error) {
+func (r *ProfileRepository) GetEducationById(id int64) (db.Education, error) {
 	data, err := r.query.GetEducationById(context.Background(), id)
 	if err != nil {
-		return profileSqlc.Education{}, err
+		return db.Education{}, err
 	}
 
 	return data, nil
@@ -465,10 +465,10 @@ func (r *ProfileRepository) GetUserEducationFileURLs(educationId int64) ([]strin
 	return urls, nil
 }
 
-func (r *ProfileRepository) GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error) {
+func (r *ProfileRepository) GetWorkExperienceById(id int64) (db.WorkExperience, error) {
 	data, err := r.query.GetWorkExperienceById(context.Background(), id)
 	if err != nil {
-		return profileSqlc.WorkExperience{}, err
+		return db.WorkExperience{}, err
 	}
 
 	return data, nil
@@ -496,7 +496,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	)
 
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -522,7 +522,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 		return fmt.Errorf("could not batch insert user skills: %w", err)
 	}
 
-	err = qtx.BatchInsertWorkExperienceSkills(ctx, profileSqlc.BatchInsertWorkExperienceSkillsParams{
+	err = qtx.BatchInsertWorkExperienceSkills(ctx, db.BatchInsertWorkExperienceSkillsParams{
 		WorkExperienceID: props.ID,
 		UserSkillID:      userSkillIDs,
 	})
@@ -552,7 +552,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 		}
 	}
 
-	updateUserWorkExperienceArg := profileSqlc.UpdateUserWorkExperienceParams{
+	updateUserWorkExperienceArg := db.UpdateUserWorkExperienceParams{
 		ID:             props.ID,
 		CompanyID:      sql.NullInt64{Int64: props.Company.ID, Valid: true},
 		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
@@ -568,7 +568,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 		return fmt.Errorf("could not update user work experience: %w", err)
 	}
 
-	_, err = qtx.BatchInsertWorkExperienceFiles(ctx, profileSqlc.BatchInsertWorkExperienceFilesParams{
+	_, err = qtx.BatchInsertWorkExperienceFiles(ctx, db.BatchInsertWorkExperienceFilesParams{
 		WorkExperienceID: props.ID,
 		Url:              props.FileURLs,
 	})
@@ -588,7 +588,7 @@ func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, err
 		wg sync.WaitGroup
 	)
 
-	userChan := make(chan profileSqlc.GetUserProfileRow, 1)
+	userChan := make(chan db.GetUserProfileRow, 1)
 	socialLinksChan := make(chan []model.SocialLinks, 1)
 	userSkillsChan := make(chan model.UserSkills, 1)
 	errChan := make(chan error, 3)
@@ -713,7 +713,7 @@ func (r *ProfileRepository) getUserSkills(userId int64) (model.UserSkills, error
 	return data, nil
 }
 
-func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {
+func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *db.Queries, props *db.UpdateUserDetailParams) (db.UpdateUserDetailRow, error) {
 	data, err := qtx.UpdateUserDetail(ctx, *props)
 	if err != nil {
 		return data, err
@@ -723,7 +723,7 @@ func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSq
 }
 
 // Batch insert to skills and user skills table (if not exist)
-func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *profileSqlc.Queries, userId int64, skills []string) ([]int64, error) {
+func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *db.Queries, userId int64, skills []string) ([]int64, error) {
 	var (
 		userSkillIDs []int64
 		err          error
@@ -734,7 +734,7 @@ func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *prof
 	}
 
 	// Insert user skills
-	_, err = qtx.BatchInsertUserSkills(ctx, profileSqlc.BatchInsertUserSkillsParams{
+	_, err = qtx.BatchInsertUserSkills(ctx, db.BatchInsertUserSkillsParams{
 		UserID:      userId,
 		Names:       skills,
 		IsMainSkill: false,
@@ -752,8 +752,8 @@ func (r *ProfileRepository) batchInsertUserSkills(ctx context.Context, qtx *prof
 	return userSkillIDs, nil
 }
 
-func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *profileSqlc.Queries, educationId int64, url []string) ([]profileSqlc.EducationFile, error) {
-	arg := profileSqlc.BatchInsertEducationFilesParams{
+func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *db.Queries, educationId int64, url []string) ([]db.EducationFile, error) {
+	arg := db.BatchInsertEducationFilesParams{
 		EducationID: educationId,
 		Url:         url,
 	}
@@ -766,7 +766,7 @@ func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *
 }
 
 func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error) {
-	arg := profileSqlc.GetWorkExperiencesByUserIdParams{
+	arg := db.GetWorkExperiencesByUserIdParams{
 		Offset: offset,
 		Limit:  limit,
 		UserID: userId,
@@ -826,7 +826,7 @@ func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, lim
 }
 
 func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error) {
-	arg := profileSqlc.GetEducationsByUserIdParams{
+	arg := db.GetEducationsByUserIdParams{
 		Offset: offset,
 		Limit:  limit,
 		UserID: userId,
@@ -885,7 +885,7 @@ func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit in
 }
 
 func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error) {
-	arg := profileSqlc.GetCertificatesByUserIdParams{
+	arg := db.GetCertificatesByUserIdParams{
 		Offset: offset,
 		Limit:  limit,
 		UserID: userId,
@@ -925,7 +925,7 @@ func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit 
 }
 
 func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error) {
-	arg := profileSqlc.GetFollowedUsersByUserIdParams{
+	arg := db.GetFollowedUsersByUserIdParams{
 		Offset: offset,
 		Limit:  limit,
 		UserID: userId,
