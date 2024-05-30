@@ -437,3 +437,7 @@ WHERE id = @id::bigint AND user_id = @user_id::bigint;
 -- name: DeleteEducationById :exec
 DELETE FROM educations
 WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: DeleteCertificateById :exec
+DELETE FROM certificates
+WHERE id = @id::bigint AND user_id = @user_id::bigint;

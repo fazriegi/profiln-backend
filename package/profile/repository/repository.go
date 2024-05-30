@@ -40,6 +40,7 @@ type IProfileRepository interface {
 	DeleteUserOpenToWork(userId int64) error
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) error
 	DeleteUserEducationById(userId, educationId int64) error
+	DeleteUserCertificateById(userId, certificateId int64) error
 }
 
 type ProfileRepository struct {
@@ -1135,6 +1136,18 @@ func (r *ProfileRepository) DeleteUserEducationById(userId, educationId int64) e
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserCertificateById(userId, certificateId int64) error {
+	err := r.query.DeleteCertificateById(context.Background(), db.DeleteCertificateByIdParams{
+		UserID: userId,
+		ID:     certificateId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete certificate: %w", err)
 	}
 
 	return nil

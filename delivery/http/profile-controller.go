@@ -33,6 +33,7 @@ type IProfileController interface {
 	DeleteUserOpenToWork(ctx *gin.Context)
 	DeleteUserWorkExperience(ctx *gin.Context)
 	DeleteUserEducation(ctx *gin.Context)
+	DeleteUserCertificate(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -704,5 +705,23 @@ func (c *ProfileController) DeleteUserEducation(ctx *gin.Context) {
 	}
 
 	response = c.usecase.DeleteUserEducationById(userId, educationId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserCertificate(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	certificateId, err := strconv.ParseInt(ctx.Param("certificateId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeleteUserCertificateById(userId, certificateId)
 	ctx.JSON(response.Status.Code, response)
 }

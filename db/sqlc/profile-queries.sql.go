@@ -302,6 +302,21 @@ func (q *Queries) BatchInsertWorkExperienceSkills(ctx context.Context, arg Batch
 	return err
 }
 
+const deleteCertificateById = `-- name: DeleteCertificateById :exec
+DELETE FROM certificates
+WHERE id = $1::bigint AND user_id = $2::bigint
+`
+
+type DeleteCertificateByIdParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteCertificateById(ctx context.Context, arg DeleteCertificateByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCertificateById, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteEducationById = `-- name: DeleteEducationById :exec
 DELETE FROM educations
 WHERE id = $1::bigint AND user_id = $2::bigint

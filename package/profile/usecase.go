@@ -37,6 +37,7 @@ type IProfileUsecase interface {
 	DeleteUserOpenToWork(userId int64) model.Response
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response
 	DeleteUserEducationById(userId, educationId int64) model.Response
+	DeleteUserCertificateById(userId, educationId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -782,5 +783,20 @@ func (u *ProfileUsecase) DeleteUserEducationById(userId, educationId int64) mode
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success delete user education"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserCertificateById(userId, certificateId int64) model.Response {
+	err := u.repository.DeleteUserCertificateById(userId, certificateId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserCertificateById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user certificate"),
 	}
 }
