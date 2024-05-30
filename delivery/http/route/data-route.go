@@ -21,4 +21,5 @@ func NewDataRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	app.GET("/companies", controller.GetCompanies)
 	app.GET("/issuing-organizations", controller.GetIssuingOrganizations)
 	app.GET("/skills", controller.GetSkills)
+	app.GET("/job-positions", controller.GetJobPositions)
 }

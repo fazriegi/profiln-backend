@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getCompanies = `-- name: GetCompanies :many
@@ -77,6 +78,47 @@ func (q *Queries) GetIssuingOrganizations(ctx context.Context, arg GetIssuingOrg
 	var items []GetIssuingOrganizationsRow
 	for rows.Next() {
 		var i GetIssuingOrganizationsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.TotalRows); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJobPositions = `-- name: GetJobPositions :many
+SELECT id, name, COUNT(id) OVER () AS total_rows
+FROM job_positions
+OFFSET $1
+LIMIT $2
+`
+
+type GetJobPositionsParams struct {
+	Offset int32
+	Limit  int32
+}
+
+type GetJobPositionsRow struct {
+	ID        int64
+	Name      sql.NullString
+	TotalRows int64
+}
+
+func (q *Queries) GetJobPositions(ctx context.Context, arg GetJobPositionsParams) ([]GetJobPositionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getJobPositions, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetJobPositionsRow
+	for rows.Next() {
+		var i GetJobPositionsRow
 		if err := rows.Scan(&i.ID, &i.Name, &i.TotalRows); err != nil {
 			return nil, err
 		}

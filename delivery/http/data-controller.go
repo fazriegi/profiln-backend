@@ -15,6 +15,7 @@ type IDataController interface {
 	GetCompanies(ctx *gin.Context)
 	GetIssuingOrganizations(ctx *gin.Context)
 	GetSkills(ctx *gin.Context)
+	GetJobPositions(ctx *gin.Context)
 }
 
 type DataController struct {
@@ -172,5 +173,42 @@ func (c *DataController) GetSkills(ctx *gin.Context) {
 		Limit: limit,
 	}
 	response = c.usecase.GetSkills(pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *DataController) GetJobPositions(ctx *gin.Context) {
+	var response model.Response
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetJobPositions(pagination)
 	ctx.JSON(response.Status.Code, response)
 }
