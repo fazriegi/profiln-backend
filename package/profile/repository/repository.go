@@ -41,6 +41,8 @@ type IProfileRepository interface {
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) error
 	DeleteUserEducationById(userId, educationId int64) error
 	DeleteUserCertificateById(userId, certificateId int64) error
+	FollowUser(userId, targetUserId int64) error
+	UnfollowUser(userId, targetUserId int64) error
 }
 
 type ProfileRepository struct {
@@ -1148,6 +1150,110 @@ func (r *ProfileRepository) DeleteUserCertificateById(userId, certificateId int6
 	})
 	if err != nil {
 		return fmt.Errorf("could not delete certificate: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) FollowUser(userId, targetUserId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockUserForUpdate(ctx, userId)
+	if err != nil {
+		return fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	_, err = qtx.InsertFollowings(ctx, db.InsertFollowingsParams{
+		UserID:       userId,
+		FollowUserID: targetUserId,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not insert followings: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowingsCount(ctx, db.UpdateUserFollowingsCountParams{
+		UserID: userId,
+		Value:  1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followings count: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowersCount(ctx, db.UpdateUserFollowersCountParams{
+		UserID: targetUserId,
+		Value:  1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followers count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) UnfollowUser(userId, targetUserId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockUserForUpdate(ctx, userId)
+	if err != nil {
+		return fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	_, err = qtx.DeleteFollowings(ctx, db.DeleteFollowingsParams{
+		UserID:       userId,
+		FollowUserID: targetUserId,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not delete followings: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowingsCount(ctx, db.UpdateUserFollowingsCountParams{
+		UserID: userId,
+		Value:  -1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followings count: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowersCount(ctx, db.UpdateUserFollowersCountParams{
+		UserID: targetUserId,
+		Value:  -1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followers count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return nil

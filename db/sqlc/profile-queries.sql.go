@@ -371,6 +371,24 @@ func (q *Queries) DeleteEducationSkillsByEducation(ctx context.Context, educatio
 	return items, nil
 }
 
+const deleteFollowings = `-- name: DeleteFollowings :one
+DELETE FROM followings
+WHERE user_id = $1::bigint AND follow_user_id = $2::bigint
+RETURNING id
+`
+
+type DeleteFollowingsParams struct {
+	UserID       int64
+	FollowUserID int64
+}
+
+func (q *Queries) DeleteFollowings(ctx context.Context, arg DeleteFollowingsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteFollowings, arg.UserID, arg.FollowUserID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteWorkExperienceById = `-- name: DeleteWorkExperienceById :exec
 DELETE FROM work_experiences
 WHERE id = $1::bigint AND user_id = $2::bigint
@@ -1248,6 +1266,25 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 	return i, err
 }
 
+const insertFollowings = `-- name: InsertFollowings :one
+INSERT INTO followings (user_id, follow_user_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING
+RETURNING id, user_id, follow_user_id
+`
+
+type InsertFollowingsParams struct {
+	UserID       int64
+	FollowUserID int64
+}
+
+func (q *Queries) InsertFollowings(ctx context.Context, arg InsertFollowingsParams) (Following, error) {
+	row := q.db.QueryRowContext(ctx, insertFollowings, arg.UserID, arg.FollowUserID)
+	var i Following
+	err := row.Scan(&i.ID, &i.UserID, &i.FollowUserID)
+	return i, err
+}
+
 const insertIssuingOrganization = `-- name: InsertIssuingOrganization :one
 INSERT INTO issuing_organizations (name)
 VALUES ($1)
@@ -1462,6 +1499,20 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 		&i.EmploymentType,
 	)
 	return i, err
+}
+
+const lockUserForUpdate = `-- name: LockUserForUpdate :one
+SELECT 1
+FROM users
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockUserForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockUserForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const updateUser = `-- name: UpdateUser :one
@@ -1686,6 +1737,44 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUserFollowersCount = `-- name: UpdateUserFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count + $1::smallint, 0)
+WHERE id = $2::bigint
+RETURNING followers_count
+`
+
+type UpdateUserFollowersCountParams struct {
+	Value  int16
+	UserID int64
+}
+
+func (q *Queries) UpdateUserFollowersCount(ctx context.Context, arg UpdateUserFollowersCountParams) (sql.NullInt32, error) {
+	row := q.db.QueryRowContext(ctx, updateUserFollowersCount, arg.Value, arg.UserID)
+	var followers_count sql.NullInt32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const updateUserFollowingsCount = `-- name: UpdateUserFollowingsCount :one
+UPDATE users
+SET followings_count =  GREATEST(followings_count + $1::smallint, 0)
+WHERE id = $2::bigint
+RETURNING followings_count
+`
+
+type UpdateUserFollowingsCountParams struct {
+	Value  int16
+	UserID int64
+}
+
+func (q *Queries) UpdateUserFollowingsCount(ctx context.Context, arg UpdateUserFollowingsCountParams) (sql.NullInt32, error) {
+	row := q.db.QueryRowContext(ctx, updateUserFollowingsCount, arg.Value, arg.UserID)
+	var followings_count sql.NullInt32
+	err := row.Scan(&followings_count)
+	return followings_count, err
 }
 
 const updateUserMainSkillToFalse = `-- name: UpdateUserMainSkillToFalse :exec

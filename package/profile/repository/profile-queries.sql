@@ -441,3 +441,32 @@ WHERE id = @id::bigint AND user_id = @user_id::bigint;
 -- name: DeleteCertificateById :exec
 DELETE FROM certificates
 WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: LockUserForUpdate :one
+SELECT 1
+FROM users
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdateUserFollowingsCount :one
+UPDATE users
+SET followings_count =  GREATEST(followings_count + @value::smallint, 0)
+WHERE id = @user_id::bigint
+RETURNING followings_count;
+
+-- name: UpdateUserFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count + @value::smallint, 0)
+WHERE id = @user_id::bigint
+RETURNING followers_count;
+
+-- name: InsertFollowings :one
+INSERT INTO followings (user_id, follow_user_id)
+VALUES (@user_id::bigint, @follow_user_id::bigint)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING
+RETURNING *;
+
+-- name: DeleteFollowings :one
+DELETE FROM followings
+WHERE user_id = @user_id::bigint AND follow_user_id = @follow_user_id::bigint
+RETURNING id;

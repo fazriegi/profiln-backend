@@ -38,6 +38,8 @@ type IProfileUsecase interface {
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response
 	DeleteUserEducationById(userId, educationId int64) model.Response
 	DeleteUserCertificateById(userId, educationId int64) model.Response
+	FollowUser(userId, targetUserId int64) model.Response
+	UnfollowUser(userId, targetUserId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -798,5 +800,35 @@ func (u *ProfileUsecase) DeleteUserCertificateById(userId, certificateId int64) 
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success delete user certificate"),
+	}
+}
+
+func (u *ProfileUsecase) FollowUser(userId, targetUserId int64) model.Response {
+	err := u.repository.FollowUser(userId, targetUserId)
+	if err != nil {
+		u.log.Errorf("repository.FollowUser: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success follow user"),
+	}
+}
+
+func (u *ProfileUsecase) UnfollowUser(userId, targetUserId int64) model.Response {
+	err := u.repository.UnfollowUser(userId, targetUserId)
+	if err != nil {
+		u.log.Errorf("repository.UnfollowUser: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unfollow user"),
 	}
 }
