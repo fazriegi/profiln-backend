@@ -772,6 +772,87 @@ func (q *Queries) GetWorkExperienceFileURLs(ctx context.Context, workExperienceI
 	return items, nil
 }
 
+const getWorkExperiencesByUserId = `-- name: GetWorkExperiencesByUserId :many
+SELECT 
+  we.id, we.user_id, we.job_title, we.company_id, we.location, we.start_date, we.finish_date, we.description, we.created_at, we.updated_at, we.location_type, we.employment_type, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
+  COUNT(we.id) OVER () AS total_rows
+FROM work_experiences we 
+LEFT JOIN companies c ON we.company_id = c.id 
+LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
+LEFT JOIN work_experience_skills wes ON we.id = wes.work_experience_id 
+LEFT JOIN user_skills us ON wes.user_skill_id = us.id 
+LEFT JOIN skills s ON us.skill_id  = s.id
+WHERE we.user_id = $3::bigint
+GROUP BY we.id, c.name
+OFFSET $1
+LIMIT $2
+`
+
+type GetWorkExperiencesByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetWorkExperiencesByUserIdRow struct {
+	ID             int64
+	UserID         sql.NullInt64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	Location       sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	LocationType   sql.NullString
+	EmploymentType sql.NullString
+	CompanyName    sql.NullString
+	Skills         interface{}
+	FileUrls       interface{}
+	TotalRows      int64
+}
+
+func (q *Queries) GetWorkExperiencesByUserId(ctx context.Context, arg GetWorkExperiencesByUserIdParams) ([]GetWorkExperiencesByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkExperiencesByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetWorkExperiencesByUserIdRow
+	for rows.Next() {
+		var i GetWorkExperiencesByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.JobTitle,
+			&i.CompanyID,
+			&i.Location,
+			&i.StartDate,
+			&i.FinishDate,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LocationType,
+			&i.EmploymentType,
+			&i.CompanyName,
+			&i.Skills,
+			&i.FileUrls,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertCertificate = `-- name: InsertCertificate :one
 INSERT INTO certificates (
   user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url

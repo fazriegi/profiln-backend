@@ -344,3 +344,18 @@ WHERE user_id = @user_id::bigint;
 SELECT us.main_skill, s.name FROM user_skills us
 LEFT JOIN skills s ON us.skill_id = s.id
 WHERE us.user_id = @user_id::bigint;
+
+-- name: GetWorkExperiencesByUserId :many
+SELECT 
+  we.*, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
+  COUNT(we.id) OVER () AS total_rows
+FROM work_experiences we 
+LEFT JOIN companies c ON we.company_id = c.id 
+LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
+LEFT JOIN work_experience_skills wes ON we.id = wes.work_experience_id 
+LEFT JOIN user_skills us ON wes.user_skill_id = us.id 
+LEFT JOIN skills s ON us.skill_id  = s.id
+WHERE we.user_id = @user_id::bigint
+GROUP BY we.id, c.name
+OFFSET $1
+LIMIT $2;

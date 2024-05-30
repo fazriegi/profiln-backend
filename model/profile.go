@@ -219,3 +219,17 @@ type UserSkills struct {
 	MainSkills  []string `json:"main_skills"`
 	OtherSkills []string `json:"other_skills"`
 }
+
+type WorkExperience struct {
+	ID             int64    `json:"id"`
+	JobTitle       string   `json:"job_title"`
+	Company        Company  `json:"company"`
+	EmploymentType string   `json:"employment_type"`
+	Location       string   `json:"location"`
+	LocationType   string   `json:"location_type"`
+	StartDate      string   `json:"start_date"`
+	FinishDate     string   `json:"finish_date"`
+	Description    string   `json:"description"`
+	FileURLs       []string `json:"file_urls"`
+	Skills         []string `json:"skills"`
+}

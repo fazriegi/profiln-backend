@@ -30,6 +30,7 @@ type IProfileUsecase interface {
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
 	GetUserProfile(userId int64) model.Response
+	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 }
 
 type ProfileUsecase struct {
@@ -583,5 +584,34 @@ func (u *ProfileUsecase) GetUserProfile(userId int64) model.Response {
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success fetch user profile"),
 		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response {
+	offset := (pagination.Page - 1) * pagination.Limit
+
+	data, totalRows, err := u.repository.GetWorkExperiencesByUserId(userId, int32(offset), int32(pagination.Limit))
+	if err != nil {
+		u.log.Errorf("repository.GetWorkExperiencesByUserId(%d): %v", userId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch user work experiences"),
+		Data: map[string]any{
+			"pagination": paginate,
+			"data":       data,
+		},
 	}
 }

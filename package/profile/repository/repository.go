@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"profiln-be/model"
 	profileSqlc "profiln-be/package/profile/repository/sqlc"
+	"strings"
 	"sync"
 	"time"
 )
@@ -32,6 +33,7 @@ type IProfileRepository interface {
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 	GetUserProfile(userId int64) (model.UserProfile, error)
+	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
 }
 
 type ProfileRepository struct {
@@ -750,4 +752,64 @@ func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *
 	}
 
 	return educationFiles, nil
+}
+
+func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error) {
+	arg := profileSqlc.GetWorkExperiencesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	workExperiences, err := r.query.GetWorkExperiencesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.WorkExperience, len(workExperiences))
+	finishDate := "now"
+
+	var count int64
+	if len(workExperiences) > 0 {
+		count = workExperiences[0].TotalRows
+	}
+
+	for i, workExperience := range workExperiences {
+		var fileUrls []string
+		var skills []string
+		startDate := workExperience.StartDate.Time.Format("2006-01-02")
+
+		if !workExperience.FinishDate.Time.IsZero() {
+			finishDate = workExperience.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(workExperience.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(workExperience.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.WorkExperience{
+			ID:       workExperience.ID,
+			JobTitle: workExperience.JobTitle.String,
+			Company: model.Company{
+				ID:   workExperience.CompanyID.Int64,
+				Name: workExperience.CompanyName.String,
+			},
+			EmploymentType: workExperience.EmploymentType.String,
+			Location:       workExperience.Location.String,
+			LocationType:   workExperience.LocationType.String,
+			StartDate:      startDate,
+			FinishDate:     finishDate,
+			Description:    workExperience.Description.String,
+			FileURLs:       fileUrls,
+			Skills:         skills,
+		}
+	}
+
+	return data, count, nil
 }
