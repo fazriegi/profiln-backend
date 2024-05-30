@@ -359,3 +359,21 @@ WHERE we.user_id = @user_id::bigint
 GROUP BY we.id, c.name
 OFFSET $1
 LIMIT $2;
+
+-- name: GetEducationsByUserId :many
+SELECT 
+  e.*, 
+  schools.name AS school_name, 
+  COALESCE(array_agg(DISTINCT skills.name) FILTER (WHERE skills.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT ef.url) FILTER (WHERE ef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
+FROM educations e 
+LEFT JOIN schools ON e.school_id = schools.id 
+LEFT JOIN education_files ef ON e.id = ef.education_id 
+LEFT JOIN education_skills es ON e.id = es.education_id 
+LEFT JOIN user_skills us ON es.user_skill_id = us.id 
+LEFT JOIN skills ON us.skill_id = skills.id
+WHERE e.user_id = @user_id::bigint
+GROUP BY e.id, schools.name
+OFFSET $1
+LIMIT $2;

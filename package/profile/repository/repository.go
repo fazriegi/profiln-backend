@@ -34,6 +34,7 @@ type IProfileRepository interface {
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 	GetUserProfile(userId int64) (model.UserProfile, error)
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
+	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
 }
 
 type ProfileRepository struct {
@@ -808,6 +809,65 @@ func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, lim
 			Description:    workExperience.Description.String,
 			FileURLs:       fileUrls,
 			Skills:         skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error) {
+	arg := profileSqlc.GetEducationsByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	educations, err := r.query.GetEducationsByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Education, len(educations))
+	finishDate := "now"
+
+	var count int64
+	if len(educations) > 0 {
+		count = educations[0].TotalRows
+	}
+
+	for i, education := range educations {
+		var fileUrls []string
+		var skills []string
+		startDate := education.StartDate.Time.Format("2006-01-02")
+
+		if !education.FinishDate.Time.IsZero() {
+			finishDate = education.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(education.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(education.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.Education{
+			ID: education.ID,
+			School: model.School{
+				ID:   education.SchoolID.Int64,
+				Name: education.SchoolName.String,
+			},
+			Degree:       education.Degree.String,
+			FieldOfStudy: education.FieldOfStudy.String,
+			StartDate:    startDate,
+			FinishDate:   finishDate,
+			GPA:          education.Gpa.String,
+			Description:  education.Description.String,
+			FileURLs:     fileUrls,
+			Skills:       skills,
 		}
 	}
 

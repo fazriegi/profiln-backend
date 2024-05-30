@@ -330,6 +330,88 @@ func (q *Queries) GetEducationById(ctx context.Context, id int64) (Education, er
 	return i, err
 }
 
+const getEducationsByUserId = `-- name: GetEducationsByUserId :many
+SELECT 
+  e.id, e.user_id, e.school_id, e.degree, e.field_of_study, e.gpa, e.start_date, e.finish_date, e.description, e.created_at, e.updated_at, 
+  schools.name AS school_name, 
+  COALESCE(array_agg(DISTINCT skills.name) FILTER (WHERE skills.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT ef.url) FILTER (WHERE ef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
+FROM educations e 
+LEFT JOIN schools ON e.school_id = schools.id 
+LEFT JOIN education_files ef ON e.id = ef.education_id 
+LEFT JOIN education_skills es ON e.id = es.education_id 
+LEFT JOIN user_skills us ON es.user_skill_id = us.id 
+LEFT JOIN skills ON us.skill_id = skills.id
+WHERE e.user_id = $3::bigint
+GROUP BY e.id, schools.name
+OFFSET $1
+LIMIT $2
+`
+
+type GetEducationsByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetEducationsByUserIdRow struct {
+	ID           int64
+	UserID       sql.NullInt64
+	SchoolID     sql.NullInt64
+	Degree       sql.NullString
+	FieldOfStudy sql.NullString
+	Gpa          sql.NullString
+	StartDate    sql.NullTime
+	FinishDate   sql.NullTime
+	Description  sql.NullString
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	SchoolName   sql.NullString
+	Skills       interface{}
+	FileUrls     interface{}
+	TotalRows    int64
+}
+
+func (q *Queries) GetEducationsByUserId(ctx context.Context, arg GetEducationsByUserIdParams) ([]GetEducationsByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getEducationsByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetEducationsByUserIdRow
+	for rows.Next() {
+		var i GetEducationsByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.SchoolID,
+			&i.Degree,
+			&i.FieldOfStudy,
+			&i.Gpa,
+			&i.StartDate,
+			&i.FinishDate,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SchoolName,
+			&i.Skills,
+			&i.FileUrls,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProfile = `-- name: GetProfile :many
 SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users

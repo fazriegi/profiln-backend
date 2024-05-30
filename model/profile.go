@@ -233,3 +233,16 @@ type WorkExperience struct {
 	FileURLs       []string `json:"file_urls"`
 	Skills         []string `json:"skills"`
 }
+
+type Education struct {
+	ID           int64    `json:"id"`
+	School       School   `json:"school"`
+	Degree       string   `json:"degree"`
+	FieldOfStudy string   `json:"field_of_study"`
+	StartDate    string   `json:"start_date"`
+	FinishDate   string   `json:"finish_date"`
+	GPA          string   `json:"gpa"`
+	Description  string   `json:"description" `
+	FileURLs     []string `json:"file_urls"`
+	Skills       []string `json:"skills"`
+}
