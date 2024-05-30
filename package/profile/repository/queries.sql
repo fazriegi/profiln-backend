@@ -13,9 +13,9 @@ WHERE id = $2
 RETURNING *;
 
 -- name: GetUserById :one
-SELECT *
-FROM users
-WHERE users.id = $1
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+FROM users u
+WHERE u.id = $1
 LIMIT 1;
 
 -- name: UpdateUserDetailAbout :exec
@@ -88,26 +88,18 @@ ON CONFLICT (name) DO NOTHING
 RETURNING *;
 
 -- name: GetUserAbout :one
-SELECT users.id, user_details.about
-FROM users
-LEFT JOIN user_details
-ON users.id = user_details.user_id
-WHERE users.id = $1
+SELECT ud.id, ud.user_id, ud.about, ud.updated_at, ud.created_at, u.id, u.email, u.full_name
+FROM users u
+LEFT JOIN user_details ud
+ON u.id = ud.user_id
+WHERE u.id = $1
 LIMIT 1;
 
 -- name: GetProfile :many
-SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
-    SELECT COUNT(*) 
-    FROM users 
-    INNER JOIN followings 
-    ON users.id = followings.user_id
-    GROUP BY users.id
-  ) AS count_following
+SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users
 LEFT JOIN user_social_links
 ON users.id = user_social_links.user_id
-LEFT JOIN social_links
-ON user_social_links.social_link_id = social_links.id
 LEFT JOIN user_skills
 ON users.id = user_skills.user_id
 LEFT JOIN skills
@@ -188,15 +180,8 @@ WHERE user_id = $1
 RETURNING hide_phone_number, phone_number, gender;
 
 -- name: UpsertUserSocialLink :exec
-WITH social_link AS (
-    SELECT id
-    FROM social_links
-    WHERE name = $2
-    LIMIT 1
-)
-INSERT INTO user_social_links (user_id, social_link_id, url)
-SELECT $1, sl.id, $3
-FROM social_link sl
+INSERT INTO user_social_links (user_id, platform, url)
+SELECT $1, $2, $3
 ON CONFLICT (user_id, social_link_id) DO UPDATE
 SET url = EXCLUDED.url;
 
@@ -320,3 +305,97 @@ WHERE work_experience_id = @work_experience_id::bigint;
 SELECT us.id FROM user_skills us
 JOIN skills s ON us.skill_id = s.id
 WHERE s.name = ANY(@name::text[]);
+
+-- -- name: GetUserCertificates :many
+-- SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name 
+-- FROM users u 
+-- LEFT JOIN certificates c 
+-- ON u.id = c.user_id 
+-- LEFT JOIN 
+-- issuing_organizations i 
+-- ON c.issuing_organization_id = i.id
+-- WHERE u.id = $1;
+
+-- -- name: GetUserSkillsAndLocation :many
+-- SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
+-- FROM users u
+-- LEFT JOIN user_skills us
+-- ON u.id = us.user_id
+-- LEFT JOIN skills s
+-- ON us.skill_id = s.id
+-- LEFT JOIN user_details ud
+-- ON u.id = ud.user_id
+-- WHERE u.id = $1;
+
+-- name: GetUserProfile :one
+SELECT 
+    u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
+FROM users u
+LEFT JOIN user_details ud ON u.id = ud.user_id 
+WHERE u.id = $1
+LIMIT 1;
+
+-- name: GetUserSocialLinks :many
+SELECT platform, url FROM user_social_links
+WHERE user_id = @user_id::bigint;
+
+-- name: GetUserSkills :many
+SELECT us.main_skill, s.name FROM user_skills us
+LEFT JOIN skills s ON us.skill_id = s.id
+WHERE us.user_id = @user_id::bigint;
+
+-- name: GetWorkExperiencesByUserId :many
+SELECT 
+  we.*, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
+  COUNT(we.id) OVER () AS total_rows
+FROM work_experiences we 
+LEFT JOIN companies c ON we.company_id = c.id 
+LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
+LEFT JOIN work_experience_skills wes ON we.id = wes.work_experience_id 
+LEFT JOIN user_skills us ON wes.user_skill_id = us.id 
+LEFT JOIN skills s ON us.skill_id  = s.id
+WHERE we.user_id = @user_id::bigint
+GROUP BY we.id, c.name
+OFFSET $1
+LIMIT $2;
+
+-- name: GetEducationsByUserId :many
+SELECT 
+  e.*, 
+  schools.name AS school_name, 
+  COALESCE(array_agg(DISTINCT skills.name) FILTER (WHERE skills.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT ef.url) FILTER (WHERE ef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
+FROM educations e 
+LEFT JOIN schools ON e.school_id = schools.id 
+LEFT JOIN education_files ef ON e.id = ef.education_id 
+LEFT JOIN education_skills es ON e.id = es.education_id 
+LEFT JOIN user_skills us ON es.user_skill_id = us.id 
+LEFT JOIN skills ON us.skill_id = skills.id
+WHERE e.user_id = @user_id::bigint
+GROUP BY e.id, schools.name
+OFFSET $1
+LIMIT $2;
+
+
+-- name: GetCertificatesByUserId :many
+SELECT 
+  c.*, 
+  io.name AS issuing_organization_name,
+  COUNT(*) OVER () AS total_rows
+FROM certificates c 
+LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
+WHERE user_id = @user_id::bigint
+OFFSET $1
+LIMIT $2;
+
+-- name: GetFollowedUsersByUserId :many
+SELECT 
+  u.id, u.full_name ,u.avatar_url ,u.bio ,u.open_to_work,
+  COUNT(*) OVER () AS total_rows
+FROM followings f 
+LEFT JOIN users u ON f.follow_user_id = u.id 
+WHERE f.user_id = @user_id::bigint
+OFFSET $1
+LIMIT $2;

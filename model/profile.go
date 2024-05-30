@@ -2,19 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"time"
 )
-
-type CompanyRequest struct {
-	Name string `validate:"required"`
-}
-
-type IssuingOrganizationRequest struct {
-	Name string `validate:"required"`
-}
-
-type SchoolRequest struct {
-	Name string `validate:"required"`
-}
 
 type SkillRequest struct {
 	Name string `validate:"required"`
@@ -28,13 +17,12 @@ type UserSkillRequest struct {
 }
 
 type CertificateRequest struct {
-	// UserID                int64        `validate:"required"`
-	Name                  string       `validate:"required"`
-	IssuingOrganizationID int64        `validate:"required"`
-	IssueDate             sql.NullTime `validate:"required"`
-	ExpirationDate        sql.NullTime `validate:"required"`
-	CredentialID          string       `validate:"required"`
-	Url                   string       `validate:"required"`
+	Name                  string  `validate:"required"`
+	IssuingOrganizationID int64   `validate:"required"`
+	IssueDate             string  `validate:"required"`
+	ExpirationDate        *string `validate:"omitempty"`
+	CredentialID          string  `validate:"required"`
+	Url                   string  `validate:"required"`
 }
 
 type WorkExperienceRequest struct {
@@ -96,8 +84,8 @@ type UpdateProfileResponse struct {
 }
 
 type SocialLinks struct {
-	Name string `json:"name" form:"name" validate:"required"`
-	URL  string `json:"url" form:"url" validate:"required"`
+	Platform string `json:"platform" form:"platform" validate:"required"`
+	URL      string `json:"url" form:"url" validate:"required"`
 }
 
 type UpdateCertificate struct {
@@ -120,17 +108,6 @@ type UpdateUserInformation struct {
 	Skills       []string `json:"skills"`
 	Location     string   `json:"location" validate:"required"`
 	PortfolioUrl string   `json:"portfolio_url"`
-}
-
-type UserDetail struct {
-	ID              int64
-	UserId          int64
-	PhoneNumber     string
-	Gender          string
-	Location        string
-	PortfolioUrl    string
-	About           string
-	HidePhoneNumber bool
 }
 
 type UpdateEducationRequest struct {
@@ -175,4 +152,95 @@ type UpdateWorkExperience struct {
 type Company struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name" validate:"required"`
+}
+
+type AboutProfileResponse struct {
+	ID        *int64     `json:"id"`
+	UserID    *int64     `json:"user_id"`
+	About     *string    `json:"about"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+type InsertCertificateResponse struct {
+	ID                    int64     `json:"id"`
+	UserID                int64     `json:"user_id"`
+	Name                  string    `json:"name"`
+	IssuingOrganizationID int64     `json:"issuing_organization_id"`
+	IssueDate             time.Time `json:"issue_date"`
+	ExpirationDate        time.Time `json:"expiration_date"`
+	CredentialID          string    `json:"credential_id"`
+	Url                   string    `json:"url"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
+type Certificate struct {
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Organization   string `json:"origanization"`
+	IssueDate      string `json:"issue_date"`
+	ExpirationDate string `json:"expiration_date"`
+	CredentialID   string `json:"credential_id"`
+	Url            string `json:"url"`
+}
+
+type UserDetailResponse struct {
+	ID              *int64     `json:"id"`
+	UserID          *int64     `json:"user_id"`
+	PhoneNumber     *string    `json:"phone_number"`
+	Gender          *string    `json:"gender"`
+	Location        *string    `json:"location"`
+	PortfolioUrl    *string    `json:"portfolio_url"`
+	About           *string    `json:"about"`
+	HidePhoneNumber *bool      `json:"hide_phone_number"`
+	CreatedAt       *time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
+}
+
+type SkillsResponse struct {
+	ID   *int64  `json:"id"`
+	Name *string `json:"name"`
+}
+
+type UserProfile struct {
+	User            User          `json:"user"`
+	FollowingCount  int64         `json:"following_count"`
+	SocialLinks     []SocialLinks `json:"social_links"`
+	Skills          UserSkills    `json:"skills"`
+	Location        string        `json:"location"`
+	WebPortfolioUrl string        `json:"web_portfolio_url"`
+	About           string        `json:"about"`
+}
+
+type UserSkills struct {
+	MainSkills  []string `json:"main_skills"`
+	OtherSkills []string `json:"other_skills"`
+}
+
+type WorkExperience struct {
+	ID             int64    `json:"id"`
+	JobTitle       string   `json:"job_title"`
+	Company        Company  `json:"company"`
+	EmploymentType string   `json:"employment_type"`
+	Location       string   `json:"location"`
+	LocationType   string   `json:"location_type"`
+	StartDate      string   `json:"start_date"`
+	FinishDate     string   `json:"finish_date"`
+	Description    string   `json:"description"`
+	FileURLs       []string `json:"file_urls"`
+	Skills         []string `json:"skills"`
+}
+
+type Education struct {
+	ID           int64    `json:"id"`
+	School       School   `json:"school"`
+	Degree       string   `json:"degree"`
+	FieldOfStudy string   `json:"field_of_study"`
+	StartDate    string   `json:"start_date"`
+	FinishDate   string   `json:"finish_date"`
+	GPA          string   `json:"gpa"`
+	Description  string   `json:"description" `
+	FileURLs     []string `json:"file_urls"`
+	Skills       []string `json:"skills"`
 }

@@ -6,22 +6,19 @@ import (
 	"fmt"
 	"profiln-be/model"
 	profileSqlc "profiln-be/package/profile/repository/sqlc"
+	"strings"
+	"sync"
 	"time"
 )
 
 type IProfileRepository interface {
-	InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error)
 	InsertUserDetailAbout(arg profileSqlc.InsertUserDetailAboutParams) (profileSqlc.UserDetail, error)
-	InsertCompany(name string) (profileSqlc.Company, error)
-	InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error)
-	InsertSchool(name string) (profileSqlc.School, error)
 	InsertCertificate(arg profileSqlc.InsertCertificateParams) (profileSqlc.Certificate, error)
-	InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error)
 	InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error)
 	InsertSkill(name string) (profileSqlc.Skill, error)
 	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
 	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
-	GetUserById(id int64) (profileSqlc.User, error)
+	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
 	GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
@@ -35,6 +32,11 @@ type IProfileRepository interface {
 	GetWorkExperienceById(id int64) (profileSqlc.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
+	GetUserProfile(userId int64) (model.UserProfile, error)
+	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
+	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
+	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
+	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
 }
 
 type ProfileRepository struct {
@@ -47,16 +49,6 @@ func NewProfileRepository(db *sql.DB) IProfileRepository {
 		db:    db,
 		query: profileSqlc.New(db),
 	}
-}
-
-func (r *ProfileRepository) InsertUserDetail(arg profileSqlc.InsertUserDetailParams) (profileSqlc.UserDetail, error) {
-	userDetail, err := r.query.InsertUserDetail(context.Background(), arg)
-
-	if err != nil {
-		return profileSqlc.UserDetail{}, err
-	}
-
-	return userDetail, nil
 }
 
 func (r *ProfileRepository) InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error {
@@ -89,36 +81,6 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg profileSqlc.UpdateUserDeta
 	return nil
 }
 
-func (r *ProfileRepository) InsertCompany(name string) (profileSqlc.Company, error) {
-	company, err := r.query.InsertCompany(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.Company{}, err
-	}
-
-	return company, nil
-}
-
-func (r *ProfileRepository) InsertEducation(arg profileSqlc.InsertEducationParams) (profileSqlc.Education, error) {
-	education, err := r.query.InsertEducation(context.Background(), arg)
-
-	if err != nil {
-		return profileSqlc.Education{}, err
-	}
-
-	return education, nil
-}
-
-func (r *ProfileRepository) InsertSchool(name string) (profileSqlc.School, error) {
-	school, err := r.query.InsertSchool(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.School{}, err
-	}
-
-	return school, nil
-}
-
 func (r *ProfileRepository) InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error) {
 	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
 
@@ -137,16 +99,6 @@ func (r *ProfileRepository) InsertCertificate(arg profileSqlc.InsertCertificateP
 	}
 
 	return certificate, nil
-}
-
-func (r *ProfileRepository) InsertIssuingOrganization(name string) (profileSqlc.IssuingOrganization, error) {
-	issueOrganization, err := r.query.InsertIssuingOrganization(context.Background(), name)
-
-	if err != nil {
-		return profileSqlc.IssuingOrganization{}, err
-	}
-
-	return issueOrganization, nil
 }
 
 func (r *ProfileRepository) InsertUserSkill(arg profileSqlc.InsertUserSkillParams) (profileSqlc.UserSkill, error) {
@@ -169,24 +121,22 @@ func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) 
 	return skill, nil
 }
 
-func (r *ProfileRepository) GetUserAbout(id int64) (profileSqlc.GetUserAboutRow, error) {
-	about, err := r.query.GetUserAbout(context.Background(), id)
-
-	if err != nil {
-		return profileSqlc.GetUserAboutRow{}, err
-	}
-
-	return about, nil
-}
-
-func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
+func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 	user, err := r.query.GetUserById(context.Background(), id)
 
 	if err != nil {
-		return profileSqlc.User{}, err
+		return model.User{}, err
 	}
 
-	return user, nil
+	data := model.User{
+		ID:         user.ID,
+		Fullname:   user.FullName,
+		AvatarUrl:  user.AvatarUrl.String,
+		Bio:        user.Bio.String,
+		OpenToWork: user.OpenToWork.Bool,
+	}
+
+	return data, nil
 }
 
 func (r *ProfileRepository) GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error) {
@@ -261,9 +211,9 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	// update or insert user social links
 	for _, v := range props.SocialLinks {
 		err := qtx.UpsertUserSocialLink(ctx, profileSqlc.UpsertUserSocialLinkParams{
-			UserID: sql.NullInt64{Int64: props.UserId, Valid: true},
-			Name:   v.Name,
-			Url:    sql.NullString{String: v.URL, Valid: true},
+			UserID:   sql.NullInt64{Int64: props.UserId, Valid: true},
+			Platform: sql.NullString{String: v.Platform, Valid: true},
+			Url:      sql.NullString{String: v.URL, Valid: true},
 		})
 		if err != nil {
 			return fmt.Errorf("could not upsert user social links: %w", err)
@@ -633,6 +583,136 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 	return nil
 }
 
+func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, error) {
+	var (
+		wg sync.WaitGroup
+	)
+
+	userChan := make(chan profileSqlc.GetUserProfileRow, 1)
+	socialLinksChan := make(chan []model.SocialLinks, 1)
+	userSkillsChan := make(chan model.UserSkills, 1)
+	errChan := make(chan error, 3)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.query.GetUserProfile(context.Background(), userId)
+		if err != nil {
+			errChan <- err
+			close(userChan)
+			return
+		}
+
+		userChan <- data
+		close(userChan)
+	}(userId)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.getUserSocialLinks(userId)
+		if err != nil {
+			errChan <- err
+			close(socialLinksChan)
+			return
+		}
+
+		socialLinksChan <- data
+		close(socialLinksChan)
+	}(userId)
+
+	wg.Add(1)
+	go func(userId int64) {
+		defer wg.Done()
+		data, err := r.getUserSkills(userId)
+		if err != nil {
+			errChan <- err
+			close(userSkillsChan)
+			return
+		}
+
+		userSkillsChan <- data
+		close(userSkillsChan)
+	}(userId)
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return model.UserProfile{}, err
+		}
+	}
+
+	user := <-userChan
+	socialLinks := <-socialLinksChan
+	userSkills := <-userSkillsChan
+
+	data := model.UserProfile{
+		User: model.User{
+			ID:         user.ID,
+			AvatarUrl:  user.AvatarUrl.String,
+			Fullname:   user.FullName,
+			Bio:        user.Bio.String,
+			OpenToWork: user.OpenToWork.Bool,
+		},
+		FollowingCount:  int64(user.FollowingsCount.Int32),
+		SocialLinks:     socialLinks,
+		Skills:          userSkills,
+		Location:        user.Location.String,
+		WebPortfolioUrl: user.PortfolioUrl.String,
+		About:           user.About.String,
+	}
+
+	return data, nil
+}
+
+func (r *ProfileRepository) getUserSocialLinks(userId int64) ([]model.SocialLinks, error) {
+	socialLinks, err := r.query.GetUserSocialLinks(context.Background(), userId)
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]model.SocialLinks, len(socialLinks))
+
+	for i, v := range socialLinks {
+		data[i] = model.SocialLinks{
+			Platform: v.Platform.String,
+			URL:      v.Url.String,
+		}
+	}
+
+	return data, nil
+}
+
+func (r *ProfileRepository) getUserSkills(userId int64) (model.UserSkills, error) {
+	userSkills, err := r.query.GetUserSkills(context.Background(), userId)
+	if err != nil {
+		return model.UserSkills{}, err
+	}
+
+	var (
+		mainSkills  []string
+		otherSkills []string
+	)
+
+	for _, userSkill := range userSkills {
+		if userSkill.MainSkill.Bool {
+			mainSkills = append(mainSkills, userSkill.Name.String)
+			continue
+		}
+
+		otherSkills = append(otherSkills, userSkill.Name.String)
+	}
+
+	data := model.UserSkills{
+		MainSkills:  mainSkills,
+		OtherSkills: otherSkills,
+	}
+
+	return data, nil
+}
+
 func (r *ProfileRepository) updateUserDetail(ctx context.Context, qtx *profileSqlc.Queries, props *profileSqlc.UpdateUserDetailParams) (profileSqlc.UpdateUserDetailRow, error) {
 	data, err := qtx.UpdateUserDetail(ctx, *props)
 	if err != nil {
@@ -683,4 +763,194 @@ func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *
 	}
 
 	return educationFiles, nil
+}
+
+func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error) {
+	arg := profileSqlc.GetWorkExperiencesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	workExperiences, err := r.query.GetWorkExperiencesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.WorkExperience, len(workExperiences))
+	finishDate := "now"
+
+	var count int64
+	if len(workExperiences) > 0 {
+		count = workExperiences[0].TotalRows
+	}
+
+	for i, workExperience := range workExperiences {
+		var fileUrls []string
+		var skills []string
+		startDate := workExperience.StartDate.Time.Format("2006-01-02")
+
+		if !workExperience.FinishDate.Time.IsZero() {
+			finishDate = workExperience.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(workExperience.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(workExperience.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.WorkExperience{
+			ID:       workExperience.ID,
+			JobTitle: workExperience.JobTitle.String,
+			Company: model.Company{
+				ID:   workExperience.CompanyID.Int64,
+				Name: workExperience.CompanyName.String,
+			},
+			EmploymentType: workExperience.EmploymentType.String,
+			Location:       workExperience.Location.String,
+			LocationType:   workExperience.LocationType.String,
+			StartDate:      startDate,
+			FinishDate:     finishDate,
+			Description:    workExperience.Description.String,
+			FileURLs:       fileUrls,
+			Skills:         skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error) {
+	arg := profileSqlc.GetEducationsByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	educations, err := r.query.GetEducationsByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Education, len(educations))
+	finishDate := "now"
+
+	var count int64
+	if len(educations) > 0 {
+		count = educations[0].TotalRows
+	}
+
+	for i, education := range educations {
+		var fileUrls []string
+		var skills []string
+		startDate := education.StartDate.Time.Format("2006-01-02")
+
+		if !education.FinishDate.Time.IsZero() {
+			finishDate = education.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(education.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(education.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.Education{
+			ID: education.ID,
+			School: model.School{
+				ID:   education.SchoolID.Int64,
+				Name: education.SchoolName.String,
+			},
+			Degree:       education.Degree.String,
+			FieldOfStudy: education.FieldOfStudy.String,
+			StartDate:    startDate,
+			FinishDate:   finishDate,
+			GPA:          education.Gpa.String,
+			Description:  education.Description.String,
+			FileURLs:     fileUrls,
+			Skills:       skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error) {
+	arg := profileSqlc.GetCertificatesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	certificates, err := r.query.GetCertificatesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Certificate, len(certificates))
+	expirationDate := ""
+
+	var count int64
+	if len(certificates) > 0 {
+		count = certificates[0].TotalRows
+	}
+
+	for i, certificate := range certificates {
+		issueDate := certificate.IssueDate.Time.Format("2006-01-02")
+
+		if !certificate.ExpirationDate.Time.IsZero() {
+			expirationDate = certificate.ExpirationDate.Time.Format("2006-01-02")
+		}
+
+		data[i] = model.Certificate{
+			ID:             certificate.ID,
+			Organization:   certificate.IssuingOrganizationName.String,
+			Name:           certificate.Name.String,
+			IssueDate:      issueDate,
+			ExpirationDate: expirationDate,
+			CredentialID:   certificate.CredentialID.String,
+			Url:            certificate.Url.String,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error) {
+	arg := profileSqlc.GetFollowedUsersByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	followedUsers, err := r.query.GetFollowedUsersByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.User, len(followedUsers))
+
+	var count int64
+	if len(followedUsers) > 0 {
+		count = followedUsers[0].TotalRows
+	}
+
+	for i, followedUser := range followedUsers {
+		data[i] = model.User{
+			ID:         followedUser.ID.Int64,
+			Fullname:   followedUser.FullName.String,
+			AvatarUrl:  followedUser.AvatarUrl.String,
+			Bio:        followedUser.Bio.String,
+			OpenToWork: followedUser.OpenToWork.Bool,
+		}
+	}
+
+	return data, count, nil
 }

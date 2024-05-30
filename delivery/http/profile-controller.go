@@ -22,6 +22,14 @@ type IProfileController interface {
 	UpdateUserInformation(ctx *gin.Context)
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
+	InsertCertificate(ctx *gin.Context)
+	InsertUserSkills(ctx *gin.Context)
+	GetUserProfile(ctx *gin.Context)
+	GetUserWorkExperiences(ctx *gin.Context)
+	GetUserEducations(ctx *gin.Context)
+	GetUserCertificates(ctx *gin.Context)
+	GetFollowedUsersByUser(ctx *gin.Context)
+	GetUserBasicInformation(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -32,6 +40,78 @@ func NewProfileController(usecase profile.IProfileUsecase) IProfileController {
 	return &ProfileController{
 		usecase,
 	}
+}
+
+func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
+	var (
+		reqBody  model.SkillRequest
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.InsertUserSkill(&reqBody, userId)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
+	var (
+		reqBody  model.CertificateRequest
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.InsertCertificate(&reqBody, userId)
+
+	ctx.JSON(response.Status.Code, response)
 }
 
 func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {
@@ -363,5 +443,219 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	reqBody.ID = workExperienceId
 
 	response = c.usecase.UpdateUserWorkExperience(files, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserProfile(ctx *gin.Context) {
+	var (
+		response model.Response
+	)
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.GetUserProfile(userId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserWorkExperiences(ctx *gin.Context) {
+	var response model.Response
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetWorkExperiencesByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserEducations(ctx *gin.Context) {
+	var response model.Response
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetEducationsByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserCertificates(ctx *gin.Context) {
+	var response model.Response
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetCertificatesByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetFollowedUsersByUser(ctx *gin.Context) {
+	var response model.Response
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetFollowedUsersByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserBasicInformation(ctx *gin.Context) {
+	var (
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response = c.usecase.GetUserBasicInformation(userId)
 	ctx.JSON(response.Status.Code, response)
 }

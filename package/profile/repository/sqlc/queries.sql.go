@@ -305,6 +305,75 @@ func (q *Queries) DeleteWorkExperienceSkillsByWorkExperience(ctx context.Context
 	return items, nil
 }
 
+const getCertificatesByUserId = `-- name: GetCertificatesByUserId :many
+SELECT 
+  c.id, c.user_id, c.name, c.issuing_organization_id, c.issue_date, c.expiration_date, c.credential_id, c.url, c.created_at, c.updated_at, 
+  io.name AS issuing_organization_name,
+  COUNT(*) OVER () AS total_rows
+FROM certificates c 
+LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
+WHERE user_id = $3::bigint
+OFFSET $1
+LIMIT $2
+`
+
+type GetCertificatesByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetCertificatesByUserIdRow struct {
+	ID                      int64
+	UserID                  sql.NullInt64
+	Name                    sql.NullString
+	IssuingOrganizationID   sql.NullInt64
+	IssueDate               sql.NullTime
+	ExpirationDate          sql.NullTime
+	CredentialID            sql.NullString
+	Url                     sql.NullString
+	CreatedAt               sql.NullTime
+	UpdatedAt               sql.NullTime
+	IssuingOrganizationName sql.NullString
+	TotalRows               int64
+}
+
+func (q *Queries) GetCertificatesByUserId(ctx context.Context, arg GetCertificatesByUserIdParams) ([]GetCertificatesByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCertificatesByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCertificatesByUserIdRow
+	for rows.Next() {
+		var i GetCertificatesByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.IssuingOrganizationID,
+			&i.IssueDate,
+			&i.ExpirationDate,
+			&i.CredentialID,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IssuingOrganizationName,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getEducationById = `-- name: GetEducationById :one
 SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at FROM educations
 WHERE id = $1::bigint
@@ -330,19 +399,149 @@ func (q *Queries) GetEducationById(ctx context.Context, id int64) (Education, er
 	return i, err
 }
 
+const getEducationsByUserId = `-- name: GetEducationsByUserId :many
+SELECT 
+  e.id, e.user_id, e.school_id, e.degree, e.field_of_study, e.gpa, e.start_date, e.finish_date, e.description, e.created_at, e.updated_at, 
+  schools.name AS school_name, 
+  COALESCE(array_agg(DISTINCT skills.name) FILTER (WHERE skills.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT ef.url) FILTER (WHERE ef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
+FROM educations e 
+LEFT JOIN schools ON e.school_id = schools.id 
+LEFT JOIN education_files ef ON e.id = ef.education_id 
+LEFT JOIN education_skills es ON e.id = es.education_id 
+LEFT JOIN user_skills us ON es.user_skill_id = us.id 
+LEFT JOIN skills ON us.skill_id = skills.id
+WHERE e.user_id = $3::bigint
+GROUP BY e.id, schools.name
+OFFSET $1
+LIMIT $2
+`
+
+type GetEducationsByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetEducationsByUserIdRow struct {
+	ID           int64
+	UserID       sql.NullInt64
+	SchoolID     sql.NullInt64
+	Degree       sql.NullString
+	FieldOfStudy sql.NullString
+	Gpa          sql.NullString
+	StartDate    sql.NullTime
+	FinishDate   sql.NullTime
+	Description  sql.NullString
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	SchoolName   sql.NullString
+	Skills       interface{}
+	FileUrls     interface{}
+	TotalRows    int64
+}
+
+func (q *Queries) GetEducationsByUserId(ctx context.Context, arg GetEducationsByUserIdParams) ([]GetEducationsByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getEducationsByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetEducationsByUserIdRow
+	for rows.Next() {
+		var i GetEducationsByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.SchoolID,
+			&i.Degree,
+			&i.FieldOfStudy,
+			&i.Gpa,
+			&i.StartDate,
+			&i.FinishDate,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SchoolName,
+			&i.Skills,
+			&i.FileUrls,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFollowedUsersByUserId = `-- name: GetFollowedUsersByUserId :many
+SELECT 
+  u.id, u.full_name ,u.avatar_url ,u.bio ,u.open_to_work,
+  COUNT(*) OVER () AS total_rows
+FROM followings f 
+LEFT JOIN users u ON f.follow_user_id = u.id 
+WHERE f.user_id = $3::bigint
+OFFSET $1
+LIMIT $2
+`
+
+type GetFollowedUsersByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetFollowedUsersByUserIdRow struct {
+	ID         sql.NullInt64
+	FullName   sql.NullString
+	AvatarUrl  sql.NullString
+	Bio        sql.NullString
+	OpenToWork sql.NullBool
+	TotalRows  int64
+}
+
+func (q *Queries) GetFollowedUsersByUserId(ctx context.Context, arg GetFollowedUsersByUserIdParams) ([]GetFollowedUsersByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFollowedUsersByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFollowedUsersByUserIdRow
+	for rows.Next() {
+		var i GetFollowedUsersByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FullName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.OpenToWork,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProfile = `-- name: GetProfile :many
-SELECT users.full_name, users.bio, user_social_links.url, social_links.name, user_skills.main_skill, skills.name, (
-    SELECT COUNT(*) 
-    FROM users 
-    INNER JOIN followings 
-    ON users.id = followings.user_id
-    GROUP BY users.id
-  ) AS count_following
+SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users
 LEFT JOIN user_social_links
 ON users.id = user_social_links.user_id
-LEFT JOIN social_links
-ON user_social_links.social_link_id = social_links.id
 LEFT JOIN user_skills
 ON users.id = user_skills.user_id
 LEFT JOIN skills
@@ -351,13 +550,14 @@ WHERE user_skills.main_skill = TRUE AND users.id = $1
 `
 
 type GetProfileRow struct {
-	FullName       string
-	Bio            sql.NullString
-	Url            sql.NullString
-	Name           sql.NullString
-	MainSkill      sql.NullBool
-	Name_2         sql.NullString
-	CountFollowing int64
+	FullName        string
+	Bio             sql.NullString
+	Url             sql.NullString
+	Platform        sql.NullString
+	MainSkill       sql.NullBool
+	Name            sql.NullString
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
 }
 
 func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, error) {
@@ -373,10 +573,11 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, er
 			&i.FullName,
 			&i.Bio,
 			&i.Url,
-			&i.Name,
+			&i.Platform,
 			&i.MainSkill,
-			&i.Name_2,
-			&i.CountFollowing,
+			&i.Name,
+			&i.FollowersCount,
+			&i.FollowingsCount,
 		); err != nil {
 			return nil, err
 		}
@@ -433,23 +634,38 @@ func (q *Queries) GetSkills(ctx context.Context, arg GetSkillsParams) ([]GetSkil
 }
 
 const getUserAbout = `-- name: GetUserAbout :one
-SELECT users.id, user_details.about
-FROM users
-LEFT JOIN user_details
-ON users.id = user_details.user_id
-WHERE users.id = $1
+SELECT ud.id, ud.user_id, ud.about, ud.updated_at, ud.created_at, u.id, u.email, u.full_name
+FROM users u
+LEFT JOIN user_details ud
+ON u.id = ud.user_id
+WHERE u.id = $1
 LIMIT 1
 `
 
 type GetUserAboutRow struct {
-	ID    int64
-	About sql.NullString
+	ID        sql.NullInt64
+	UserID    sql.NullInt64
+	About     sql.NullString
+	UpdatedAt sql.NullTime
+	CreatedAt sql.NullTime
+	ID_2      int64
+	Email     string
+	FullName  string
 }
 
 func (q *Queries) GetUserAbout(ctx context.Context, id int64) (GetUserAboutRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserAbout, id)
 	var i GetUserAboutRow
-	err := row.Scan(&i.ID, &i.About)
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.About,
+		&i.UpdatedAt,
+		&i.CreatedAt,
+		&i.ID_2,
+		&i.Email,
+		&i.FullName,
+	)
 	return i, err
 }
 
@@ -468,27 +684,31 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
-FROM users
-WHERE users.id = $1
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+FROM users u
+WHERE u.id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
+type GetUserByIdRow struct {
+	ID              int64
+	FullName        string
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
+}
+
+func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
-	var i User
+	var i GetUserByIdRow
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
-		&i.Password,
 		&i.FullName,
-		&i.VerifiedEmail,
 		&i.AvatarUrl,
 		&i.Bio,
 		&i.OpenToWork,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.FollowersCount,
 		&i.FollowingsCount,
 	)
@@ -547,6 +767,72 @@ func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int6
 	return items, nil
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+
+
+SELECT 
+    u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
+FROM users u
+LEFT JOIN user_details ud ON u.id = ud.user_id 
+WHERE u.id = $1
+LIMIT 1
+`
+
+type GetUserProfileRow struct {
+	ID              int64
+	FullName        string
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
+	PhoneNumber     sql.NullString
+	Gender          sql.NullString
+	Location        sql.NullString
+	PortfolioUrl    sql.NullString
+	About           sql.NullString
+}
+
+// -- name: GetUserCertificates :many
+// SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name
+// FROM users u
+// LEFT JOIN certificates c
+// ON u.id = c.user_id
+// LEFT JOIN
+// issuing_organizations i
+// ON c.issuing_organization_id = i.id
+// WHERE u.id = $1;
+// -- name: GetUserSkillsAndLocation :many
+// SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
+// FROM users u
+// LEFT JOIN user_skills us
+// ON u.id = us.user_id
+// LEFT JOIN skills s
+// ON us.skill_id = s.id
+// LEFT JOIN user_details ud
+// ON u.id = ud.user_id
+// WHERE u.id = $1;
+func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AvatarUrl,
+		&i.Bio,
+		&i.OpenToWork,
+		&i.FollowersCount,
+		&i.FollowingsCount,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+	)
+	return i, err
+}
+
 const getUserSkillIDsByName = `-- name: GetUserSkillIDsByName :many
 SELECT us.id FROM user_skills us
 JOIN skills s ON us.skill_id = s.id
@@ -566,6 +852,73 @@ func (q *Queries) GetUserSkillIDsByName(ctx context.Context, name []string) ([]i
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserSkills = `-- name: GetUserSkills :many
+SELECT us.main_skill, s.name FROM user_skills us
+LEFT JOIN skills s ON us.skill_id = s.id
+WHERE us.user_id = $1::bigint
+`
+
+type GetUserSkillsRow struct {
+	MainSkill sql.NullBool
+	Name      sql.NullString
+}
+
+func (q *Queries) GetUserSkills(ctx context.Context, userID int64) ([]GetUserSkillsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSkills, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserSkillsRow
+	for rows.Next() {
+		var i GetUserSkillsRow
+		if err := rows.Scan(&i.MainSkill, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserSocialLinks = `-- name: GetUserSocialLinks :many
+SELECT platform, url FROM user_social_links
+WHERE user_id = $1::bigint
+`
+
+type GetUserSocialLinksRow struct {
+	Platform sql.NullString
+	Url      sql.NullString
+}
+
+func (q *Queries) GetUserSocialLinks(ctx context.Context, userID int64) ([]GetUserSocialLinksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSocialLinks, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserSocialLinksRow
+	for rows.Next() {
+		var i GetUserSocialLinksRow
+		if err := rows.Scan(&i.Platform, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -620,6 +973,87 @@ func (q *Queries) GetWorkExperienceFileURLs(ctx context.Context, workExperienceI
 			return nil, err
 		}
 		items = append(items, url)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getWorkExperiencesByUserId = `-- name: GetWorkExperiencesByUserId :many
+SELECT 
+  we.id, we.user_id, we.job_title, we.company_id, we.location, we.start_date, we.finish_date, we.description, we.created_at, we.updated_at, we.location_type, we.employment_type, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
+  COUNT(we.id) OVER () AS total_rows
+FROM work_experiences we 
+LEFT JOIN companies c ON we.company_id = c.id 
+LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
+LEFT JOIN work_experience_skills wes ON we.id = wes.work_experience_id 
+LEFT JOIN user_skills us ON wes.user_skill_id = us.id 
+LEFT JOIN skills s ON us.skill_id  = s.id
+WHERE we.user_id = $3::bigint
+GROUP BY we.id, c.name
+OFFSET $1
+LIMIT $2
+`
+
+type GetWorkExperiencesByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetWorkExperiencesByUserIdRow struct {
+	ID             int64
+	UserID         sql.NullInt64
+	JobTitle       sql.NullString
+	CompanyID      sql.NullInt64
+	Location       sql.NullString
+	StartDate      sql.NullTime
+	FinishDate     sql.NullTime
+	Description    sql.NullString
+	CreatedAt      sql.NullTime
+	UpdatedAt      sql.NullTime
+	LocationType   sql.NullString
+	EmploymentType sql.NullString
+	CompanyName    sql.NullString
+	Skills         interface{}
+	FileUrls       interface{}
+	TotalRows      int64
+}
+
+func (q *Queries) GetWorkExperiencesByUserId(ctx context.Context, arg GetWorkExperiencesByUserIdParams) ([]GetWorkExperiencesByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkExperiencesByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetWorkExperiencesByUserIdRow
+	for rows.Next() {
+		var i GetWorkExperiencesByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.JobTitle,
+			&i.CompanyID,
+			&i.Location,
+			&i.StartDate,
+			&i.FinishDate,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LocationType,
+			&i.EmploymentType,
+			&i.CompanyName,
+			&i.Skills,
+			&i.FileUrls,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1230,26 +1664,19 @@ func (q *Queries) UpdateUserWorkExperience(ctx context.Context, arg UpdateUserWo
 }
 
 const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec
-WITH social_link AS (
-    SELECT id
-    FROM social_links
-    WHERE name = $2
-    LIMIT 1
-)
-INSERT INTO user_social_links (user_id, social_link_id, url)
-SELECT $1, sl.id, $3
-FROM social_link sl
+INSERT INTO user_social_links (user_id, platform, url)
+SELECT $1, $2, $3
 ON CONFLICT (user_id, social_link_id) DO UPDATE
 SET url = EXCLUDED.url
 `
 
 type UpsertUserSocialLinkParams struct {
-	UserID sql.NullInt64
-	Name   string
-	Url    sql.NullString
+	UserID   sql.NullInt64
+	Platform sql.NullString
+	Url      sql.NullString
 }
 
 func (q *Queries) UpsertUserSocialLink(ctx context.Context, arg UpsertUserSocialLinkParams) error {
-	_, err := q.db.ExecContext(ctx, upsertUserSocialLink, arg.UserID, arg.Name, arg.Url)
+	_, err := q.db.ExecContext(ctx, upsertUserSocialLink, arg.UserID, arg.Platform, arg.Url)
 	return err
 }
