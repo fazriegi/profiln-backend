@@ -2,37 +2,37 @@ version: "2"
 sql:
   # auth sqlc
   - engine: "postgresql"
-    queries: "package/auth/repository/queries.sql"
+    queries: "package/auth/repository/auth-queries.sql"
     schema: "db/migrations"
     gen:
       go:
-        package: "auth"
-        out: "package/auth/repository/sqlc"
+        package: "db"
+        out: "db/sqlc"
 
   # homepage sqlc
   - engine: "postgresql"
-    queries: "package/homepage/repository/queries.sql"
+    queries: "package/homepage/repository/homepage-queries.sql"
     schema: "db/migrations"
     gen:
       go:
-        package: "homepage"
-        out: "package/homepage/repository/sqlc"
+        package: "db"
+        out: "db/sqlc"
 
   # posts sqlc
   - engine: "postgresql"
-    queries: "package/posts/repository/queries.sql"
+    queries: "package/posts/repository/post-queries.sql"
     schema: "db/migrations"
     gen:
       go:
-        package: "posts"
-        out: "package/posts/repository/sqlc"
+        package: "db"
+        out: "db/sqlc"
 
   # profile sqlc
   - engine: "postgresql"
-    queries: "package/profile/repository/queries.sql"
+    queries: "package/profile/repository/profile-queries.sql"
     schema: "db/migrations"
     gen:
       go:
-        package: "profile"
-        out: "package/profile/repository/sqlc"
+        package: "db"
+        out: "db/sqlc"
 

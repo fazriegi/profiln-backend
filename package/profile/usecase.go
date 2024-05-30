@@ -8,11 +8,10 @@ import (
 	"strings"
 	"sync"
 
+	db "profiln-be/db/sqlc"
 	"profiln-be/libs"
 	"profiln-be/model"
 	repository "profiln-be/package/profile/repository"
-
-	profileSqlc "profiln-be/package/profile/repository/sqlc"
 
 	"github.com/sirupsen/logrus"
 )
@@ -77,7 +76,7 @@ func (u *ProfileUsecase) InsertUserSkill(props *model.SkillRequest, id int64) (r
 			return
 		}
 
-		userSkillParams := profileSqlc.InsertUserSkillParams{
+		userSkillParams := db.InsertUserSkillParams{
 			UserID:    sql.NullInt64{Int64: id, Valid: true},
 			SkillID:   sql.NullInt64{Int64: skill.ID, Valid: true},
 			MainSkill: sql.NullBool{Bool: false, Valid: true},
@@ -110,7 +109,7 @@ func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id i
 		return
 	}
 
-	certificateParams := profileSqlc.InsertCertificateParams{
+	certificateParams := db.InsertCertificateParams{
 		UserID:                sql.NullInt64{Int64: id, Valid: true},
 		Name:                  sql.NullString{String: props.Name, Valid: true},
 		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganizationID, Valid: true},
@@ -146,7 +145,7 @@ func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id i
 }
 
 func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
-	workExperienceParams := profileSqlc.InsertWorkExperienceParams{
+	workExperienceParams := db.InsertWorkExperienceParams{
 		UserID:         sql.NullInt64{Int64: id, Valid: true},
 		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
 		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
@@ -171,7 +170,7 @@ func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest
 }
 
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
-	insertAboutParams := profileSqlc.InsertUserDetailAboutParams{
+	insertAboutParams := db.InsertUserDetailAboutParams{
 		About:  sql.NullString{String: props.About, Valid: true},
 		UserID: sql.NullInt64{Int64: id, Valid: true},
 	}

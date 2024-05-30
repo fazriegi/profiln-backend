@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
+	db "profiln-be/db/sqlc"
 	"profiln-be/libs"
 	email "profiln-be/libs/email"
 	"profiln-be/model"
 	repository "profiln-be/package/auth/repository"
-	authSqlc "profiln-be/package/auth/repository/sqlc"
 
 	"github.com/sirupsen/logrus"
 )
@@ -134,7 +134,7 @@ func (u *AuthUsecase) Register(props *model.RegisterRequest, oauth string) (resp
 		verifiedEmail = false
 	}
 
-	registerUserParams := authSqlc.InsertUserParams{
+	registerUserParams := db.InsertUserParams{
 		Email:         props.Email,
 		Password:      sql.NullString{String: hashedPassword, Valid: true},
 		FullName:      props.Fullname,

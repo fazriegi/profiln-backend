@@ -5,19 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	db "profiln-be/db/sqlc"
 	"profiln-be/model"
-	postSqlc "profiln-be/package/posts/repository/sqlc"
+
 	"strings"
 	"sync"
 )
 
 type IPostsRepository interface {
-	InsertReportedPost(userId int64, props *model.ReportPost) (postSqlc.ReportedPost, error)
+	InsertReportedPost(userId int64, props *model.ReportPost) (db.ReportedPost, error)
 	GetDetailPost(postId, userId int64) (model.Post, error)
-	GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error)
-	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error)
-	LikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
-	UnlikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error)
+	GetPostComments(postId int64, offset, limit int32) ([]db.GetPostCommentsRow, int64, error)
+	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]db.GetPostCommentRepliesRow, int64, error)
+	LikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error)
+	UnlikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error)
 	ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
@@ -26,24 +27,24 @@ type IPostsRepository interface {
 	GetPostById(postId int64) (model.Post, error)
 	GetPostImagesUrl(postId int64) ([]string, error)
 	DeletePost(postId int64) error
-	RepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error)
-	UnrepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error)
+	RepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error)
+	UnrepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error)
 }
 
 type PostsRepository struct {
-	db    *sql.DB
-	query *postSqlc.Queries
+	dbConn *sql.DB
+	query  *db.Queries
 }
 
-func NewPostsRepository(db *sql.DB) IPostsRepository {
+func NewPostsRepository(dbConn *sql.DB) IPostsRepository {
 	return &PostsRepository{
-		db:    db,
-		query: postSqlc.New(db),
+		dbConn: dbConn,
+		query:  db.New(dbConn),
 	}
 }
 
-func (r *PostsRepository) InsertReportedPost(userId int64, props *model.ReportPost) (postSqlc.ReportedPost, error) {
-	arg := postSqlc.InsertReportedPostParams{
+func (r *PostsRepository) InsertReportedPost(userId int64, props *model.ReportPost) (db.ReportedPost, error) {
+	arg := db.InsertReportedPostParams{
 		UserID:  userId,
 		PostID:  props.PostId,
 		Reason:  props.Reason,
@@ -52,14 +53,14 @@ func (r *PostsRepository) InsertReportedPost(userId int64, props *model.ReportPo
 
 	reportedPost, err := r.query.InsertReportedPost(context.Background(), arg)
 	if err != nil {
-		return postSqlc.ReportedPost{}, err
+		return db.ReportedPost{}, err
 	}
 
 	return reportedPost, nil
 }
 
 func (r *PostsRepository) GetDetailPost(postId, userId int64) (model.Post, error) {
-	data, err := r.query.GetDetailPost(context.Background(), postSqlc.GetDetailPostParams{
+	data, err := r.query.GetDetailPost(context.Background(), db.GetDetailPostParams{
 		ID:     postId,
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 	})
@@ -98,8 +99,8 @@ func (r *PostsRepository) GetDetailPost(postId, userId int64) (model.Post, error
 	return post, nil
 }
 
-func (r *PostsRepository) GetPostComments(postId int64, offset, limit int32) ([]postSqlc.GetPostCommentsRow, int64, error) {
-	arg := postSqlc.GetPostCommentsParams{
+func (r *PostsRepository) GetPostComments(postId int64, offset, limit int32) ([]db.GetPostCommentsRow, int64, error) {
+	arg := db.GetPostCommentsParams{
 		PostID: sql.NullInt64{Int64: postId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -107,7 +108,7 @@ func (r *PostsRepository) GetPostComments(postId int64, offset, limit int32) ([]
 
 	data, err := r.query.GetPostComments(context.Background(), arg)
 	if err != nil {
-		return []postSqlc.GetPostCommentsRow{}, 0, err
+		return []db.GetPostCommentsRow{}, 0, err
 	}
 
 	var count int64
@@ -118,8 +119,8 @@ func (r *PostsRepository) GetPostComments(postId int64, offset, limit int32) ([]
 	return data, count, nil
 }
 
-func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]postSqlc.GetPostCommentRepliesRow, int64, error) {
-	arg := postSqlc.GetPostCommentRepliesParams{
+func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]db.GetPostCommentRepliesRow, int64, error) {
+	arg := db.GetPostCommentRepliesParams{
 		PostID:        sql.NullInt64{Int64: postId, Valid: true},
 		PostCommentID: sql.NullInt64{Int64: postCommentId, Valid: true},
 		Offset:        offset,
@@ -128,7 +129,7 @@ func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, off
 
 	data, err := r.query.GetPostCommentReplies(context.Background(), arg)
 	if err != nil {
-		return []postSqlc.GetPostCommentRepliesRow{}, 0, err
+		return []db.GetPostCommentRepliesRow{}, 0, err
 	}
 
 	var count int64
@@ -139,9 +140,9 @@ func (r *PostsRepository) GetPostCommentReplies(postId, postCommentId int64, off
 	return data, count, nil
 }
 
-func (r *PostsRepository) LikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error) {
+func (r *PostsRepository) LikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error) {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -156,7 +157,7 @@ func (r *PostsRepository) LikePost(userId, postId int64) (*postSqlc.UpdatePostLi
 		return nil, fmt.Errorf("could not lock post for update: %w", err)
 	}
 
-	post, err := qtx.UpdatePostLikeCount(ctx, postSqlc.UpdatePostLikeCountParams{
+	post, err := qtx.UpdatePostLikeCount(ctx, db.UpdatePostLikeCountParams{
 		ID:    postId,
 		Value: 1,
 	})
@@ -164,14 +165,14 @@ func (r *PostsRepository) LikePost(userId, postId int64) (*postSqlc.UpdatePostLi
 		return nil, fmt.Errorf("could not update like count: %w", err)
 	}
 
-	_, err = qtx.InsertLikedPost(ctx, postSqlc.InsertLikedPostParams{
+	_, err = qtx.InsertLikedPost(ctx, db.InsertLikedPostParams{
 		UserID: userId,
 		PostID: postId,
 	})
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			post = postSqlc.UpdatePostLikeCountRow{
+			post = db.UpdatePostLikeCountRow{
 				ID:        post.ID,
 				LikeCount: sql.NullInt32{Int32: post.LikeCount.Int32 - 1, Valid: true},
 			}
@@ -189,9 +190,9 @@ func (r *PostsRepository) LikePost(userId, postId int64) (*postSqlc.UpdatePostLi
 	return &post, nil
 }
 
-func (r *PostsRepository) UnlikePost(userId, postId int64) (*postSqlc.UpdatePostLikeCountRow, error) {
+func (r *PostsRepository) UnlikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error) {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -206,7 +207,7 @@ func (r *PostsRepository) UnlikePost(userId, postId int64) (*postSqlc.UpdatePost
 		return nil, fmt.Errorf("could not lock post for update: %w", err)
 	}
 
-	post, err := qtx.UpdatePostLikeCount(ctx, postSqlc.UpdatePostLikeCountParams{
+	post, err := qtx.UpdatePostLikeCount(ctx, db.UpdatePostLikeCountParams{
 		ID:    postId,
 		Value: -1,
 	})
@@ -214,14 +215,14 @@ func (r *PostsRepository) UnlikePost(userId, postId int64) (*postSqlc.UpdatePost
 		return nil, fmt.Errorf("could not update like count: %w", err)
 	}
 
-	_, err = qtx.DeleteLikedPost(ctx, postSqlc.DeleteLikedPostParams{
+	_, err = qtx.DeleteLikedPost(ctx, db.DeleteLikedPostParams{
 		UserID: userId,
 		PostID: postId,
 	})
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			post = postSqlc.UpdatePostLikeCountRow{
+			post = db.UpdatePostLikeCountRow{
 				ID:        post.ID,
 				LikeCount: sql.NullInt32{Int32: post.LikeCount.Int32 + 1, Valid: true},
 			}
@@ -240,7 +241,7 @@ func (r *PostsRepository) UnlikePost(userId, postId int64) (*postSqlc.UpdatePost
 }
 
 func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := postSqlc.ListNewestPostsByUserIdParams{
+	arg := db.ListNewestPostsByUserIdParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -293,7 +294,7 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 }
 
 func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := postSqlc.ListLikedPostsByUserIdParams{
+	arg := db.ListLikedPostsByUserIdParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -345,7 +346,7 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 }
 
 func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := postSqlc.ListRepostedPostsByUserIdParams{
+	arg := db.ListRepostedPostsByUserIdParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -398,7 +399,7 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 
 func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post, error) {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return model.Post{}, fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -406,7 +407,7 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 
 	qtx := r.query.WithTx(tx)
 
-	insertPostArg := postSqlc.InsertPostParams{
+	insertPostArg := db.InsertPostParams{
 		UserID:     sql.NullInt64{Int64: props.UserId, Valid: true},
 		Title:      props.Title,
 		Content:    sql.NullString{String: props.Content, Valid: true},
@@ -418,7 +419,7 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 		return model.Post{}, fmt.Errorf("could not insert post: %w", err)
 	}
 
-	_, err = qtx.BatchInsertPostImages(ctx, postSqlc.BatchInsertPostImagesParams{
+	_, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
 		PostID: createdPost.ID,
 		Url:    props.ImageUrls,
 	})
@@ -451,7 +452,7 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 
 func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -464,7 +465,7 @@ func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
 		return fmt.Errorf("could not batch delete post images: %w", err)
 	}
 
-	updatePostArg := postSqlc.UpdatePostParams{
+	updatePostArg := db.UpdatePostParams{
 		ID:         props.ID,
 		UserID:     props.UserId,
 		Title:      props.Title,
@@ -475,7 +476,7 @@ func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
 		return fmt.Errorf("could not update post: %w", err)
 	}
 
-	_, err = qtx.BatchInsertPostImages(ctx, postSqlc.BatchInsertPostImagesParams{
+	_, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
 		PostID: props.ID,
 		Url:    props.ImageUrls,
 	})
@@ -533,7 +534,7 @@ func (r *PostsRepository) DeletePost(postId int64) error {
 	)
 
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -603,9 +604,9 @@ func (r *PostsRepository) DeletePost(postId int64) error {
 	return nil
 }
 
-func (r *PostsRepository) RepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error) {
+func (r *PostsRepository) RepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error) {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -618,7 +619,7 @@ func (r *PostsRepository) RepostPost(userId, postId int64) (*postSqlc.UpdatePost
 		return nil, fmt.Errorf("could not lock post for update: %w", err)
 	}
 
-	post, err := qtx.UpdatePostRepostCount(ctx, postSqlc.UpdatePostRepostCountParams{
+	post, err := qtx.UpdatePostRepostCount(ctx, db.UpdatePostRepostCountParams{
 		ID:    postId,
 		Value: 1,
 	})
@@ -626,14 +627,14 @@ func (r *PostsRepository) RepostPost(userId, postId int64) (*postSqlc.UpdatePost
 		return nil, fmt.Errorf("could not update repost count: %w", err)
 	}
 
-	_, err = qtx.InsertRepostedPost(ctx, postSqlc.InsertRepostedPostParams{
+	_, err = qtx.InsertRepostedPost(ctx, db.InsertRepostedPostParams{
 		UserID: userId,
 		PostID: postId,
 	})
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			post = postSqlc.UpdatePostRepostCountRow{
+			post = db.UpdatePostRepostCountRow{
 				ID:          post.ID,
 				RepostCount: sql.NullInt32{Int32: post.RepostCount.Int32 - 1, Valid: true},
 			}
@@ -651,9 +652,9 @@ func (r *PostsRepository) RepostPost(userId, postId int64) (*postSqlc.UpdatePost
 	return &post, nil
 }
 
-func (r *PostsRepository) UnrepostPost(userId, postId int64) (*postSqlc.UpdatePostRepostCountRow, error) {
+func (r *PostsRepository) UnrepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error) {
 	ctx := context.Background()
-	tx, err := r.db.Begin()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("could not begin transaction: %w", err)
 	}
@@ -668,7 +669,7 @@ func (r *PostsRepository) UnrepostPost(userId, postId int64) (*postSqlc.UpdatePo
 		return nil, fmt.Errorf("could not lock post for update: %w", err)
 	}
 
-	post, err := qtx.UpdatePostRepostCount(ctx, postSqlc.UpdatePostRepostCountParams{
+	post, err := qtx.UpdatePostRepostCount(ctx, db.UpdatePostRepostCountParams{
 		ID:    postId,
 		Value: -1,
 	})
@@ -676,14 +677,14 @@ func (r *PostsRepository) UnrepostPost(userId, postId int64) (*postSqlc.UpdatePo
 		return nil, fmt.Errorf("could not update repost count: %w", err)
 	}
 
-	_, err = qtx.DeleteRepostedPost(ctx, postSqlc.DeleteRepostedPostParams{
+	_, err = qtx.DeleteRepostedPost(ctx, db.DeleteRepostedPostParams{
 		UserID: userId,
 		PostID: postId,
 	})
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			post = postSqlc.UpdatePostRepostCountRow{
+			post = db.UpdatePostRepostCountRow{
 				ID:          post.ID,
 				RepostCount: sql.NullInt32{Int32: post.RepostCount.Int32 + 1, Valid: true},
 			}

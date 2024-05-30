@@ -3,8 +3,9 @@ package homepage
 import (
 	"context"
 	"database/sql"
+	db "profiln-be/db/sqlc"
 	"profiln-be/model"
-	homepageSqlc "profiln-be/package/homepage/repository/sqlc"
+
 	"strings"
 )
 
@@ -12,23 +13,23 @@ type IHomepageRepository interface {
 	ListNewestPosts(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListPostsByFollowing(userId int64, offset, limit int32) ([]model.Post, int64, error)
 	ListPopularPosts(userId int64, offset, limit int32) ([]model.Post, int64, error)
-	GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error)
+	GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]db.GetFollowsRecommendationForUserIdRow, int64, error)
 }
 
 type HomepageRepository struct {
-	db    *sql.DB
-	query *homepageSqlc.Queries
+	dbConn *sql.DB
+	query  *db.Queries
 }
 
-func NewHomepageRepository(db *sql.DB) IHomepageRepository {
+func NewHomepageRepository(dbConn *sql.DB) IHomepageRepository {
 	return &HomepageRepository{
-		db:    db,
-		query: homepageSqlc.New(db),
+		dbConn: dbConn,
+		query:  db.New(dbConn),
 	}
 }
 
 func (r *HomepageRepository) ListNewestPosts(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := homepageSqlc.ListNewestPostsParams{
+	arg := db.ListNewestPostsParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -80,7 +81,7 @@ func (r *HomepageRepository) ListNewestPosts(userId int64, offset, limit int32) 
 }
 
 func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := homepageSqlc.ListPostsByFollowingParams{
+	arg := db.ListPostsByFollowingParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -132,7 +133,7 @@ func (r *HomepageRepository) ListPostsByFollowing(userId int64, offset, limit in
 }
 
 func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := homepageSqlc.ListPopularPostsParams{
+	arg := db.ListPopularPostsParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -183,8 +184,8 @@ func (r *HomepageRepository) ListPopularPosts(userId int64, offset, limit int32)
 	return posts, count, nil
 }
 
-func (r *HomepageRepository) GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]homepageSqlc.GetFollowsRecommendationForUserIdRow, int64, error) {
-	arg := homepageSqlc.GetFollowsRecommendationForUserIdParams{
+func (r *HomepageRepository) GetFollowsRecommendationForUserId(userId int64, offset, limit int32) ([]db.GetFollowsRecommendationForUserIdRow, int64, error) {
+	arg := db.GetFollowsRecommendationForUserIdParams{
 		UserID: sql.NullInt64{Int64: userId, Valid: true},
 		Offset: offset,
 		Limit:  limit,
@@ -192,7 +193,7 @@ func (r *HomepageRepository) GetFollowsRecommendationForUserId(userId int64, off
 
 	data, err := r.query.GetFollowsRecommendationForUserId(context.Background(), arg)
 	if err != nil {
-		return []homepageSqlc.GetFollowsRecommendationForUserIdRow{}, 0, err
+		return []db.GetFollowsRecommendationForUserIdRow{}, 0, err
 	}
 
 	// get total rows for pagination
