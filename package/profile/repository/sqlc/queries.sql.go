@@ -305,6 +305,75 @@ func (q *Queries) DeleteWorkExperienceSkillsByWorkExperience(ctx context.Context
 	return items, nil
 }
 
+const getCertificatesByUserId = `-- name: GetCertificatesByUserId :many
+SELECT 
+  c.id, c.user_id, c.name, c.issuing_organization_id, c.issue_date, c.expiration_date, c.credential_id, c.url, c.created_at, c.updated_at, 
+  io.name AS issuing_organization_name,
+  COUNT(*) OVER () AS total_rows
+FROM certificates c 
+LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
+WHERE user_id = $3::bigint
+OFFSET $1
+LIMIT $2
+`
+
+type GetCertificatesByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetCertificatesByUserIdRow struct {
+	ID                      int64
+	UserID                  sql.NullInt64
+	Name                    sql.NullString
+	IssuingOrganizationID   sql.NullInt64
+	IssueDate               sql.NullTime
+	ExpirationDate          sql.NullTime
+	CredentialID            sql.NullString
+	Url                     sql.NullString
+	CreatedAt               sql.NullTime
+	UpdatedAt               sql.NullTime
+	IssuingOrganizationName sql.NullString
+	TotalRows               int64
+}
+
+func (q *Queries) GetCertificatesByUserId(ctx context.Context, arg GetCertificatesByUserIdParams) ([]GetCertificatesByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCertificatesByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCertificatesByUserIdRow
+	for rows.Next() {
+		var i GetCertificatesByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.IssuingOrganizationID,
+			&i.IssueDate,
+			&i.ExpirationDate,
+			&i.CredentialID,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IssuingOrganizationName,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getEducationById = `-- name: GetEducationById :one
 SELECT id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at FROM educations
 WHERE id = $1::bigint

@@ -27,6 +27,7 @@ type IProfileController interface {
 	GetUserProfile(ctx *gin.Context)
 	GetUserWorkExperiences(ctx *gin.Context)
 	GetUserEducations(ctx *gin.Context)
+	GetUserCertificates(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -550,5 +551,51 @@ func (c *ProfileController) GetUserEducations(ctx *gin.Context) {
 		Limit: limit,
 	}
 	response = c.usecase.GetEducationsByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserCertificates(ctx *gin.Context) {
+	var response model.Response
+
+	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	limit, err := strconv.Atoi(ctx.Query("limit"))
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if page <= 0 || limit <= 0 {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	pagination := model.PaginationRequest{
+		Page:  page,
+		Limit: limit,
+	}
+	response = c.usecase.GetCertificatesByUserId(userId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }

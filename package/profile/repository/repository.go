@@ -35,6 +35,7 @@ type IProfileRepository interface {
 	GetUserProfile(userId int64) (model.UserProfile, error)
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
 	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
+	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
 }
 
 type ProfileRepository struct {
@@ -868,6 +869,46 @@ func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit in
 			Description:  education.Description.String,
 			FileURLs:     fileUrls,
 			Skills:       skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error) {
+	arg := profileSqlc.GetCertificatesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	certificates, err := r.query.GetCertificatesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Certificate, len(certificates))
+	expirationDate := ""
+
+	var count int64
+	if len(certificates) > 0 {
+		count = certificates[0].TotalRows
+	}
+
+	for i, certificate := range certificates {
+		issueDate := certificate.IssueDate.Time.Format("2006-01-02")
+
+		if !certificate.ExpirationDate.Time.IsZero() {
+			expirationDate = certificate.ExpirationDate.Time.Format("2006-01-02")
+		}
+
+		data[i] = model.Certificate{
+			ID:             certificate.ID,
+			Organization:   certificate.IssuingOrganizationName.String,
+			Name:           certificate.Name.String,
+			IssueDate:      issueDate,
+			ExpirationDate: expirationDate,
+			CredentialID:   certificate.CredentialID.String,
+			Url:            certificate.Url.String,
 		}
 	}
 

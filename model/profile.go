@@ -175,16 +175,14 @@ type InsertCertificateResponse struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
-type CertificatesResponse struct {
-	ID             int64      `json:"id"`
-	Name           string     `json:"name"`
-	Organization   string     `json:"origanization"`
-	IssueDate      time.Time  `json:"issue_date"`
-	ExpirationDate *time.Time `json:"expiration_date"`
-	CredentialID   string     `json:"credential_id"`
-	Url            string     `json:"url"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+type Certificate struct {
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	Organization   string `json:"origanization"`
+	IssueDate      string `json:"issue_date"`
+	ExpirationDate string `json:"expiration_date"`
+	CredentialID   string `json:"credential_id"`
+	Url            string `json:"url"`
 }
 
 type UserDetailResponse struct {

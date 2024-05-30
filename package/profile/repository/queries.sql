@@ -377,3 +377,15 @@ WHERE e.user_id = @user_id::bigint
 GROUP BY e.id, schools.name
 OFFSET $1
 LIMIT $2;
+
+
+-- name: GetCertificatesByUserId :many
+SELECT 
+  c.*, 
+  io.name AS issuing_organization_name,
+  COUNT(*) OVER () AS total_rows
+FROM certificates c 
+LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
+WHERE user_id = @user_id::bigint
+OFFSET $1
+LIMIT $2;
