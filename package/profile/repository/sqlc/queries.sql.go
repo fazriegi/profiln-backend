@@ -684,27 +684,31 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
-FROM users
-WHERE users.id = $1
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+FROM users u
+WHERE u.id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetUserById(ctx context.Context, id int64) (User, error) {
+type GetUserByIdRow struct {
+	ID              int64
+	FullName        string
+	AvatarUrl       sql.NullString
+	Bio             sql.NullString
+	OpenToWork      sql.NullBool
+	FollowersCount  sql.NullInt32
+	FollowingsCount sql.NullInt32
+}
+
+func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
-	var i User
+	var i GetUserByIdRow
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
-		&i.Password,
 		&i.FullName,
-		&i.VerifiedEmail,
 		&i.AvatarUrl,
 		&i.Bio,
 		&i.OpenToWork,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
 		&i.FollowersCount,
 		&i.FollowingsCount,
 	)

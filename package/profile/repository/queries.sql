@@ -13,9 +13,9 @@ WHERE id = $2
 RETURNING *;
 
 -- name: GetUserById :one
-SELECT *
-FROM users
-WHERE users.id = $1
+SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+FROM users u
+WHERE u.id = $1
 LIMIT 1;
 
 -- name: UpdateUserDetailAbout :exec

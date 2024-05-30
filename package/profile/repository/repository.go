@@ -18,7 +18,7 @@ type IProfileRepository interface {
 	InsertSkill(name string) (profileSqlc.Skill, error)
 	InsertWorkExperience(arg profileSqlc.InsertWorkExperienceParams) (profileSqlc.WorkExperience, error)
 	InsertUserAvatar(arg profileSqlc.InsertUserAvatarParams) error
-	GetUserById(id int64) (profileSqlc.User, error)
+	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg profileSqlc.UpdateUserDetailAboutParams) error
 	GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
@@ -121,14 +121,22 @@ func (r *ProfileRepository) InsertSkill(name string) (profileSqlc.Skill, error) 
 	return skill, nil
 }
 
-func (r *ProfileRepository) GetUserById(id int64) (profileSqlc.User, error) {
+func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 	user, err := r.query.GetUserById(context.Background(), id)
 
 	if err != nil {
-		return profileSqlc.User{}, err
+		return model.User{}, err
 	}
 
-	return user, nil
+	data := model.User{
+		ID:         user.ID,
+		Fullname:   user.FullName,
+		AvatarUrl:  user.AvatarUrl.String,
+		Bio:        user.Bio.String,
+		OpenToWork: user.OpenToWork.Bool,
+	}
+
+	return data, nil
 }
 
 func (r *ProfileRepository) GetSkills(offset, limit int32) ([]profileSqlc.GetSkillsRow, int64, error) {

@@ -34,6 +34,7 @@ type IProfileUsecase interface {
 	GetEducationsByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetCertificatesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response
+	GetUserBasicInformation(userId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -703,5 +704,25 @@ func (u *ProfileUsecase) GetFollowedUsersByUserId(userId int64, pagination model
 			"pagination": paginate,
 			"data":       data,
 		},
+	}
+}
+
+func (u *ProfileUsecase) GetUserBasicInformation(userId int64) model.Response {
+	data, err := u.repository.GetUserById(userId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.GetUserById(%d): %v", userId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch user basic information"),
+		Data:   data,
 	}
 }

@@ -29,6 +29,7 @@ type IProfileController interface {
 	GetUserEducations(ctx *gin.Context)
 	GetUserCertificates(ctx *gin.Context)
 	GetFollowedUsersByUser(ctx *gin.Context)
+	GetUserBasicInformation(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -644,5 +645,17 @@ func (c *ProfileController) GetFollowedUsersByUser(ctx *gin.Context) {
 		Limit: limit,
 	}
 	response = c.usecase.GetFollowedUsersByUserId(userId, pagination)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) GetUserBasicInformation(ctx *gin.Context) {
+	var (
+		response model.Response
+	)
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response = c.usecase.GetUserBasicInformation(userId)
 	ctx.JSON(response.Status.Code, response)
 }
