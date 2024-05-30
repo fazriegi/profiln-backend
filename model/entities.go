@@ -32,3 +32,23 @@ type User struct {
 	Bio        string `json:"bio"`
 	OpenToWork bool   `json:"open_to_work"`
 }
+
+type School struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
+type Skill struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
+type Company struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}
+
+type IssuingOrganization struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}

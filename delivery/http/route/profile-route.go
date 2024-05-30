@@ -32,7 +32,6 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	// profile.GET("/user/skill", controller.GetUserSkillsLocationPortofolio)
 
 	app.Use(middleware.Authentication())
-	app.GET("/skills", controller.GetSkills)
 
 	me := app.Group("users/me")
 	me.POST("/about", controller.InsertUserAbout)

@@ -592,47 +592,6 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) ([]GetProfileRow, er
 	return items, nil
 }
 
-const getSkills = `-- name: GetSkills :many
-SELECT id, name, COUNT(id) OVER () AS total_rows
-FROM skills
-OFFSET $1
-LIMIT $2
-`
-
-type GetSkillsParams struct {
-	Offset int32
-	Limit  int32
-}
-
-type GetSkillsRow struct {
-	ID        int64
-	Name      string
-	TotalRows int64
-}
-
-func (q *Queries) GetSkills(ctx context.Context, arg GetSkillsParams) ([]GetSkillsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSkills, arg.Offset, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetSkillsRow
-	for rows.Next() {
-		var i GetSkillsRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.TotalRows); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getUserAbout = `-- name: GetUserAbout :one
 SELECT ud.id, ud.user_id, ud.about, ud.updated_at, ud.created_at, u.id, u.email, u.full_name
 FROM users u

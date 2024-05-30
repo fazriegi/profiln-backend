@@ -20,7 +20,6 @@ type IProfileRepository interface {
 	InsertUserAvatar(arg db.InsertUserAvatarParams) error
 	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
-	GetSkills(offset, limit int32) ([]db.GetSkillsRow, int64, error)
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
@@ -137,25 +136,6 @@ func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 	}
 
 	return data, nil
-}
-
-func (r *ProfileRepository) GetSkills(offset, limit int32) ([]db.GetSkillsRow, int64, error) {
-	arg := db.GetSkillsParams{
-		Offset: offset,
-		Limit:  limit,
-	}
-
-	skills, err := r.query.GetSkills(context.Background(), arg)
-	if err != nil {
-		return []db.GetSkillsRow{}, 0, err
-	}
-
-	var count int64
-	if len(skills) > 0 {
-		count = skills[0].TotalRows
-	}
-
-	return skills, count, nil
 }
 
 func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error {
