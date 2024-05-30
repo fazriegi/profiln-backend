@@ -389,3 +389,13 @@ LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id
 WHERE user_id = @user_id::bigint
 OFFSET $1
 LIMIT $2;
+
+-- name: GetFollowedUsersByUserId :many
+SELECT 
+  u.id, u.full_name ,u.avatar_url ,u.bio ,u.open_to_work,
+  COUNT(*) OVER () AS total_rows
+FROM followings f 
+LEFT JOIN users u ON f.follow_user_id = u.id 
+WHERE f.user_id = @user_id::bigint
+OFFSET $1
+LIMIT $2;

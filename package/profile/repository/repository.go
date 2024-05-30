@@ -36,6 +36,7 @@ type IProfileRepository interface {
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
 	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
 	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
+	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
 }
 
 type ProfileRepository struct {
@@ -909,6 +910,37 @@ func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit 
 			ExpirationDate: expirationDate,
 			CredentialID:   certificate.CredentialID.String,
 			Url:            certificate.Url.String,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error) {
+	arg := profileSqlc.GetFollowedUsersByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	followedUsers, err := r.query.GetFollowedUsersByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.User, len(followedUsers))
+
+	var count int64
+	if len(followedUsers) > 0 {
+		count = followedUsers[0].TotalRows
+	}
+
+	for i, followedUser := range followedUsers {
+		data[i] = model.User{
+			ID:         followedUser.ID.Int64,
+			Fullname:   followedUser.FullName.String,
+			AvatarUrl:  followedUser.AvatarUrl.String,
+			Bio:        followedUser.Bio.String,
+			OpenToWork: followedUser.OpenToWork.Bool,
 		}
 	}
 

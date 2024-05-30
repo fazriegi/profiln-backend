@@ -33,6 +33,7 @@ type IProfileUsecase interface {
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetEducationsByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetCertificatesByUserId(userId int64, pagination model.PaginationRequest) model.Response
+	GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response
 }
 
 type ProfileUsecase struct {
@@ -669,6 +670,35 @@ func (u *ProfileUsecase) GetCertificatesByUserId(userId int64, pagination model.
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success fetch user certificates"),
+		Data: map[string]any{
+			"pagination": paginate,
+			"data":       data,
+		},
+	}
+}
+
+func (u *ProfileUsecase) GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response {
+	offset := (pagination.Page - 1) * pagination.Limit
+
+	data, totalRows, err := u.repository.GetFollowedUsersByUserId(userId, int32(offset), int32(pagination.Limit))
+	if err != nil {
+		u.log.Errorf("repository.GetFollowedUsersByUserId(%d): %v", userId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch followed users"),
 		Data: map[string]any{
 			"pagination": paginate,
 			"data":       data,

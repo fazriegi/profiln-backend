@@ -48,4 +48,5 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	users.GET("/:userId/work-experiences", controller.GetUserWorkExperiences)
 	users.GET("/:userId/educations", controller.GetUserEducations)
 	users.GET("/:userId/certificates", controller.GetUserCertificates)
+	users.GET("/:userId/followings", controller.GetFollowedUsersByUser)
 }

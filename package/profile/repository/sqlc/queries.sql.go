@@ -481,6 +481,62 @@ func (q *Queries) GetEducationsByUserId(ctx context.Context, arg GetEducationsBy
 	return items, nil
 }
 
+const getFollowedUsersByUserId = `-- name: GetFollowedUsersByUserId :many
+SELECT 
+  u.id, u.full_name ,u.avatar_url ,u.bio ,u.open_to_work,
+  COUNT(*) OVER () AS total_rows
+FROM followings f 
+LEFT JOIN users u ON f.follow_user_id = u.id 
+WHERE f.user_id = $3::bigint
+OFFSET $1
+LIMIT $2
+`
+
+type GetFollowedUsersByUserIdParams struct {
+	Offset int32
+	Limit  int32
+	UserID int64
+}
+
+type GetFollowedUsersByUserIdRow struct {
+	ID         sql.NullInt64
+	FullName   sql.NullString
+	AvatarUrl  sql.NullString
+	Bio        sql.NullString
+	OpenToWork sql.NullBool
+	TotalRows  int64
+}
+
+func (q *Queries) GetFollowedUsersByUserId(ctx context.Context, arg GetFollowedUsersByUserIdParams) ([]GetFollowedUsersByUserIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFollowedUsersByUserId, arg.Offset, arg.Limit, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFollowedUsersByUserIdRow
+	for rows.Next() {
+		var i GetFollowedUsersByUserIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FullName,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.OpenToWork,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProfile = `-- name: GetProfile :many
 SELECT users.full_name, users.bio, user_social_links.url, user_social_links.platform, user_skills.main_skill, skills.name, users.followers_count, users.followings_count
 FROM users
