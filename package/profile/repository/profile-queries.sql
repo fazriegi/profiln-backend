@@ -433,3 +433,7 @@ WHERE user_id = @user_id::bigint;
 -- name: DeleteWorkExperienceById :exec
 DELETE FROM work_experiences
 WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: DeleteEducationById :exec
+DELETE FROM educations
+WHERE id = @id::bigint AND user_id = @user_id::bigint;

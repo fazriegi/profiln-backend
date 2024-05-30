@@ -39,6 +39,7 @@ type IProfileRepository interface {
 	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
 	DeleteUserOpenToWork(userId int64) error
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) error
+	DeleteUserEducationById(userId, educationId int64) error
 }
 
 type ProfileRepository struct {
@@ -1095,6 +1096,41 @@ func (r *ProfileRepository) DeleteUserWorkExperienceById(userId, workExperienceI
 	})
 	if err != nil {
 		return fmt.Errorf("could not delete work experience: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserEducationById(userId, educationId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.DeleteEducationFilesByEducationId(ctx, educationId)
+	if err != nil {
+		return fmt.Errorf("could not delete education files: %w", err)
+	}
+
+	_, err = qtx.DeleteEducationSkillsByEducation(ctx, educationId)
+	if err != nil {
+		return fmt.Errorf("could not delete education skills: %w", err)
+	}
+
+	err = qtx.DeleteEducationById(ctx, db.DeleteEducationByIdParams{
+		UserID: userId,
+		ID:     educationId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete education: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

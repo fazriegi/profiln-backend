@@ -44,6 +44,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	me.POST("/open-to-work", controller.AddUserOpenToWork)
 	me.DELETE("/open-to-work", controller.DeleteUserOpenToWork)
 	me.DELETE("/work-experiences/:workExperienceId", controller.DeleteUserWorkExperience)
+	me.DELETE("/educations/:educationId", controller.DeleteUserEducation)
 	me.GET("/", controller.GetUserBasicInformation)
 
 	users := app.Group("users")

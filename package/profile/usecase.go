@@ -36,6 +36,7 @@ type IProfileUsecase interface {
 	GetUserBasicInformation(userId int64) model.Response
 	DeleteUserOpenToWork(userId int64) model.Response
 	DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response
+	DeleteUserEducationById(userId, educationId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -749,6 +750,37 @@ func (u *ProfileUsecase) DeleteUserWorkExperienceById(userId, workExperienceId i
 	}
 
 	return model.Response{
-		Status: libs.CustomResponse(http.StatusOK, "Success delete work experience"),
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user work experience"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserEducationById(userId, educationId int64) model.Response {
+	fileUrls, err := u.repository.GetUserEducationFileURLs(educationId)
+	if err != nil {
+		u.log.Errorf("repository.GetUserEducationFileURLs: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	err = u.repository.DeleteUserEducationById(userId, educationId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserEducationById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if len(fileUrls) > 0 {
+		err := u.googleBucket.HandleObjectDeletion(fileUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user education"),
 	}
 }
