@@ -14,6 +14,7 @@ type IDataUsecase interface {
 	GetCompanies(pagination model.PaginationRequest) model.Response
 	GetIssuingOrganizations(pagination model.PaginationRequest) model.Response
 	GetSkills(pagination model.PaginationRequest) model.Response
+	GetJobPositions(pagination model.PaginationRequest) model.Response
 }
 
 type DataUsecase struct {
@@ -137,6 +138,35 @@ func (u *DataUsecase) GetSkills(pagination model.PaginationRequest) model.Respon
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success fetch skills"),
+		Data: map[string]any{
+			"pagination": paginate,
+			"data":       data,
+		},
+	}
+}
+
+func (u *DataUsecase) GetJobPositions(pagination model.PaginationRequest) model.Response {
+	offset := (pagination.Page - 1) * pagination.Limit
+
+	data, totalRows, err := u.repository.GetJobPositions(int32(offset), int32(pagination.Limit))
+	if err != nil {
+		u.log.Errorf("repository.GetJobPositions: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	totalPages := int((totalRows + int64(pagination.Limit) - 1) / int64(pagination.Limit))
+
+	paginate := model.PaginationResponse{
+		Page:             pagination.Page,
+		TotalRows:        totalRows,
+		TotalPages:       totalPages,
+		CurrentRowsCount: len(data),
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success fetch job positions"),
 		Data: map[string]any{
 			"pagination": paginate,
 			"data":       data,
