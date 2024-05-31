@@ -447,7 +447,7 @@ FOR UPDATE;
 
 -- name: UpdateUserFollowingsCount :one
 UPDATE users
-SET followings_count =  GREATEST(followings_count + @value::smallint, 0)
+SET followings_count = GREATEST(followings_count + @value::smallint, 0)
 WHERE id = @user_id::bigint
 RETURNING followings_count;
 
