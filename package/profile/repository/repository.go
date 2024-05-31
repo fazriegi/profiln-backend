@@ -17,6 +17,7 @@ type IProfileRepository interface {
 	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
 	InsertSkill(name string) (db.Skill, error)
 	InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error)
+	InsertUserEducation(props *model.Education) (model.Education, error)
 	InsertUserAvatar(arg db.InsertUserAvatarParams) error
 	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
@@ -26,7 +27,7 @@ type IProfileRepository interface {
 	AddUserOpenToWork(props *model.OpenToWork) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
-	UpdateUserEducation(props *model.UpdateEducationRequest) error
+	UpdateUserEducation(props *model.Education) error
 	GetEducationById(id int64) (db.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
 	GetWorkExperienceById(id int64) (db.WorkExperience, error)
@@ -170,16 +171,6 @@ func (r *ProfileRepository) InsertUserWorkExperience(props *model.WorkExperience
 
 	return *props, nil
 }
-
-// func (r *ProfileRepository) InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error) {
-// 	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
-
-// 	if err != nil {
-// 		return db.WorkExperience{}, err
-// 	}
-
-// 	return workExperience, nil
-// }
 
 func (r *ProfileRepository) InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error) {
 	certificate, err := r.query.InsertCertificate(context.Background(), arg)
@@ -423,7 +414,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 	return nil
 }
 
-func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequest) error {
+func (r *ProfileRepository) UpdateUserEducation(props *model.Education) error {
 	var (
 		startDate  time.Time
 		finishDate time.Time
@@ -1341,4 +1332,87 @@ func (r *ProfileRepository) UnfollowUser(userId, targetUserId int64) error {
 	}
 
 	return nil
+}
+
+func (r *ProfileRepository) InsertUserEducation(props *model.Education) (model.Education, error) {
+	var (
+		startDate  time.Time
+		finishDate time.Time
+	)
+
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not begin insert user education transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// If the school doesn't exist, insert the school first
+	if props.School.ID < 1 {
+		school, err := qtx.InsertSchool(ctx, props.School.Name)
+		if err != nil {
+			return model.Education{}, fmt.Errorf("could not insert school: %w", err)
+		}
+
+		props.School.ID = school.ID
+	}
+
+	startDate, err = time.Parse("2006-01-02", props.StartDate)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("error parsing start date: %w", err)
+	}
+
+	if props.FinishDate != "" {
+		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
+		if err != nil {
+			return model.Education{}, fmt.Errorf("error parsing finish date: %w", err)
+		}
+	}
+
+	InsertEducationParams := db.InsertEducationParams{
+		UserID:       sql.NullInt64{Int64: props.UserId, Valid: true},
+		SchoolID:     sql.NullInt64{Int64: props.School.ID, Valid: true},
+		Degree:       sql.NullString{String: props.Degree, Valid: true},
+		FieldOfStudy: sql.NullString{String: props.FieldOfStudy, Valid: true},
+		Gpa:          sql.NullString{String: props.GPA, Valid: true},
+		StartDate:    sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
+		FinishDate:   sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
+		Description:  sql.NullString{String: props.Description, Valid: true},
+	}
+	createdData, err := qtx.InsertEducation(ctx, InsertEducationParams)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not insert user education: %w", err)
+	}
+
+	// Batch insert new user skills
+	userSkillIDs, err := r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	err = qtx.BatchInsertEducationSkills(ctx, db.BatchInsertEducationSkillsParams{
+		EducationID: createdData.ID,
+		UserSkillID: userSkillIDs,
+	})
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user education skills: %w", err)
+	}
+
+	_, err = qtx.BatchInsertEducationFiles(ctx, db.BatchInsertEducationFilesParams{
+		EducationID: createdData.ID,
+		Url:         props.FileURLs,
+	})
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user education files: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.Education{}, fmt.Errorf("could not commit insert user education transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
 }

@@ -33,9 +33,9 @@ RETURNING *;
 
 -- name: InsertEducation :one 
 INSERT INTO educations (
-  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7
+  $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
 

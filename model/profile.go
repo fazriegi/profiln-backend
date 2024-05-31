@@ -1,7 +1,6 @@
 package model
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -37,15 +36,15 @@ type CertificateRequest struct {
 // 	Description    string       `validate:"required"`
 // }
 
-type EducationRequest struct {
-	// UserID           int64        `validate:"required"`
-	SchoolID     int64        `validate:"required"`
-	Degree       string       `validate:"required"`
-	FieldOfStudy string       `validate:"required"`
-	Gpa          string       `validate:"required"`
-	StartDate    sql.NullTime `validate:"required"`
-	FinishDate   sql.NullTime `validate:"required"`
-}
+// type EducationRequest struct {
+// 	// UserID           int64        `validate:"required"`
+// 	SchoolID     int64        `validate:"required"`
+// 	Degree       string       `validate:"required"`
+// 	FieldOfStudy string       `validate:"required"`
+// 	Gpa          string       `validate:"required"`
+// 	StartDate    sql.NullTime `validate:"required"`
+// 	FinishDate   sql.NullTime `validate:"required"`
+// }
 
 type UserDetailAboutRequest struct {
 	About string `json:"about" validate:"required"`
@@ -100,7 +99,7 @@ type UpdateUserInformation struct {
 	PortfolioUrl string   `json:"portfolio_url"`
 }
 
-type UpdateEducationRequest struct {
+type Education struct {
 	ID           int64    `json:"id"`
 	UserId       int64    `json:"user_id"`
 	School       School   `json:"school" form:"school" validate:"required"`
@@ -215,15 +214,15 @@ type UserSkills struct {
 // 	Skills         []string `json:"skills"`
 // }
 
-type Education struct {
-	ID           int64    `json:"id"`
-	School       School   `json:"school"`
-	Degree       string   `json:"degree"`
-	FieldOfStudy string   `json:"field_of_study"`
-	StartDate    string   `json:"start_date"`
-	FinishDate   string   `json:"finish_date"`
-	GPA          string   `json:"gpa"`
-	Description  string   `json:"description" `
-	FileURLs     []string `json:"file_urls"`
-	Skills       []string `json:"skills"`
-}
+// type Education struct {
+// 	ID           int64    `json:"id"`
+// 	School       School   `json:"school"`
+// 	Degree       string   `json:"degree"`
+// 	FieldOfStudy string   `json:"field_of_study"`
+// 	StartDate    string   `json:"start_date"`
+// 	FinishDate   string   `json:"finish_date"`
+// 	GPA          string   `json:"gpa"`
+// 	Description  string   `json:"description" `
+// 	FileURLs     []string `json:"file_urls"`
+// 	Skills       []string `json:"skills"`
+// }
