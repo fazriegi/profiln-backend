@@ -167,7 +167,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 
 	// update user details table
 	_, err = qtx.UpdateUserDetailByUserId(ctx, db.UpdateUserDetailByUserIdParams{
-		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		UserID:          props.UserId,
 		HidePhoneNumber: sql.NullBool{Bool: props.HidePhoneNumber, Valid: true},
 		PhoneNumber:     sql.NullString{String: props.PhoneNumber, Valid: true},
 		Gender:          sql.NullString{String: props.Gender, Valid: true},
@@ -314,7 +314,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 	}
 
 	updateUserDetailArg := db.UpdateUserDetailParams{
-		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		UserID:          props.UserId,
 		PhoneNumber:     sql.NullString{String: currentUserDetail.PhoneNumber.String, Valid: true},
 		Gender:          sql.NullString{String: currentUserDetail.Gender.String, Valid: true},
 		Location:        sql.NullString{String: props.Location, Valid: true},

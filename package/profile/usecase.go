@@ -178,7 +178,7 @@ func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
 	insertAboutParams := db.InsertUserDetailAboutParams{
 		About:  sql.NullString{String: props.About, Valid: true},
-		UserID: sql.NullInt64{Int64: id, Valid: true},
+		UserID: id,
 	}
 
 	_, err := u.repository.GetUserById(id)
