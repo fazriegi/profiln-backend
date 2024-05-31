@@ -141,11 +141,11 @@ func (u *AuthUsecase) Register(props *model.RegisterRequest, oauth string) (resp
 		VerifiedEmail: sql.NullBool{Bool: verifiedEmail, Valid: true},
 	}
 
-	insertUser, err := u.repository.InsertUser(registerUserParams)
+	insertUser, err := u.repository.CreateUser(registerUserParams)
 
 	if err != nil {
 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong while register")
-		u.log.Errorf("repository.InsertUser : %v", err)
+		u.log.Errorf("repository.CreateUser : %v", err)
 		return resp
 	}
 

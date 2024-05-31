@@ -12,7 +12,7 @@ type IDataRepository interface {
 	GetCompanies(offset, limit int32) ([]model.Company, int64, error)
 	GetIssuingOrganizations(offset, limit int32) ([]model.IssuingOrganization, int64, error)
 	GetSkills(offset, limit int32) ([]model.Skill, int64, error)
-	GetJobPositions(offset, limit int32) ([]model.Skill, int64, error)
+	GetJobPositions(offset, limit int32) ([]model.JobPosition, int64, error)
 }
 
 type DataRepository struct {
@@ -131,23 +131,23 @@ func (r *DataRepository) GetSkills(offset, limit int32) ([]model.Skill, int64, e
 	return data, count, nil
 }
 
-func (r *DataRepository) GetJobPositions(offset, limit int32) ([]model.Skill, int64, error) {
-	skills, err := r.query.GetJobPositions(context.Background(), db.GetJobPositionsParams{
+func (r *DataRepository) GetJobPositions(offset, limit int32) ([]model.JobPosition, int64, error) {
+	jobPositions, err := r.query.GetJobPositions(context.Background(), db.GetJobPositionsParams{
 		Offset: offset,
 		Limit:  limit,
 	})
 	if err != nil {
-		return []model.Skill{}, 0, err
+		return []model.JobPosition{}, 0, err
 	}
 
 	var count int64
-	if len(skills) > 0 {
-		count = skills[0].TotalRows
+	if len(jobPositions) > 0 {
+		count = jobPositions[0].TotalRows
 	}
 
-	data := make([]model.Skill, len(skills))
-	for i, v := range skills {
-		data[i] = model.Skill{
+	data := make([]model.JobPosition, len(jobPositions))
+	for i, v := range jobPositions {
+		data[i] = model.JobPosition{
 			ID:   v.ID,
 			Name: v.Name.String,
 		}

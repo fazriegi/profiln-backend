@@ -18,21 +18,29 @@ import (
 
 type IProfileUsecase interface {
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
-	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
-	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
+	InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response
+	InsertUserEducation(files []*multipart.FileHeader, props *model.Education) model.Response
+	InsertUserCertificate(props *model.Certificate) model.Response
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
-	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
+	UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
-	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
-	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
+	UpdateUserEducation(files []*multipart.FileHeader, props *model.Education) (resp model.Response)
+	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response)
+	AddUserOpenToWork(props *model.OpenToWork) model.Response
 	GetUserProfile(userId int64) model.Response
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetEducationsByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetCertificatesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetFollowedUsersByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetUserBasicInformation(userId int64) model.Response
+	DeleteUserOpenToWork(userId int64) model.Response
+	DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response
+	DeleteUserEducationById(userId, educationId int64) model.Response
+	DeleteUserCertificateById(userId, educationId int64) model.Response
+	FollowUser(userId, targetUserId int64) model.Response
+	UnfollowUser(userId, targetUserId int64) model.Response
 }
 
 type ProfileUsecase struct {
@@ -95,83 +103,26 @@ func (u *ProfileUsecase) InsertUserSkill(props *model.SkillRequest, id int64) (r
 	return resp
 }
 
-func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response) {
-	issueDate, err := libs.ParseTime(props.IssueDate)
+func (u *ProfileUsecase) InsertUserCertificate(props *model.Certificate) model.Response {
+	data, err := u.repository.InsertUserCertificate(props)
 	if err != nil {
-		u.log.Errorf("libs.ParseTime IssueDate, %v", err)
-		return
+		u.log.Errorf("repository.InsertUserCertificate (user id: %d): %v", props.UserId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
 	}
 
-	expDate, err := libs.ParseTimeWithNill(props.ExpirationDate)
-	if err != nil {
-		u.log.Errorf("libs.ParseTimeWithNill IssueDate, %v", err)
-		return
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's certificate"),
+		Data:   data,
 	}
-
-	certificateParams := db.InsertCertificateParams{
-		UserID:                sql.NullInt64{Int64: id, Valid: true},
-		Name:                  sql.NullString{String: props.Name, Valid: true},
-		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganizationID, Valid: true},
-		IssueDate:             sql.NullTime{Time: issueDate, Valid: true},
-		ExpirationDate:        sql.NullTime{Time: expDate.Time, Valid: expDate.Valid},
-		CredentialID:          sql.NullString{String: props.CredentialID, Valid: true},
-		Url:                   sql.NullString{String: props.Url, Valid: true},
-	}
-
-	certificate, err := u.repository.InsertCertificate(certificateParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertCertificate %v", err)
-	}
-
-	certificateResponse := model.InsertCertificateResponse{
-		ID:                    certificate.ID,
-		UserID:                certificate.UserID.Int64,
-		Name:                  certificate.Name.String,
-		IssuingOrganizationID: certificate.IssuingOrganizationID.Int64,
-		IssueDate:             certificate.IssueDate.Time,
-		ExpirationDate:        certificate.ExpirationDate.Time,
-		CredentialID:          certificate.CredentialID.String,
-		Url:                   certificate.Url.String,
-		CreatedAt:             certificate.CreatedAt.Time,
-		UpdatedAt:             certificate.UpdatedAt.Time,
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create certificate")
-	resp.Data = certificateResponse
-	return resp
-}
-
-func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
-	workExperienceParams := db.InsertWorkExperienceParams{
-		UserID:         sql.NullInt64{Int64: id, Valid: true},
-		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
-		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
-		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
-		Location:       sql.NullString{String: props.Location, Valid: true},
-		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
-		StartDate:      sql.NullTime{Time: props.StartDate.Time, Valid: true},
-		FinishDate:     sql.NullTime{Time: props.FinishDate.Time, Valid: true},
-		Description:    sql.NullString{String: props.Description, Valid: true},
-	}
-
-	workExperience, err := u.repository.InsertWorkExperience(workExperienceParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertWorkExperience %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create work experience")
-	resp.Data = workExperience
-	return resp
 }
 
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
 	insertAboutParams := db.InsertUserDetailAboutParams{
 		About:  sql.NullString{String: props.About, Valid: true},
-		UserID: sql.NullInt64{Int64: id, Valid: true},
+		UserID: id,
 	}
 
 	_, err := u.repository.GetUserById(id)
@@ -295,7 +246,7 @@ func (u *ProfileUsecase) UpdateAboutMe(userId int64, aboutMe string) (resp model
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response) {
 	err := u.repository.UpdateUserCertificate(userId, props)
 	if err != nil && err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
@@ -329,7 +280,7 @@ func (u *ProfileUsecase) UpdateUserInformation(props *model.UpdateUserInformatio
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, props *model.Education) (resp model.Response) {
 	var (
 		err error
 	)
@@ -418,7 +369,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	}
 
 	// If previous objects exists, delete it from gcloud storage
-	if len(currentObjectUrls) > 1 && files != nil {
+	if len(currentObjectUrls) > 0 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletionc (user id: %d): %v", props.UserId, err)
@@ -431,7 +382,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response) {
 	var (
 		err error
 	)
@@ -520,7 +471,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 	}
 
 	// If previous objects exists, delete it from gcloud storage
-	if len(currentObjectUrls) > 1 && files != nil {
+	if len(currentObjectUrls) > 0 && files != nil {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, err)
@@ -685,6 +636,289 @@ func (u *ProfileUsecase) GetUserBasicInformation(userId int64) model.Response {
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success fetch user basic information"),
+		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) AddUserOpenToWork(props *model.OpenToWork) model.Response {
+	props.OpenToWork = true
+	err := u.repository.AddUserOpenToWork(props)
+	if err != nil {
+		u.log.Errorf("repository.AddUserOpenToWork: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Data:   props,
+		Status: libs.CustomResponse(http.StatusOK, "Success update user open to work"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserOpenToWork(userId int64) model.Response {
+	err := u.repository.DeleteUserOpenToWork(userId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserOpenToWork: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user open to work"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserWorkExperienceById(userId, workExperienceId int64) model.Response {
+	fileUrls, err := u.repository.GetWorkExperienceFileURLs(workExperienceId)
+	if err != nil {
+		u.log.Errorf("repository.GetWorkExperienceFileURLs: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	err = u.repository.DeleteUserWorkExperienceById(userId, workExperienceId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserWorkExperienceById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if len(fileUrls) > 0 {
+		err := u.googleBucket.HandleObjectDeletion(fileUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user work experience"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserEducationById(userId, educationId int64) model.Response {
+	fileUrls, err := u.repository.GetUserEducationFileURLs(educationId)
+	if err != nil {
+		u.log.Errorf("repository.GetUserEducationFileURLs: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	err = u.repository.DeleteUserEducationById(userId, educationId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserEducationById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if len(fileUrls) > 0 {
+		err := u.googleBucket.HandleObjectDeletion(fileUrls...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user education"),
+	}
+}
+
+func (u *ProfileUsecase) DeleteUserCertificateById(userId, certificateId int64) model.Response {
+	err := u.repository.DeleteUserCertificateById(userId, certificateId)
+	if err != nil {
+		u.log.Errorf("repository.DeleteUserCertificateById: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success delete user certificate"),
+	}
+}
+
+func (u *ProfileUsecase) FollowUser(userId, targetUserId int64) model.Response {
+	err := u.repository.FollowUser(userId, targetUserId)
+	if err != nil {
+		u.log.Errorf("repository.FollowUser: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success follow user"),
+	}
+}
+
+func (u *ProfileUsecase) UnfollowUser(userId, targetUserId int64) model.Response {
+	err := u.repository.UnfollowUser(userId, targetUserId)
+	if err != nil {
+		u.log.Errorf("repository.UnfollowUser: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unfollow user"),
+	}
+}
+
+func (u *ProfileUsecase) InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response {
+	var (
+		err error
+	)
+
+	if files != nil {
+		var wg sync.WaitGroup
+		objectPath := fmt.Sprintf("users/%d/work-experiences/files", props.UserId)
+
+		errChan := make(chan error, len(files))
+		urlChan := make(chan string, len(files))
+
+		// Loop through the files
+		for _, file := range files {
+			wg.Add(1)
+			file := file
+
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
+		wg.Wait()
+		close(errChan)
+		close(urlChan)
+
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				u.log.Error(err)
+
+				return model.Response{
+					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+				}
+			}
+		}
+
+		// Loop through URL channel and append the URL to file URLs
+		for url := range urlChan {
+			props.FileURLs = append(props.FileURLs, url)
+		}
+	}
+
+	data, err := u.repository.InsertUserWorkExperience(props)
+	if err != nil {
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		u.log.Errorf("repository.InsertUserWorkExperience (user id: %d): %v", props.UserId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's work experience"),
+		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) InsertUserEducation(files []*multipart.FileHeader, props *model.Education) model.Response {
+	var (
+		err error
+	)
+
+	if files != nil {
+		var wg sync.WaitGroup
+		objectPath := fmt.Sprintf("users/%d/educations/files", props.UserId)
+
+		errChan := make(chan error, len(files))
+		urlChan := make(chan string, len(files))
+
+		// Loop through the files
+		for _, file := range files {
+			wg.Add(1)
+			file := file
+
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
+		wg.Wait()
+		close(errChan)
+		close(urlChan)
+
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				u.log.Error(err)
+
+				return model.Response{
+					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+				}
+			}
+		}
+
+		// Loop through URL channel and append the URL to file URLs
+		for url := range urlChan {
+			props.FileURLs = append(props.FileURLs, url)
+		}
+	}
+
+	data, err := u.repository.InsertUserEducation(props)
+	if err != nil {
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		u.log.Errorf("repository.InsertUserEducation (user id: %d): %v", props.UserId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's education"),
 		Data:   data,
 	}
 }

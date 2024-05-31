@@ -13,6 +13,36 @@ import (
 	"github.com/lib/pq"
 )
 
+const batchDeleteUserEmploymentTypeInterests = `-- name: BatchDeleteUserEmploymentTypeInterests :exec
+DELETE FROM user_employment_type_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserEmploymentTypeInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserEmploymentTypeInterests, userID)
+	return err
+}
+
+const batchDeleteUserJobInterests = `-- name: BatchDeleteUserJobInterests :exec
+DELETE FROM user_job_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserJobInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserJobInterests, userID)
+	return err
+}
+
+const batchDeleteUserLocationTypeInterests = `-- name: BatchDeleteUserLocationTypeInterests :exec
+DELETE FROM user_location_type_interests
+WHERE user_id = $1::bigint
+`
+
+func (q *Queries) BatchDeleteUserLocationTypeInterests(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, batchDeleteUserLocationTypeInterests, userID)
+	return err
+}
+
 const batchInsertEducationFiles = `-- name: BatchInsertEducationFiles :many
 INSERT INTO education_files
   (education_id, url)
@@ -72,6 +102,51 @@ ON CONFLICT (name) DO NOTHING
 
 func (q *Queries) BatchInsertSkills(ctx context.Context, names []string) error {
 	_, err := q.db.ExecContext(ctx, batchInsertSkills, pq.Array(names))
+	return err
+}
+
+const batchInsertUserEmploymentTypeInterests = `-- name: BatchInsertUserEmploymentTypeInterests :exec
+INSERT INTO user_employment_type_interests (user_id, employment_type)
+SELECT $1::bigint, UNNEST($2::varchar(10)[])
+`
+
+type BatchInsertUserEmploymentTypeInterestsParams struct {
+	UserID         int64
+	EmploymentType []string
+}
+
+func (q *Queries) BatchInsertUserEmploymentTypeInterests(ctx context.Context, arg BatchInsertUserEmploymentTypeInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserEmploymentTypeInterests, arg.UserID, pq.Array(arg.EmploymentType))
+	return err
+}
+
+const batchInsertUserJobInterests = `-- name: BatchInsertUserJobInterests :exec
+INSERT INTO user_job_interests (user_id, job_position_id)
+SELECT $1::bigint, UNNEST($2::bigint[])
+`
+
+type BatchInsertUserJobInterestsParams struct {
+	UserID        int64
+	JobPositionID []int64
+}
+
+func (q *Queries) BatchInsertUserJobInterests(ctx context.Context, arg BatchInsertUserJobInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserJobInterests, arg.UserID, pq.Array(arg.JobPositionID))
+	return err
+}
+
+const batchInsertUserLocationTypeInterests = `-- name: BatchInsertUserLocationTypeInterests :exec
+INSERT INTO user_location_type_interests (user_id, location_type)
+SELECT $1::bigint, UNNEST($2::varchar(10)[])
+`
+
+type BatchInsertUserLocationTypeInterestsParams struct {
+	UserID       int64
+	LocationType []string
+}
+
+func (q *Queries) BatchInsertUserLocationTypeInterests(ctx context.Context, arg BatchInsertUserLocationTypeInterestsParams) error {
+	_, err := q.db.ExecContext(ctx, batchInsertUserLocationTypeInterests, arg.UserID, pq.Array(arg.LocationType))
 	return err
 }
 
@@ -227,6 +302,36 @@ func (q *Queries) BatchInsertWorkExperienceSkills(ctx context.Context, arg Batch
 	return err
 }
 
+const deleteCertificateById = `-- name: DeleteCertificateById :exec
+DELETE FROM certificates
+WHERE id = $1::bigint AND user_id = $2::bigint
+`
+
+type DeleteCertificateByIdParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteCertificateById(ctx context.Context, arg DeleteCertificateByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCertificateById, arg.ID, arg.UserID)
+	return err
+}
+
+const deleteEducationById = `-- name: DeleteEducationById :exec
+DELETE FROM educations
+WHERE id = $1::bigint AND user_id = $2::bigint
+`
+
+type DeleteEducationByIdParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteEducationById(ctx context.Context, arg DeleteEducationByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteEducationById, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteEducationFilesByEducationId = `-- name: DeleteEducationFilesByEducationId :exec
 DELETE FROM education_files
 WHERE education_id = $1::bigint
@@ -264,6 +369,39 @@ func (q *Queries) DeleteEducationSkillsByEducation(ctx context.Context, educatio
 		return nil, err
 	}
 	return items, nil
+}
+
+const deleteFollowings = `-- name: DeleteFollowings :one
+DELETE FROM followings
+WHERE user_id = $1::bigint AND follow_user_id = $2::bigint
+RETURNING id
+`
+
+type DeleteFollowingsParams struct {
+	UserID       int64
+	FollowUserID int64
+}
+
+func (q *Queries) DeleteFollowings(ctx context.Context, arg DeleteFollowingsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteFollowings, arg.UserID, arg.FollowUserID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteWorkExperienceById = `-- name: DeleteWorkExperienceById :exec
+DELETE FROM work_experiences
+WHERE id = $1::bigint AND user_id = $2::bigint
+`
+
+type DeleteWorkExperienceByIdParams struct {
+	ID     int64
+	UserID int64
+}
+
+func (q *Queries) DeleteWorkExperienceById(ctx context.Context, arg DeleteWorkExperienceByIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteWorkExperienceById, arg.ID, arg.UserID)
+	return err
 }
 
 const deleteWorkExperienceFilesByWorkExperienceId = `-- name: DeleteWorkExperienceFilesByWorkExperienceId :exec
@@ -313,6 +451,7 @@ SELECT
 FROM certificates c 
 LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
 WHERE user_id = $3::bigint
+ORDER BY c.issue_date desc, c.expiration_date DESC
 OFFSET $1
 LIMIT $2
 `
@@ -414,6 +553,7 @@ LEFT JOIN user_skills us ON es.user_skill_id = us.id
 LEFT JOIN skills ON us.skill_id = skills.id
 WHERE e.user_id = $3::bigint
 GROUP BY e.id, schools.name
+ORDER BY e.finish_date DESC, e.start_date DESC
 OFFSET $1
 LIMIT $2
 `
@@ -944,8 +1084,10 @@ func (q *Queries) GetWorkExperienceFileURLs(ctx context.Context, workExperienceI
 
 const getWorkExperiencesByUserId = `-- name: GetWorkExperiencesByUserId :many
 SELECT 
-  we.id, we.user_id, we.job_title, we.company_id, we.location, we.start_date, we.finish_date, we.description, we.created_at, we.updated_at, we.location_type, we.employment_type, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
-  COUNT(we.id) OVER () AS total_rows
+  we.id, we.user_id, we.job_title, we.company_id, we.location, we.start_date, we.finish_date, we.description, we.created_at, we.updated_at, we.location_type, we.employment_type, c.name AS company_name, 
+  COALESCE(array_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT wef.url) FILTER (WHERE wef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
 FROM work_experiences we 
 LEFT JOIN companies c ON we.company_id = c.id 
 LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
@@ -954,6 +1096,7 @@ LEFT JOIN user_skills us ON wes.user_skill_id = us.id
 LEFT JOIN skills s ON us.skill_id  = s.id
 WHERE we.user_id = $3::bigint
 GROUP BY we.id, c.name
+ORDER BY we.finish_date DESC, we.start_date DESC
 OFFSET $1
 LIMIT $2
 `
@@ -1084,9 +1227,9 @@ func (q *Queries) InsertCompany(ctx context.Context, name string) (Company, erro
 
 const insertEducation = `-- name: InsertEducation :one
 INSERT INTO educations (
-  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7
+  $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 `
@@ -1099,6 +1242,7 @@ type InsertEducationParams struct {
 	Gpa          sql.NullString
 	StartDate    sql.NullTime
 	FinishDate   sql.NullTime
+	Description  sql.NullString
 }
 
 func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams) (Education, error) {
@@ -1110,6 +1254,7 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 		arg.Gpa,
 		arg.StartDate,
 		arg.FinishDate,
+		arg.Description,
 	)
 	var i Education
 	err := row.Scan(
@@ -1128,6 +1273,25 @@ func (q *Queries) InsertEducation(ctx context.Context, arg InsertEducationParams
 	return i, err
 }
 
+const insertFollowings = `-- name: InsertFollowings :one
+INSERT INTO followings (user_id, follow_user_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING
+RETURNING id, user_id, follow_user_id
+`
+
+type InsertFollowingsParams struct {
+	UserID       int64
+	FollowUserID int64
+}
+
+func (q *Queries) InsertFollowings(ctx context.Context, arg InsertFollowingsParams) (Following, error) {
+	row := q.db.QueryRowContext(ctx, insertFollowings, arg.UserID, arg.FollowUserID)
+	var i Following
+	err := row.Scan(&i.ID, &i.UserID, &i.FollowUserID)
+	return i, err
+}
+
 const insertIssuingOrganization = `-- name: InsertIssuingOrganization :one
 INSERT INTO issuing_organizations (name)
 VALUES ($1)
@@ -1138,6 +1302,20 @@ RETURNING id, name
 func (q *Queries) InsertIssuingOrganization(ctx context.Context, name string) (IssuingOrganization, error) {
 	row := q.db.QueryRowContext(ctx, insertIssuingOrganization, name)
 	var i IssuingOrganization
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const insertJobPosition = `-- name: InsertJobPosition :one
+INSERT INTO job_positions (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
+RETURNING id, name
+`
+
+func (q *Queries) InsertJobPosition(ctx context.Context, name sql.NullString) (JobPosition, error) {
+	row := q.db.QueryRowContext(ctx, insertJobPosition, name)
+	var i JobPosition
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
@@ -1187,39 +1365,6 @@ func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarPara
 	return err
 }
 
-const insertUserDetail = `-- name: InsertUserDetail :one
-INSERT INTO user_details (
-  user_id, phone_number, gender
-) VALUES (
-  $1, $2, $3
-)
-RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
-`
-
-type InsertUserDetailParams struct {
-	UserID      sql.NullInt64
-	PhoneNumber sql.NullString
-	Gender      sql.NullString
-}
-
-func (q *Queries) InsertUserDetail(ctx context.Context, arg InsertUserDetailParams) (UserDetail, error) {
-	row := q.db.QueryRowContext(ctx, insertUserDetail, arg.UserID, arg.PhoneNumber, arg.Gender)
-	var i UserDetail
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.PhoneNumber,
-		&i.Gender,
-		&i.Location,
-		&i.PortfolioUrl,
-		&i.About,
-		&i.HidePhoneNumber,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const insertUserDetailAbout = `-- name: InsertUserDetailAbout :one
 INSERT INTO user_details (
   user_id, about
@@ -1230,7 +1375,7 @@ RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hid
 `
 
 type InsertUserDetailAboutParams struct {
-	UserID sql.NullInt64
+	UserID int64
 	About  sql.NullString
 }
 
@@ -1330,6 +1475,20 @@ func (q *Queries) InsertWorkExperience(ctx context.Context, arg InsertWorkExperi
 	return i, err
 }
 
+const lockUserForUpdate = `-- name: LockUserForUpdate :one
+SELECT 1
+FROM users
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockUserForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockUserForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const updateUser = `-- name: UpdateUser :one
 
 UPDATE users
@@ -1410,7 +1569,7 @@ RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_n
 `
 
 type UpdateUserDetailParams struct {
-	UserID          sql.NullInt64
+	UserID          int64
 	PhoneNumber     sql.NullString
 	Gender          sql.NullString
 	Location        sql.NullString
@@ -1478,7 +1637,7 @@ RETURNING hide_phone_number, phone_number, gender
 `
 
 type UpdateUserDetailByUserIdParams struct {
-	UserID          sql.NullInt64
+	UserID          int64
 	HidePhoneNumber sql.NullBool
 	PhoneNumber     sql.NullString
 	Gender          sql.NullString
@@ -1554,6 +1713,44 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 	return i, err
 }
 
+const updateUserFollowersCount = `-- name: UpdateUserFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count + $1::smallint, 0)
+WHERE id = $2::bigint
+RETURNING followers_count
+`
+
+type UpdateUserFollowersCountParams struct {
+	Value  int16
+	UserID int64
+}
+
+func (q *Queries) UpdateUserFollowersCount(ctx context.Context, arg UpdateUserFollowersCountParams) (sql.NullInt32, error) {
+	row := q.db.QueryRowContext(ctx, updateUserFollowersCount, arg.Value, arg.UserID)
+	var followers_count sql.NullInt32
+	err := row.Scan(&followers_count)
+	return followers_count, err
+}
+
+const updateUserFollowingsCount = `-- name: UpdateUserFollowingsCount :one
+UPDATE users
+SET followings_count =  GREATEST(followings_count + $1::smallint, 0)
+WHERE id = $2::bigint
+RETURNING followings_count
+`
+
+type UpdateUserFollowingsCountParams struct {
+	Value  int16
+	UserID int64
+}
+
+func (q *Queries) UpdateUserFollowingsCount(ctx context.Context, arg UpdateUserFollowingsCountParams) (sql.NullInt32, error) {
+	row := q.db.QueryRowContext(ctx, updateUserFollowingsCount, arg.Value, arg.UserID)
+	var followings_count sql.NullInt32
+	err := row.Scan(&followings_count)
+	return followings_count, err
+}
+
 const updateUserMainSkillToFalse = `-- name: UpdateUserMainSkillToFalse :exec
 UPDATE user_skills 
 SET main_skill = false 
@@ -1564,6 +1761,25 @@ AND main_skill = true
 func (q *Queries) UpdateUserMainSkillToFalse(ctx context.Context, userID int64) error {
 	_, err := q.db.ExecContext(ctx, updateUserMainSkillToFalse, userID)
 	return err
+}
+
+const updateUserOpenToWork = `-- name: UpdateUserOpenToWork :one
+UPDATE users
+SET open_to_work = $1::boolean
+WHERE id = $2::bigint
+RETURNING id
+`
+
+type UpdateUserOpenToWorkParams struct {
+	OpenToWork bool
+	UserID     int64
+}
+
+func (q *Queries) UpdateUserOpenToWork(ctx context.Context, arg UpdateUserOpenToWorkParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, updateUserOpenToWork, arg.OpenToWork, arg.UserID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateUserWorkExperience = `-- name: UpdateUserWorkExperience :one

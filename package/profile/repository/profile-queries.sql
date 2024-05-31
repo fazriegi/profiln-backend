@@ -1,11 +1,3 @@
--- name: InsertUserDetail :one
-INSERT INTO user_details (
-  user_id, phone_number, gender
-) VALUES (
-  $1, $2, $3
-)
-RETURNING *;
-
 -- name: InsertUserAvatar :exec
 UPDATE users
 SET avatar_url = $1
@@ -41,9 +33,9 @@ RETURNING *;
 
 -- name: InsertEducation :one 
 INSERT INTO educations (
-  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7
+  $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
 
@@ -341,8 +333,10 @@ WHERE us.user_id = @user_id::bigint;
 
 -- name: GetWorkExperiencesByUserId :many
 SELECT 
-  we.*, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
-  COUNT(we.id) OVER () AS total_rows
+  we.*, c.name AS company_name, 
+  COALESCE(array_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT wef.url) FILTER (WHERE wef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
 FROM work_experiences we 
 LEFT JOIN companies c ON we.company_id = c.id 
 LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
@@ -351,6 +345,7 @@ LEFT JOIN user_skills us ON wes.user_skill_id = us.id
 LEFT JOIN skills s ON us.skill_id  = s.id
 WHERE we.user_id = @user_id::bigint
 GROUP BY we.id, c.name
+ORDER BY we.finish_date DESC, we.start_date DESC
 OFFSET $1
 LIMIT $2;
 
@@ -369,6 +364,7 @@ LEFT JOIN user_skills us ON es.user_skill_id = us.id
 LEFT JOIN skills ON us.skill_id = skills.id
 WHERE e.user_id = @user_id::bigint
 GROUP BY e.id, schools.name
+ORDER BY e.finish_date DESC, e.start_date DESC
 OFFSET $1
 LIMIT $2;
 
@@ -381,6 +377,7 @@ SELECT
 FROM certificates c 
 LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
 WHERE user_id = @user_id::bigint
+ORDER BY c.issue_date desc, c.expiration_date DESC
 OFFSET $1
 LIMIT $2;
 
@@ -393,3 +390,80 @@ LEFT JOIN users u ON f.follow_user_id = u.id
 WHERE f.user_id = @user_id::bigint
 OFFSET $1
 LIMIT $2;
+
+-- name: UpdateUserOpenToWork :one
+UPDATE users
+SET open_to_work = @open_to_work::boolean
+WHERE id = @user_id::bigint
+RETURNING id;
+
+-- name: InsertJobPosition :one
+INSERT INTO job_positions (name)
+VALUES ($1)
+ON CONFLICT (name) DO NOTHING
+RETURNING *;
+
+-- name: BatchInsertUserJobInterests :exec
+INSERT INTO user_job_interests (user_id, job_position_id)
+SELECT @user_id::bigint, UNNEST(@job_position_id::bigint[]);
+
+-- name: BatchInsertUserLocationTypeInterests :exec
+INSERT INTO user_location_type_interests (user_id, location_type)
+SELECT @user_id::bigint, UNNEST(@location_type::varchar(10)[]);
+
+-- name: BatchInsertUserEmploymentTypeInterests :exec
+INSERT INTO user_employment_type_interests (user_id, employment_type)
+SELECT @user_id::bigint, UNNEST(@employment_type::varchar(10)[]);
+
+-- name: BatchDeleteUserJobInterests :exec
+DELETE FROM user_job_interests
+WHERE user_id = @user_id::bigint;
+
+-- name: BatchDeleteUserLocationTypeInterests :exec
+DELETE FROM user_location_type_interests
+WHERE user_id = @user_id::bigint;
+
+-- name: BatchDeleteUserEmploymentTypeInterests :exec
+DELETE FROM user_employment_type_interests
+WHERE user_id = @user_id::bigint;
+
+-- name: DeleteWorkExperienceById :exec
+DELETE FROM work_experiences
+WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: DeleteEducationById :exec
+DELETE FROM educations
+WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: DeleteCertificateById :exec
+DELETE FROM certificates
+WHERE id = @id::bigint AND user_id = @user_id::bigint;
+
+-- name: LockUserForUpdate :one
+SELECT 1
+FROM users
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdateUserFollowingsCount :one
+UPDATE users
+SET followings_count =  GREATEST(followings_count + @value::smallint, 0)
+WHERE id = @user_id::bigint
+RETURNING followings_count;
+
+-- name: UpdateUserFollowersCount :one
+UPDATE users
+SET followers_count = GREATEST(followers_count + @value::smallint, 0)
+WHERE id = @user_id::bigint
+RETURNING followers_count;
+
+-- name: InsertFollowings :one
+INSERT INTO followings (user_id, follow_user_id)
+VALUES (@user_id::bigint, @follow_user_id::bigint)
+ON CONFLICT (user_id, follow_user_id) DO NOTHING
+RETURNING *;
+
+-- name: DeleteFollowings :one
+DELETE FROM followings
+WHERE user_id = @user_id::bigint AND follow_user_id = @follow_user_id::bigint
+RETURNING id;

@@ -18,7 +18,6 @@ import (
 type IGoogleBucket interface {
 	HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error)
 	HandleObjectDeletion(objectUrl ...string) error
-	// HandleBatchObjectDeletion(objectUrls ...string) error
 }
 
 type GoogleBucket struct {
@@ -70,24 +69,6 @@ func (g *GoogleBucket) HandleObjectDeletion(objectUrls ...string) error {
 
 	return nil
 }
-
-// func (g *GoogleBucket) HandleObjectDeletion(objectUrl string) error {
-// 	if objectUrl == "" {
-// 		return nil
-// 	}
-
-// 	// Extract the previous object path from the current document URL
-// 	objectPath, err := extractBucketObjectUrl(objectUrl)
-// 	if err != nil {
-// 		return fmt.Errorf("extractBucketObjectUrl: %w", err)
-// 	}
-
-// 	if err := removeBucketObject(g.bucketName, objectPath); err != nil {
-// 		return fmt.Errorf("removeBucketObject (%s): %v", objectPath, err)
-// 	}
-
-// 	return nil
-// }
 
 func (g *GoogleBucket) HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error) {
 	// Generate a new filename and save the file locally

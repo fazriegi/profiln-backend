@@ -13,29 +13,36 @@ import (
 
 type IProfileRepository interface {
 	InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error)
-	InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error)
+	InsertUserCertificate(props *model.Certificate) (model.Certificate, error)
 	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
 	InsertSkill(name string) (db.Skill, error)
-	InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error)
-	InsertUserAvatar(arg db.InsertUserAvatarParams) error
+	InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error)
+	InsertUserEducation(props *model.Education) (model.Education, error)
 	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
-	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
+	UpdateUserCertificate(userId int64, props *model.Certificate) error
+	AddUserOpenToWork(props *model.OpenToWork) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
-	UpdateUserEducation(props *model.UpdateEducationRequest) error
+	UpdateUserEducation(props *model.Education) error
 	GetEducationById(id int64) (db.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
 	GetWorkExperienceById(id int64) (db.WorkExperience, error)
-	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
+	UpdateUserWorkExperience(props *model.WorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 	GetUserProfile(userId int64) (model.UserProfile, error)
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
 	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
 	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
 	GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error)
+	DeleteUserOpenToWork(userId int64) error
+	DeleteUserWorkExperienceById(userId, workExperienceId int64) error
+	DeleteUserEducationById(userId, educationId int64) error
+	DeleteUserCertificateById(userId, certificateId int64) error
+	FollowUser(userId, targetUserId int64) error
+	UnfollowUser(userId, targetUserId int64) error
 }
 
 type ProfileRepository struct {
@@ -48,16 +55,6 @@ func NewProfileRepository(dbConn *sql.DB) IProfileRepository {
 		dbConn: dbConn,
 		query:  db.New(dbConn),
 	}
-}
-
-func (r *ProfileRepository) InsertUserAvatar(arg db.InsertUserAvatarParams) error {
-	err := r.query.InsertUserAvatar(context.Background(), arg)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *ProfileRepository) InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error) {
@@ -80,24 +77,151 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg db.UpdateUserDetailAboutPa
 	return nil
 }
 
-func (r *ProfileRepository) InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error) {
-	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
+func (r *ProfileRepository) InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error) {
+	var (
+		startDate  time.Time
+		finishDate time.Time
+	)
 
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return db.WorkExperience{}, err
+		return model.WorkExperience{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// If the company doesn't exist, insert the company first
+	if props.Company.ID < 1 {
+		company, err := qtx.InsertCompany(ctx, props.Company.Name)
+		if err != nil {
+			return model.WorkExperience{}, fmt.Errorf("could not insert company: %w", err)
+		}
+
+		props.Company.ID = company.ID
 	}
 
-	return workExperience, nil
+	startDate, err = time.Parse("2006-01-02", props.StartDate)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("error parsing start date: %w", err)
+	}
+
+	if props.FinishDate != "" {
+		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
+		if err != nil {
+			return model.WorkExperience{}, fmt.Errorf("error parsing finish date: %w", err)
+		}
+	}
+
+	insertUserWorkExperienceArg := db.InsertWorkExperienceParams{
+		UserID:         sql.NullInt64{Int64: props.UserId, Valid: true},
+		CompanyID:      sql.NullInt64{Int64: props.Company.ID, Valid: true},
+		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
+		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
+		Location:       sql.NullString{String: props.Location, Valid: true},
+		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
+		StartDate:      sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
+		FinishDate:     sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
+		Description:    sql.NullString{String: props.Description, Valid: true},
+	}
+	createdData, err := qtx.InsertWorkExperience(ctx, insertUserWorkExperienceArg)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not insert user work experience: %w", err)
+	}
+
+	// Batch insert new user skills
+	userSkillIDs, err := r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	err = qtx.BatchInsertWorkExperienceSkills(ctx, db.BatchInsertWorkExperienceSkillsParams{
+		WorkExperienceID: createdData.ID,
+		UserSkillID:      userSkillIDs,
+	})
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user work experience skills: %w", err)
+	}
+
+	_, err = qtx.BatchInsertWorkExperienceFiles(ctx, db.BatchInsertWorkExperienceFilesParams{
+		WorkExperienceID: createdData.ID,
+		Url:              props.FileURLs,
+	})
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user work experience files: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
 }
 
-func (r *ProfileRepository) InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error) {
-	certificate, err := r.query.InsertCertificate(context.Background(), arg)
+func (r *ProfileRepository) InsertUserCertificate(props *model.Certificate) (model.Certificate, error) {
+	var (
+		issueDate      time.Time
+		expirationDate time.Time
+		err            error
+	)
 
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return db.Certificate{}, err
+		return model.Certificate{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	if props.IssuingOrganization.ID < 1 {
+		createdIssuingOrganization, err :=
+			qtx.InsertIssuingOrganization(ctx, props.IssuingOrganization.Name)
+
+		if err != nil {
+			return model.Certificate{}, fmt.Errorf("could not insert issuing organization: %w", err)
+		}
+
+		props.IssuingOrganization.ID = createdIssuingOrganization.ID
 	}
 
-	return certificate, nil
+	issueDate, err = time.Parse("2006-01-02", props.IssueDate)
+	if err != nil {
+		return model.Certificate{}, fmt.Errorf("error parsing issue date: %w", err)
+	}
+
+	if props.ExpirationDate != "" {
+		expirationDate, err = time.Parse("2006-01-02", props.ExpirationDate)
+		if err != nil {
+			return model.Certificate{}, fmt.Errorf("error parsing expiration date: %w", err)
+		}
+	}
+
+	arg := db.InsertCertificateParams{
+		Name:                  sql.NullString{String: props.Name, Valid: true},
+		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganization.ID, Valid: true},
+		IssueDate:             sql.NullTime{Time: issueDate, Valid: !issueDate.IsZero()},
+		ExpirationDate:        sql.NullTime{Time: expirationDate, Valid: !expirationDate.IsZero()},
+		CredentialID:          sql.NullString{String: props.CredentialID, Valid: true},
+		Url:                   sql.NullString{String: props.Url, Valid: true},
+		UserID:                sql.NullInt64{Int64: props.UserId, Valid: true},
+	}
+
+	createdData, err := qtx.InsertCertificate(ctx, arg)
+	if err != nil {
+		return model.Certificate{}, fmt.Errorf("could not insert user certificate: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.Certificate{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
 }
 
 func (r *ProfileRepository) InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error) {
@@ -142,7 +266,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	ctx := context.Background()
 	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return fmt.Errorf("could not begin edit profile transaction: %w", err)
+		return fmt.Errorf("could not begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -160,7 +284,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 
 	// update user details table
 	_, err = qtx.UpdateUserDetailByUserId(ctx, db.UpdateUserDetailByUserIdParams{
-		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		UserID:          props.UserId,
 		HidePhoneNumber: sql.NullBool{Bool: props.HidePhoneNumber, Valid: true},
 		PhoneNumber:     sql.NullString{String: props.PhoneNumber, Valid: true},
 		Gender:          sql.NullString{String: props.Gender, Valid: true},
@@ -201,7 +325,7 @@ func (r *ProfileRepository) UpdateProfile(avatar_url string, props *model.Update
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("could not commit edit profile transaction: %w", err)
+		return fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return nil
@@ -220,7 +344,7 @@ func (r *ProfileRepository) UpdateAboutMe(userId int64, aboutMe string) error {
 	return nil
 }
 
-func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error {
+func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Certificate) error {
 	var (
 		issueDate      time.Time
 		expirationDate time.Time
@@ -249,7 +373,7 @@ func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Upd
 
 	issueDate, err = time.Parse("2006-01-02", props.IssueDate)
 	if err != nil {
-		return fmt.Errorf("error parsing expiration date: %w", err)
+		return fmt.Errorf("error parsing issue date: %w", err)
 	}
 
 	if props.ExpirationDate != "" {
@@ -307,7 +431,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 	}
 
 	updateUserDetailArg := db.UpdateUserDetailParams{
-		UserID:          sql.NullInt64{Int64: props.UserId, Valid: true},
+		UserID:          props.UserId,
 		PhoneNumber:     sql.NullString{String: currentUserDetail.PhoneNumber.String, Valid: true},
 		Gender:          sql.NullString{String: currentUserDetail.Gender.String, Valid: true},
 		Location:        sql.NullString{String: props.Location, Valid: true},
@@ -332,7 +456,7 @@ func (r *ProfileRepository) UpdateUserInformation(props *model.UpdateUserInforma
 	return nil
 }
 
-func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequest) error {
+func (r *ProfileRepository) UpdateUserEducation(props *model.Education) error {
 	var (
 		startDate  time.Time
 		finishDate time.Time
@@ -386,13 +510,13 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.UpdateEducationRequ
 
 	startDate, err = time.Parse("2006-01-02", props.StartDate)
 	if err != nil {
-		return fmt.Errorf("error parsing expiration date: %w", err)
+		return fmt.Errorf("error parsing start date: %w", err)
 	}
 
 	if props.FinishDate != "" {
 		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
 		if err != nil {
-			return fmt.Errorf("error parsing expiration date: %w", err)
+			return fmt.Errorf("error parsing finish date: %w", err)
 		}
 	}
 
@@ -468,7 +592,7 @@ func (r *ProfileRepository) GetWorkExperienceFileURLs(workExperienceId int64) ([
 	return urls, nil
 }
 
-func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExperience) error {
+func (r *ProfileRepository) UpdateUserWorkExperience(props *model.WorkExperience) error {
 	var (
 		startDate  time.Time
 		finishDate time.Time
@@ -522,13 +646,13 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 
 	startDate, err = time.Parse("2006-01-02", props.StartDate)
 	if err != nil {
-		return fmt.Errorf("error parsing expiration date: %w", err)
+		return fmt.Errorf("error parsing start date: %w", err)
 	}
 
 	if props.FinishDate != "" {
 		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
 		if err != nil {
-			return fmt.Errorf("error parsing expiration date: %w", err)
+			return fmt.Errorf("error parsing finish date: %w", err)
 		}
 	}
 
@@ -647,6 +771,574 @@ func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, err
 	return data, nil
 }
 
+func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error) {
+	arg := db.GetWorkExperiencesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	workExperiences, err := r.query.GetWorkExperiencesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.WorkExperience, len(workExperiences))
+
+	var count int64
+	if len(workExperiences) > 0 {
+		count = workExperiences[0].TotalRows
+	}
+
+	for i, workExperience := range workExperiences {
+		var (
+			fileUrls   []string
+			skills     []string
+			finishDate string
+		)
+
+		startDate := workExperience.StartDate.Time.Format("2006-01-02")
+
+		if !workExperience.FinishDate.Time.IsZero() {
+			finishDate = workExperience.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(workExperience.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(workExperience.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.WorkExperience{
+			ID:       workExperience.ID,
+			UserId:   userId,
+			JobTitle: workExperience.JobTitle.String,
+			Company: model.Company{
+				ID:   workExperience.CompanyID.Int64,
+				Name: workExperience.CompanyName.String,
+			},
+			EmploymentType: workExperience.EmploymentType.String,
+			Location:       workExperience.Location.String,
+			LocationType:   workExperience.LocationType.String,
+			StartDate:      startDate,
+			FinishDate:     finishDate,
+			Description:    workExperience.Description.String,
+			FileURLs:       fileUrls,
+			Skills:         skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error) {
+	arg := db.GetEducationsByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	educations, err := r.query.GetEducationsByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Education, len(educations))
+
+	var count int64
+	if len(educations) > 0 {
+		count = educations[0].TotalRows
+	}
+
+	for i, education := range educations {
+		var (
+			fileUrls   []string
+			skills     []string
+			finishDate string
+		)
+
+		startDate := education.StartDate.Time.Format("2006-01-02")
+
+		if !education.FinishDate.Time.IsZero() {
+			finishDate = education.FinishDate.Time.Format("2006-01-02")
+		}
+
+		fileUrlsString := strings.Trim(string(education.FileUrls.([]uint8)), "{}")
+		if fileUrlsString != "NULL" {
+			fileUrls = strings.Split(fileUrlsString, ",")
+		}
+
+		skillsString := strings.Trim(string(education.Skills.([]uint8)), "{}")
+		skillsString = strings.ReplaceAll(skillsString, "\"", "")
+		if skillsString != "NULL" {
+			skills = strings.Split(skillsString, ",")
+		}
+
+		data[i] = model.Education{
+			ID:     education.ID,
+			UserId: userId,
+			School: model.School{
+				ID:   education.SchoolID.Int64,
+				Name: education.SchoolName.String,
+			},
+			Degree:       education.Degree.String,
+			FieldOfStudy: education.FieldOfStudy.String,
+			StartDate:    startDate,
+			FinishDate:   finishDate,
+			GPA:          education.Gpa.String,
+			Description:  education.Description.String,
+			FileURLs:     fileUrls,
+			Skills:       skills,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error) {
+	arg := db.GetCertificatesByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	certificates, err := r.query.GetCertificatesByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.Certificate, len(certificates))
+
+	var count int64
+	if len(certificates) > 0 {
+		count = certificates[0].TotalRows
+	}
+
+	for i, certificate := range certificates {
+		expirationDate := ""
+		issueDate := certificate.IssueDate.Time.Format("2006-01-02")
+
+		if !certificate.ExpirationDate.Time.IsZero() {
+			expirationDate = certificate.ExpirationDate.Time.Format("2006-01-02")
+		}
+
+		data[i] = model.Certificate{
+			ID:     certificate.ID,
+			UserId: userId,
+			IssuingOrganization: model.IssuingOrganization{
+				ID:   certificate.IssuingOrganizationID.Int64,
+				Name: certificate.IssuingOrganizationName.String,
+			},
+			Name:           certificate.Name.String,
+			IssueDate:      issueDate,
+			ExpirationDate: expirationDate,
+			CredentialID:   certificate.CredentialID.String,
+			Url:            certificate.Url.String,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error) {
+	arg := db.GetFollowedUsersByUserIdParams{
+		Offset: offset,
+		Limit:  limit,
+		UserID: userId,
+	}
+	followedUsers, err := r.query.GetFollowedUsersByUserId(context.Background(), arg)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]model.User, len(followedUsers))
+
+	var count int64
+	if len(followedUsers) > 0 {
+		count = followedUsers[0].TotalRows
+	}
+
+	for i, followedUser := range followedUsers {
+		data[i] = model.User{
+			ID:         followedUser.ID.Int64,
+			Fullname:   followedUser.FullName.String,
+			AvatarUrl:  followedUser.AvatarUrl.String,
+			Bio:        followedUser.Bio.String,
+			OpenToWork: followedUser.OpenToWork.Bool,
+		}
+	}
+
+	return data, count, nil
+}
+
+func (r *ProfileRepository) AddUserOpenToWork(props *model.OpenToWork) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = r.deleteOpenToWorkDataByUserId(ctx, qtx, props.UserId)
+	if err != nil {
+		return err
+	}
+
+	_, err = qtx.UpdateUserOpenToWork(ctx, db.UpdateUserOpenToWorkParams{
+		UserID:     props.UserId,
+		OpenToWork: props.OpenToWork,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user open to work: %w", err)
+	}
+
+	var jobPositionIds []int64
+	for i, jobPosition := range props.JobPositions {
+		if jobPosition.ID < 1 {
+			createdJobPosition, err := qtx.InsertJobPosition(ctx, sql.NullString{String: jobPosition.Name, Valid: true})
+			if err != nil {
+				return fmt.Errorf("could not insert job position: %w", err)
+			}
+			props.JobPositions[i].ID = createdJobPosition.ID
+		}
+
+		jobPositionIds = append(jobPositionIds, props.JobPositions[i].ID)
+	}
+
+	err = qtx.BatchInsertUserJobInterests(ctx, db.BatchInsertUserJobInterestsParams{
+		UserID:        props.UserId,
+		JobPositionID: jobPositionIds,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user job interests: %w", err)
+	}
+
+	err = qtx.BatchInsertUserLocationTypeInterests(ctx, db.BatchInsertUserLocationTypeInterestsParams{
+		UserID:       props.UserId,
+		LocationType: props.LocationTypes,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user location type interests: %w", err)
+	}
+
+	err = qtx.BatchInsertUserEmploymentTypeInterests(ctx, db.BatchInsertUserEmploymentTypeInterestsParams{
+		UserID:         props.UserId,
+		EmploymentType: props.EmploymentTypes,
+	})
+	if err != nil {
+		return fmt.Errorf("could not batch insert user employment type interests: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserOpenToWork(userId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.UpdateUserOpenToWork(ctx, db.UpdateUserOpenToWorkParams{
+		UserID:     userId,
+		OpenToWork: false,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user open to work: %w", err)
+	}
+
+	err = r.deleteOpenToWorkDataByUserId(ctx, qtx, userId)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserWorkExperienceById(userId, workExperienceId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.DeleteWorkExperienceFilesByWorkExperienceId(ctx, workExperienceId)
+	if err != nil {
+		return fmt.Errorf("could not delete work experience files: %w", err)
+	}
+
+	_, err = qtx.DeleteWorkExperienceSkillsByWorkExperience(ctx, workExperienceId)
+	if err != nil {
+		return fmt.Errorf("could not delete work experience skills: %w", err)
+	}
+
+	err = qtx.DeleteWorkExperienceById(ctx, db.DeleteWorkExperienceByIdParams{
+		UserID: userId,
+		ID:     workExperienceId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete work experience: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserEducationById(userId, educationId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.DeleteEducationFilesByEducationId(ctx, educationId)
+	if err != nil {
+		return fmt.Errorf("could not delete education files: %w", err)
+	}
+
+	_, err = qtx.DeleteEducationSkillsByEducation(ctx, educationId)
+	if err != nil {
+		return fmt.Errorf("could not delete education skills: %w", err)
+	}
+
+	err = qtx.DeleteEducationById(ctx, db.DeleteEducationByIdParams{
+		UserID: userId,
+		ID:     educationId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete education: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) DeleteUserCertificateById(userId, certificateId int64) error {
+	err := r.query.DeleteCertificateById(context.Background(), db.DeleteCertificateByIdParams{
+		UserID: userId,
+		ID:     certificateId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete certificate: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) FollowUser(userId, targetUserId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockUserForUpdate(ctx, userId)
+	if err != nil {
+		return fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	_, err = qtx.InsertFollowings(ctx, db.InsertFollowingsParams{
+		UserID:       userId,
+		FollowUserID: targetUserId,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not insert followings: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowingsCount(ctx, db.UpdateUserFollowingsCountParams{
+		UserID: userId,
+		Value:  1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followings count: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowersCount(ctx, db.UpdateUserFollowersCountParams{
+		UserID: targetUserId,
+		Value:  1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followers count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) UnfollowUser(userId, targetUserId int64) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockUserForUpdate(ctx, userId)
+	if err != nil {
+		return fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	_, err = qtx.DeleteFollowings(ctx, db.DeleteFollowingsParams{
+		UserID:       userId,
+		FollowUserID: targetUserId,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not delete followings: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowingsCount(ctx, db.UpdateUserFollowingsCountParams{
+		UserID: userId,
+		Value:  -1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followings count: %w", err)
+	}
+
+	_, err = qtx.UpdateUserFollowersCount(ctx, db.UpdateUserFollowersCountParams{
+		UserID: targetUserId,
+		Value:  -1,
+	})
+	if err != nil && err == sql.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("could not update user followers count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ProfileRepository) InsertUserEducation(props *model.Education) (model.Education, error) {
+	var (
+		startDate  time.Time
+		finishDate time.Time
+	)
+
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// If the school doesn't exist, insert the school first
+	if props.School.ID < 1 {
+		school, err := qtx.InsertSchool(ctx, props.School.Name)
+		if err != nil {
+			return model.Education{}, fmt.Errorf("could not insert school: %w", err)
+		}
+
+		props.School.ID = school.ID
+	}
+
+	startDate, err = time.Parse("2006-01-02", props.StartDate)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("error parsing start date: %w", err)
+	}
+
+	if props.FinishDate != "" {
+		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
+		if err != nil {
+			return model.Education{}, fmt.Errorf("error parsing finish date: %w", err)
+		}
+	}
+
+	InsertEducationParams := db.InsertEducationParams{
+		UserID:       sql.NullInt64{Int64: props.UserId, Valid: true},
+		SchoolID:     sql.NullInt64{Int64: props.School.ID, Valid: true},
+		Degree:       sql.NullString{String: props.Degree, Valid: true},
+		FieldOfStudy: sql.NullString{String: props.FieldOfStudy, Valid: true},
+		Gpa:          sql.NullString{String: props.GPA, Valid: true},
+		StartDate:    sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
+		FinishDate:   sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
+		Description:  sql.NullString{String: props.Description, Valid: true},
+	}
+	createdData, err := qtx.InsertEducation(ctx, InsertEducationParams)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not insert user education: %w", err)
+	}
+
+	// Batch insert new user skills
+	userSkillIDs, err := r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	err = qtx.BatchInsertEducationSkills(ctx, db.BatchInsertEducationSkillsParams{
+		EducationID: createdData.ID,
+		UserSkillID: userSkillIDs,
+	})
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user education skills: %w", err)
+	}
+
+	_, err = qtx.BatchInsertEducationFiles(ctx, db.BatchInsertEducationFilesParams{
+		EducationID: createdData.ID,
+		Url:         props.FileURLs,
+	})
+	if err != nil {
+		return model.Education{}, fmt.Errorf("could not batch insert user education files: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.Education{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
+}
+
 func (r *ProfileRepository) getUserSocialLinks(userId int64) ([]model.SocialLinks, error) {
 	socialLinks, err := r.query.GetUserSocialLinks(context.Background(), userId)
 	if err != nil {
@@ -745,192 +1437,36 @@ func (r *ProfileRepository) batchInsertEducationFiles(ctx context.Context, qtx *
 	return educationFiles, nil
 }
 
-func (r *ProfileRepository) GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error) {
-	arg := db.GetWorkExperiencesByUserIdParams{
-		Offset: offset,
-		Limit:  limit,
-		UserID: userId,
-	}
-	workExperiences, err := r.query.GetWorkExperiencesByUserId(context.Background(), arg)
-	if err != nil {
-		return nil, 0, err
-	}
+func (r *ProfileRepository) deleteOpenToWorkDataByUserId(ctx context.Context, qtx *db.Queries, userId int64) error {
+	errChan := make(chan error, 3)
+	var wg sync.WaitGroup
 
-	data := make([]model.WorkExperience, len(workExperiences))
-	finishDate := "now"
-
-	var count int64
-	if len(workExperiences) > 0 {
-		count = workExperiences[0].TotalRows
-	}
-
-	for i, workExperience := range workExperiences {
-		var fileUrls []string
-		var skills []string
-		startDate := workExperience.StartDate.Time.Format("2006-01-02")
-
-		if !workExperience.FinishDate.Time.IsZero() {
-			finishDate = workExperience.FinishDate.Time.Format("2006-01-02")
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserJobInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user job interests: %w", err)
 		}
-
-		fileUrlsString := strings.Trim(string(workExperience.FileUrls.([]uint8)), "{}")
-		if fileUrlsString != "NULL" {
-			fileUrls = strings.Split(fileUrlsString, ",")
+	}()
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserLocationTypeInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user location type interests: %w", err)
 		}
-
-		skillsString := strings.Trim(string(workExperience.Skills.([]uint8)), "{}")
-		skillsString = strings.ReplaceAll(skillsString, "\"", "")
-		if skillsString != "NULL" {
-			skills = strings.Split(skillsString, ",")
+	}()
+	go func() {
+		defer wg.Done()
+		if err := qtx.BatchDeleteUserEmploymentTypeInterests(ctx, userId); err != nil {
+			errChan <- fmt.Errorf("could not delete user employment type interests: %w", err)
 		}
+	}()
 
-		data[i] = model.WorkExperience{
-			ID:       workExperience.ID,
-			JobTitle: workExperience.JobTitle.String,
-			Company: model.Company{
-				ID:   workExperience.CompanyID.Int64,
-				Name: workExperience.CompanyName.String,
-			},
-			EmploymentType: workExperience.EmploymentType.String,
-			Location:       workExperience.Location.String,
-			LocationType:   workExperience.LocationType.String,
-			StartDate:      startDate,
-			FinishDate:     finishDate,
-			Description:    workExperience.Description.String,
-			FileURLs:       fileUrls,
-			Skills:         skills,
-		}
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		return err
 	}
 
-	return data, count, nil
-}
-
-func (r *ProfileRepository) GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error) {
-	arg := db.GetEducationsByUserIdParams{
-		Offset: offset,
-		Limit:  limit,
-		UserID: userId,
-	}
-	educations, err := r.query.GetEducationsByUserId(context.Background(), arg)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	data := make([]model.Education, len(educations))
-	finishDate := "now"
-
-	var count int64
-	if len(educations) > 0 {
-		count = educations[0].TotalRows
-	}
-
-	for i, education := range educations {
-		var fileUrls []string
-		var skills []string
-		startDate := education.StartDate.Time.Format("2006-01-02")
-
-		if !education.FinishDate.Time.IsZero() {
-			finishDate = education.FinishDate.Time.Format("2006-01-02")
-		}
-
-		fileUrlsString := strings.Trim(string(education.FileUrls.([]uint8)), "{}")
-		if fileUrlsString != "NULL" {
-			fileUrls = strings.Split(fileUrlsString, ",")
-		}
-
-		skillsString := strings.Trim(string(education.Skills.([]uint8)), "{}")
-		skillsString = strings.ReplaceAll(skillsString, "\"", "")
-		if skillsString != "NULL" {
-			skills = strings.Split(skillsString, ",")
-		}
-
-		data[i] = model.Education{
-			ID: education.ID,
-			School: model.School{
-				ID:   education.SchoolID.Int64,
-				Name: education.SchoolName.String,
-			},
-			Degree:       education.Degree.String,
-			FieldOfStudy: education.FieldOfStudy.String,
-			StartDate:    startDate,
-			FinishDate:   finishDate,
-			GPA:          education.Gpa.String,
-			Description:  education.Description.String,
-			FileURLs:     fileUrls,
-			Skills:       skills,
-		}
-	}
-
-	return data, count, nil
-}
-
-func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error) {
-	arg := db.GetCertificatesByUserIdParams{
-		Offset: offset,
-		Limit:  limit,
-		UserID: userId,
-	}
-	certificates, err := r.query.GetCertificatesByUserId(context.Background(), arg)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	data := make([]model.Certificate, len(certificates))
-	expirationDate := ""
-
-	var count int64
-	if len(certificates) > 0 {
-		count = certificates[0].TotalRows
-	}
-
-	for i, certificate := range certificates {
-		issueDate := certificate.IssueDate.Time.Format("2006-01-02")
-
-		if !certificate.ExpirationDate.Time.IsZero() {
-			expirationDate = certificate.ExpirationDate.Time.Format("2006-01-02")
-		}
-
-		data[i] = model.Certificate{
-			ID:             certificate.ID,
-			Organization:   certificate.IssuingOrganizationName.String,
-			Name:           certificate.Name.String,
-			IssueDate:      issueDate,
-			ExpirationDate: expirationDate,
-			CredentialID:   certificate.CredentialID.String,
-			Url:            certificate.Url.String,
-		}
-	}
-
-	return data, count, nil
-}
-
-func (r *ProfileRepository) GetFollowedUsersByUserId(userId int64, offset, limit int32) ([]model.User, int64, error) {
-	arg := db.GetFollowedUsersByUserIdParams{
-		Offset: offset,
-		Limit:  limit,
-		UserID: userId,
-	}
-	followedUsers, err := r.query.GetFollowedUsersByUserId(context.Background(), arg)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	data := make([]model.User, len(followedUsers))
-
-	var count int64
-	if len(followedUsers) > 0 {
-		count = followedUsers[0].TotalRows
-	}
-
-	for i, followedUser := range followedUsers {
-		data[i] = model.User{
-			ID:         followedUser.ID.Int64,
-			Fullname:   followedUser.FullName.String,
-			AvatarUrl:  followedUser.AvatarUrl.String,
-			Bio:        followedUser.Bio.String,
-			OpenToWork: followedUser.OpenToWork.Bool,
-		}
-	}
-
-	return data, count, nil
+	return nil
 }

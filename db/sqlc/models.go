@@ -160,7 +160,7 @@ type User struct {
 
 type UserDetail struct {
 	ID              int64
-	UserID          sql.NullInt64
+	UserID          int64
 	PhoneNumber     sql.NullString
 	Gender          sql.NullString
 	Location        sql.NullString

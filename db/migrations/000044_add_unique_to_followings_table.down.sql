@@ -1,0 +1,2 @@
+ALTER TABLE "followings"
+DROP CONSTRAINT followings_user_id_follow_user_id_unique;

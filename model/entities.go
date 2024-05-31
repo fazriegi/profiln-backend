@@ -52,3 +52,8 @@ type IssuingOrganization struct {
 	ID   int64  `json:"id" validate:"required"`
 	Name string `json:"name" validate:"required"`
 }
+
+type JobPosition struct {
+	ID   int64  `json:"id" validate:"required"`
+	Name string `json:"name" validate:"required"`
+}

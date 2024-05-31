@@ -21,7 +21,8 @@ type IProfileController interface {
 	UpdateUserInformation(ctx *gin.Context)
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
-	InsertCertificate(ctx *gin.Context)
+	AddUserOpenToWork(ctx *gin.Context)
+	InsertUserCertificate(ctx *gin.Context)
 	InsertUserSkills(ctx *gin.Context)
 	GetUserProfile(ctx *gin.Context)
 	GetUserWorkExperiences(ctx *gin.Context)
@@ -29,6 +30,14 @@ type IProfileController interface {
 	GetUserCertificates(ctx *gin.Context)
 	GetFollowedUsersByUser(ctx *gin.Context)
 	GetUserBasicInformation(ctx *gin.Context)
+	DeleteUserOpenToWork(ctx *gin.Context)
+	DeleteUserWorkExperience(ctx *gin.Context)
+	DeleteUserEducation(ctx *gin.Context)
+	DeleteUserCertificate(ctx *gin.Context)
+	FollowUser(ctx *gin.Context)
+	UnfollowUser(ctx *gin.Context)
+	InsertUserWorkExperience(ctx *gin.Context)
+	InsertUserEducation(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -77,23 +86,24 @@ func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
+func (c *ProfileController) InsertUserCertificate(ctx *gin.Context) {
 	var (
-		reqBody  model.CertificateRequest
 		response model.Response
+		reqBody  model.Certificate
 	)
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
-		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
-
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+		fmt.Println(err)
 		ctx.JSON(response.Status.Code, response)
 		return
 	}
 
-	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
 	// if there is an error
 	if len(validationErr) > 0 {
 		errResponse := map[string]any{
@@ -108,8 +118,9 @@ func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.InsertCertificate(&reqBody, userId)
+	reqBody.UserId = userId
 
+	response = c.usecase.InsertUserCertificate(&reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -231,7 +242,7 @@ func (c *ProfileController) UpdateAboutMe(ctx *gin.Context) {
 func (c *ProfileController) UpdateUserCertificate(ctx *gin.Context) {
 	var (
 		response model.Response
-		reqBody  model.UpdateCertificate
+		reqBody  model.Certificate
 	)
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
@@ -315,7 +326,7 @@ func (c *ProfileController) UpdateUserInformation(ctx *gin.Context) {
 func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 	var (
 		response model.Response
-		reqBody  model.UpdateEducationRequest
+		reqBody  model.Education
 	)
 	files := ctx.MustGet("files").([]*multipart.FileHeader)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
@@ -363,7 +374,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	var (
 		response model.Response
-		reqBody  model.UpdateWorkExperience
+		reqBody  model.WorkExperience
 	)
 	files := ctx.MustGet("files").([]*multipart.FileHeader)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
@@ -619,5 +630,232 @@ func (c *ProfileController) GetUserBasicInformation(ctx *gin.Context) {
 	userId := int64(userData["id"].(float64))
 
 	response = c.usecase.GetUserBasicInformation(userId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) AddUserOpenToWork(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.OpenToWork
+	)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.AddUserOpenToWork(&reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserOpenToWork(ctx *gin.Context) {
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	response := c.usecase.DeleteUserOpenToWork(userId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserWorkExperience(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	workExperienceId, err := strconv.ParseInt(ctx.Param("workExperienceId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeleteUserWorkExperienceById(userId, workExperienceId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserEducation(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	educationId, err := strconv.ParseInt(ctx.Param("educationId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeleteUserEducationById(userId, educationId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) DeleteUserCertificate(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	certificateId, err := strconv.ParseInt(ctx.Param("certificateId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.DeleteUserCertificateById(userId, certificateId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) FollowUser(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("targetUserId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if userId == targetUserId {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Can't follow yourself")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.FollowUser(userId, targetUserId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) UnfollowUser(ctx *gin.Context) {
+	var response model.Response
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("targetUserId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if userId == targetUserId {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Can't unfollow yourself")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnfollowUser(userId, targetUserId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.WorkExperience
+	)
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.InsertUserWorkExperience(files, &reqBody)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertUserEducation(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.Education
+	)
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.InsertUserEducation(files, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

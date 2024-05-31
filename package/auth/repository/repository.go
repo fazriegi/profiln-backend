@@ -3,13 +3,14 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	db "profiln-be/db/sqlc"
 )
 
 type IAuthRepository interface {
 	GetUserByEmail(email string) (db.User, error)
 	UpdateUserPassword(id int64, hashedPassword string) error
-	InsertUser(arg db.InsertUserParams) (db.User, error)
+	CreateUser(arg db.InsertUserParams) (db.User, error)
 	UpdateVerifiedEmail(otp string, email string) (db.User, error)
 	InsertOtp(id int64, otp string) (db.UserOtp, error)
 	GetUserOtpByOtp(otp string) (db.UserOtp, error)
@@ -54,11 +55,28 @@ func (r *AuthRepository) UpdateUserPassword(id int64, hashedPassword string) err
 	return nil
 }
 
-func (r *AuthRepository) InsertUser(arg db.InsertUserParams) (db.User, error) {
-	user, err := r.query.InsertUser(context.Background(), arg)
-
+func (r *AuthRepository) CreateUser(arg db.InsertUserParams) (db.User, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return db.User{}, err
+		return db.User{}, fmt.Errorf("could not begin edit profile transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	user, err := qtx.InsertUser(ctx, arg)
+	if err != nil {
+		return db.User{}, fmt.Errorf("could not insert user: %w", err)
+	}
+
+	_, err = qtx.InsertUserDetail(ctx, user.ID)
+	if err != nil {
+		return db.User{}, fmt.Errorf("could not insert user detail: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return db.User{}, fmt.Errorf("could not commit edit profile transaction: %w", err)
 	}
 
 	return user, nil

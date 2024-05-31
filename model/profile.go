@@ -1,7 +1,6 @@
 package model
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -9,43 +8,43 @@ type SkillRequest struct {
 	Name string `validate:"required"`
 }
 
-type UserSkillRequest struct {
-	UserID    int64  `validate:"required"`
-	SkillID   int64  `validate:"required"`
-	MainSkill bool   `validate:"required"`
-	Skills    string `validate:"required"`
-}
+// type UserSkillRequest struct {
+// 	UserID    int64  `validate:"required"`
+// 	SkillID   int64  `validate:"required"`
+// 	MainSkill bool   `validate:"required"`
+// 	Skills    string `validate:"required"`
+// }
 
-type CertificateRequest struct {
-	Name                  string  `validate:"required"`
-	IssuingOrganizationID int64   `validate:"required"`
-	IssueDate             string  `validate:"required"`
-	ExpirationDate        *string `validate:"omitempty"`
-	CredentialID          string  `validate:"required"`
-	Url                   string  `validate:"required"`
-}
+// type CertificateRequest struct {
+// 	Name                  string  `validate:"required"`
+// 	IssuingOrganizationID int64   `validate:"required"`
+// 	IssueDate             string  `validate:"required"`
+// 	ExpirationDate        *string `validate:"omitempty"`
+// 	CredentialID          string  `validate:"required"`
+// 	Url                   string  `validate:"required"`
+// }
 
-type WorkExperienceRequest struct {
-	// UserID           int64        `validate:"required"`
-	JobTitle       string       `validate:"required"`
-	CompanyID      int64        `validate:"required"`
-	EmploymentType string       `validate:"required"`
-	Location       string       `validate:"required"`
-	LocationType   string       `validate:"required"`
-	StartDate      sql.NullTime `validate:"required"`
-	FinishDate     sql.NullTime `validate:"required"`
-	Description    string       `validate:"required"`
-}
+// type WorkExperienceRequest struct {
+// 	// UserID           int64        `validate:"required"`
+// 	JobTitle       string       `validate:"required"`
+// 	CompanyID      int64        `validate:"required"`
+// 	EmploymentType string       `validate:"required"`
+// 	Location       string       `validate:"required"`
+// 	LocationType   string       `validate:"required"`
+// 	StartDate      sql.NullTime `validate:"required"`
+// 	FinishDate     sql.NullTime `validate:"required"`
+// 	Description    string       `validate:"required"`
+// }
 
-type EducationRequest struct {
-	// UserID           int64        `validate:"required"`
-	SchoolID     int64        `validate:"required"`
-	Degree       string       `validate:"required"`
-	FieldOfStudy string       `validate:"required"`
-	Gpa          string       `validate:"required"`
-	StartDate    sql.NullTime `validate:"required"`
-	FinishDate   sql.NullTime `validate:"required"`
-}
+// type EducationRequest struct {
+// 	// UserID           int64        `validate:"required"`
+// 	SchoolID     int64        `validate:"required"`
+// 	Degree       string       `validate:"required"`
+// 	FieldOfStudy string       `validate:"required"`
+// 	Gpa          string       `validate:"required"`
+// 	StartDate    sql.NullTime `validate:"required"`
+// 	FinishDate   sql.NullTime `validate:"required"`
+// }
 
 type UserDetailAboutRequest struct {
 	About string `json:"about" validate:"required"`
@@ -60,11 +59,11 @@ type UserDetailRequest struct {
 type UpdateProfileRequest struct {
 	UserId          int64         `json:"user_id" form:"user_id"`
 	Fullname        string        `json:"fullname" form:"fullname" validate:"required"`
-	HidePhoneNumber bool          `json:"hide_phone_number" form:"hide_phone_number" validate:"required"`
+	HidePhoneNumber bool          `json:"hide_phone_number" form:"hide_phone_number" validate:"required,boolean"`
 	MainSkills      []string      `json:"main_skills" form:"main_skills" validate:"required"`
 	PhoneNumber     string        `json:"phone_number" form:"phone_number" validate:"required"`
 	Gender          string        `json:"gender" form:"gender" validate:"required"`
-	SocialLinks     []SocialLinks `json:"social_links" form:"social_links" validate:"required"`
+	SocialLinks     []SocialLinks `json:"social_links" form:"social_links" validate:"required,isNotEmptyArray"`
 }
 
 type UpdateProfileResponse struct {
@@ -83,8 +82,9 @@ type SocialLinks struct {
 	URL      string `json:"url" form:"url" validate:"required"`
 }
 
-type UpdateCertificate struct {
+type Certificate struct {
 	ID                  int64               `json:"id"`
+	UserId              int64               `json:"user_id"`
 	Name                string              `json:"name" validate:"required"`
 	IssuingOrganization IssuingOrganization `json:"issuing_organization" validate:"required"`
 	IssueDate           string              `json:"issue_date" validate:"required"`
@@ -100,7 +100,7 @@ type UpdateUserInformation struct {
 	PortfolioUrl string   `json:"portfolio_url"`
 }
 
-type UpdateEducationRequest struct {
+type Education struct {
 	ID           int64    `json:"id"`
 	UserId       int64    `json:"user_id"`
 	School       School   `json:"school" form:"school" validate:"required"`
@@ -114,7 +114,7 @@ type UpdateEducationRequest struct {
 	Skills       []string `json:"skills" form:"skills"`
 }
 
-type UpdateWorkExperience struct {
+type WorkExperience struct {
 	ID             int64    `json:"id"`
 	UserId         int64    `json:"user_id"`
 	JobTitle       string   `json:"job_title" form:"job_title" validate:"required"`
@@ -127,6 +127,14 @@ type UpdateWorkExperience struct {
 	Description    string   `json:"description"  form:"description" validate:"required"`
 	FileURLs       []string `json:"file_urls"`
 	Skills         []string `json:"skills" form:"skills"`
+}
+
+type OpenToWork struct {
+	UserId          int64         `json:"user_id"`
+	OpenToWork      bool          `json:"open_to_work"`
+	JobPositions    []JobPosition `json:"job_positions" validate:"required,isNotEmptyArray"`
+	LocationTypes   []string      `json:"location_types" validate:"required,isNotEmptyArray"`
+	EmploymentTypes []string      `json:"employment_types" validate:"required,isNotEmptyArray"`
 }
 
 type AboutProfileResponse struct {
@@ -150,15 +158,15 @@ type InsertCertificateResponse struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
-type Certificate struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Organization   string `json:"origanization"`
-	IssueDate      string `json:"issue_date"`
-	ExpirationDate string `json:"expiration_date"`
-	CredentialID   string `json:"credential_id"`
-	Url            string `json:"url"`
-}
+// type Certificate struct {
+// 	ID             int64  `json:"id"`
+// 	Name           string `json:"name"`
+// 	Organization   string `json:"origanization"`
+// 	IssueDate      string `json:"issue_date"`
+// 	ExpirationDate string `json:"expiration_date"`
+// 	CredentialID   string `json:"credential_id"`
+// 	Url            string `json:"url"`
+// }
 
 type UserDetailResponse struct {
 	ID              *int64     `json:"id"`
@@ -193,29 +201,29 @@ type UserSkills struct {
 	OtherSkills []string `json:"other_skills"`
 }
 
-type WorkExperience struct {
-	ID             int64    `json:"id"`
-	JobTitle       string   `json:"job_title"`
-	Company        Company  `json:"company"`
-	EmploymentType string   `json:"employment_type"`
-	Location       string   `json:"location"`
-	LocationType   string   `json:"location_type"`
-	StartDate      string   `json:"start_date"`
-	FinishDate     string   `json:"finish_date"`
-	Description    string   `json:"description"`
-	FileURLs       []string `json:"file_urls"`
-	Skills         []string `json:"skills"`
-}
+// type WorkExperience struct {
+// 	ID             int64    `json:"id"`
+// 	JobTitle       string   `json:"job_title"`
+// 	Company        Company  `json:"company"`
+// 	EmploymentType string   `json:"employment_type"`
+// 	Location       string   `json:"location"`
+// 	LocationType   string   `json:"location_type"`
+// 	StartDate      string   `json:"start_date"`
+// 	FinishDate     string   `json:"finish_date"`
+// 	Description    string   `json:"description"`
+// 	FileURLs       []string `json:"file_urls"`
+// 	Skills         []string `json:"skills"`
+// }
 
-type Education struct {
-	ID           int64    `json:"id"`
-	School       School   `json:"school"`
-	Degree       string   `json:"degree"`
-	FieldOfStudy string   `json:"field_of_study"`
-	StartDate    string   `json:"start_date"`
-	FinishDate   string   `json:"finish_date"`
-	GPA          string   `json:"gpa"`
-	Description  string   `json:"description" `
-	FileURLs     []string `json:"file_urls"`
-	Skills       []string `json:"skills"`
-}
+// type Education struct {
+// 	ID           int64    `json:"id"`
+// 	School       School   `json:"school"`
+// 	Degree       string   `json:"degree"`
+// 	FieldOfStudy string   `json:"field_of_study"`
+// 	StartDate    string   `json:"start_date"`
+// 	FinishDate   string   `json:"finish_date"`
+// 	GPA          string   `json:"gpa"`
+// 	Description  string   `json:"description" `
+// 	FileURLs     []string `json:"file_urls"`
+// 	Skills       []string `json:"skills"`
+// }

@@ -174,6 +174,30 @@ func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (User, e
 	return i, err
 }
 
+const insertUserDetail = `-- name: InsertUserDetail :one
+INSERT INTO user_details (user_id) 
+VALUES ($1::bigint)
+RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
+`
+
+func (q *Queries) InsertUserDetail(ctx context.Context, userID int64) (UserDetail, error) {
+	row := q.db.QueryRowContext(ctx, insertUserDetail, userID)
+	var i UserDetail
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PhoneNumber,
+		&i.Gender,
+		&i.Location,
+		&i.PortfolioUrl,
+		&i.About,
+		&i.HidePhoneNumber,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET password = $2
