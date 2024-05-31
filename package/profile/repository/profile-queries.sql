@@ -333,8 +333,10 @@ WHERE us.user_id = @user_id::bigint;
 
 -- name: GetWorkExperiencesByUserId :many
 SELECT 
-  we.*, c.name AS company_name, array_agg(s.name) AS skills, array_agg(wef.url) AS file_urls,
-  COUNT(we.id) OVER () AS total_rows
+  we.*, c.name AS company_name, 
+  COALESCE(array_agg(DISTINCT s.name) FILTER (WHERE s.name IS NOT NULL), '{}') AS skills, 
+  COALESCE(array_agg(DISTINCT wef.url) FILTER (WHERE wef.url IS NOT NULL), '{}') AS file_urls,
+  COUNT(*) OVER () AS total_rows
 FROM work_experiences we 
 LEFT JOIN companies c ON we.company_id = c.id 
 LEFT JOIN work_experience_files wef ON we.id = wef.work_experience_id 
@@ -343,6 +345,7 @@ LEFT JOIN user_skills us ON wes.user_skill_id = us.id
 LEFT JOIN skills s ON us.skill_id  = s.id
 WHERE we.user_id = @user_id::bigint
 GROUP BY we.id, c.name
+ORDER BY we.finish_date DESC, we.start_date DESC
 OFFSET $1
 LIMIT $2;
 
