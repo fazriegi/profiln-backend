@@ -1358,39 +1358,6 @@ func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarPara
 	return err
 }
 
-const insertUserDetail = `-- name: InsertUserDetail :one
-INSERT INTO user_details (
-  user_id, phone_number, gender
-) VALUES (
-  $1, $2, $3
-)
-RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
-`
-
-type InsertUserDetailParams struct {
-	UserID      sql.NullInt64
-	PhoneNumber sql.NullString
-	Gender      sql.NullString
-}
-
-func (q *Queries) InsertUserDetail(ctx context.Context, arg InsertUserDetailParams) (UserDetail, error) {
-	row := q.db.QueryRowContext(ctx, insertUserDetail, arg.UserID, arg.PhoneNumber, arg.Gender)
-	var i UserDetail
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.PhoneNumber,
-		&i.Gender,
-		&i.Location,
-		&i.PortfolioUrl,
-		&i.About,
-		&i.HidePhoneNumber,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const insertUserDetailAbout = `-- name: InsertUserDetailAbout :one
 INSERT INTO user_details (
   user_id, about
@@ -1401,7 +1368,7 @@ RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hid
 `
 
 type InsertUserDetailAboutParams struct {
-	UserID sql.NullInt64
+	UserID int64
 	About  sql.NullString
 }
 
@@ -1595,7 +1562,7 @@ RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_n
 `
 
 type UpdateUserDetailParams struct {
-	UserID          sql.NullInt64
+	UserID          int64
 	PhoneNumber     sql.NullString
 	Gender          sql.NullString
 	Location        sql.NullString
@@ -1663,7 +1630,7 @@ RETURNING hide_phone_number, phone_number, gender
 `
 
 type UpdateUserDetailByUserIdParams struct {
-	UserID          sql.NullInt64
+	UserID          int64
 	HidePhoneNumber sql.NullBool
 	PhoneNumber     sql.NullString
 	Gender          sql.NullString

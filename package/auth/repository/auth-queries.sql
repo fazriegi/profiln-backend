@@ -47,3 +47,8 @@ FROM users
 INNER JOIN user_otps ON users.id = user_otps.user_id
 WHERE users.email = $1 AND users.verified_email = FALSE
 LIMIT 1;
+
+-- name: InsertUserDetail :one
+INSERT INTO user_details (user_id) 
+VALUES (@user_id::bigint)
+RETURNING *;

@@ -1,11 +1,3 @@
--- name: InsertUserDetail :one
-INSERT INTO user_details (
-  user_id, phone_number, gender
-) VALUES (
-  $1, $2, $3
-)
-RETURNING *;
-
 -- name: InsertUserAvatar :exec
 UPDATE users
 SET avatar_url = $1
