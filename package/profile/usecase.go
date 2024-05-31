@@ -20,11 +20,11 @@ type IProfileUsecase interface {
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
 	InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response
 	InsertUserEducation(files []*multipart.FileHeader, props *model.Education) model.Response
-	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
+	InsertUserCertificate(props *model.Certificate) model.Response
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
-	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
+	UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.Education) (resp model.Response)
 	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response)
@@ -103,78 +103,21 @@ func (u *ProfileUsecase) InsertUserSkill(props *model.SkillRequest, id int64) (r
 	return resp
 }
 
-func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response) {
-	issueDate, err := libs.ParseTime(props.IssueDate)
+func (u *ProfileUsecase) InsertUserCertificate(props *model.Certificate) model.Response {
+	data, err := u.repository.InsertUserCertificate(props)
 	if err != nil {
-		u.log.Errorf("libs.ParseTime IssueDate, %v", err)
-		return
+		u.log.Errorf("repository.InsertUserCertificate (user id: %d): %v", props.UserId, err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
 	}
 
-	expDate, err := libs.ParseTimeWithNill(props.ExpirationDate)
-	if err != nil {
-		u.log.Errorf("libs.ParseTimeWithNill IssueDate, %v", err)
-		return
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's certificate"),
+		Data:   data,
 	}
-
-	certificateParams := db.InsertCertificateParams{
-		UserID:                sql.NullInt64{Int64: id, Valid: true},
-		Name:                  sql.NullString{String: props.Name, Valid: true},
-		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganizationID, Valid: true},
-		IssueDate:             sql.NullTime{Time: issueDate, Valid: true},
-		ExpirationDate:        sql.NullTime{Time: expDate.Time, Valid: expDate.Valid},
-		CredentialID:          sql.NullString{String: props.CredentialID, Valid: true},
-		Url:                   sql.NullString{String: props.Url, Valid: true},
-	}
-
-	certificate, err := u.repository.InsertCertificate(certificateParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertCertificate %v", err)
-	}
-
-	certificateResponse := model.InsertCertificateResponse{
-		ID:                    certificate.ID,
-		UserID:                certificate.UserID.Int64,
-		Name:                  certificate.Name.String,
-		IssuingOrganizationID: certificate.IssuingOrganizationID.Int64,
-		IssueDate:             certificate.IssueDate.Time,
-		ExpirationDate:        certificate.ExpirationDate.Time,
-		CredentialID:          certificate.CredentialID.String,
-		Url:                   certificate.Url.String,
-		CreatedAt:             certificate.CreatedAt.Time,
-		UpdatedAt:             certificate.UpdatedAt.Time,
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create certificate")
-	resp.Data = certificateResponse
-	return resp
 }
-
-// func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
-// 	workExperienceParams := db.InsertWorkExperienceParams{
-// 		UserID:         sql.NullInt64{Int64: id, Valid: true},
-// 		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
-// 		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
-// 		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
-// 		Location:       sql.NullString{String: props.Location, Valid: true},
-// 		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
-// 		StartDate:      sql.NullTime{Time: props.StartDate.Time, Valid: true},
-// 		FinishDate:     sql.NullTime{Time: props.FinishDate.Time, Valid: true},
-// 		Description:    sql.NullString{String: props.Description, Valid: true},
-// 	}
-
-// 	workExperience, err := u.repository.InsertWorkExperience(workExperienceParams)
-
-// 	if err != nil {
-// 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-// 		u.log.Errorf("repository.InsertWorkExperience %v", err)
-// 	}
-
-// 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create work experience")
-// 	resp.Data = workExperience
-// 	return resp
-// }
 
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
 	insertAboutParams := db.InsertUserDetailAboutParams{
@@ -303,7 +246,7 @@ func (u *ProfileUsecase) UpdateAboutMe(userId int64, aboutMe string) (resp model
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response) {
 	err := u.repository.UpdateUserCertificate(userId, props)
 	if err != nil && err == sql.ErrNoRows {
 		resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")

@@ -22,7 +22,7 @@ type IProfileController interface {
 	UpdateUserEducation(ctx *gin.Context)
 	UpdateUserWorkExperience(ctx *gin.Context)
 	AddUserOpenToWork(ctx *gin.Context)
-	InsertCertificate(ctx *gin.Context)
+	InsertUserCertificate(ctx *gin.Context)
 	InsertUserSkills(ctx *gin.Context)
 	GetUserProfile(ctx *gin.Context)
 	GetUserWorkExperiences(ctx *gin.Context)
@@ -86,23 +86,24 @@ func (c *ProfileController) InsertUserSkills(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
+func (c *ProfileController) InsertUserCertificate(ctx *gin.Context) {
 	var (
-		reqBody  model.CertificateRequest
 		response model.Response
+		reqBody  model.Certificate
 	)
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
-		response.Status = libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
-
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+		fmt.Println(err)
 		ctx.JSON(response.Status.Code, response)
 		return
 	}
 
-	validationErr := libs.ValidateRequest(&reqBody) // validate reqBody struct
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
 	// if there is an error
 	if len(validationErr) > 0 {
 		errResponse := map[string]any{
@@ -117,8 +118,9 @@ func (c *ProfileController) InsertCertificate(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.InsertCertificate(&reqBody, userId)
+	reqBody.UserId = userId
 
+	response = c.usecase.InsertUserCertificate(&reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -240,7 +242,7 @@ func (c *ProfileController) UpdateAboutMe(ctx *gin.Context) {
 func (c *ProfileController) UpdateUserCertificate(ctx *gin.Context) {
 	var (
 		response model.Response
-		reqBody  model.UpdateCertificate
+		reqBody  model.Certificate
 	)
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)

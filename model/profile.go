@@ -15,14 +15,14 @@ type SkillRequest struct {
 // 	Skills    string `validate:"required"`
 // }
 
-type CertificateRequest struct {
-	Name                  string  `validate:"required"`
-	IssuingOrganizationID int64   `validate:"required"`
-	IssueDate             string  `validate:"required"`
-	ExpirationDate        *string `validate:"omitempty"`
-	CredentialID          string  `validate:"required"`
-	Url                   string  `validate:"required"`
-}
+// type CertificateRequest struct {
+// 	Name                  string  `validate:"required"`
+// 	IssuingOrganizationID int64   `validate:"required"`
+// 	IssueDate             string  `validate:"required"`
+// 	ExpirationDate        *string `validate:"omitempty"`
+// 	CredentialID          string  `validate:"required"`
+// 	Url                   string  `validate:"required"`
+// }
 
 // type WorkExperienceRequest struct {
 // 	// UserID           int64        `validate:"required"`
@@ -82,8 +82,9 @@ type SocialLinks struct {
 	URL      string `json:"url" form:"url" validate:"required"`
 }
 
-type UpdateCertificate struct {
+type Certificate struct {
 	ID                  int64               `json:"id"`
+	UserId              int64               `json:"user_id"`
 	Name                string              `json:"name" validate:"required"`
 	IssuingOrganization IssuingOrganization `json:"issuing_organization" validate:"required"`
 	IssueDate           string              `json:"issue_date" validate:"required"`
@@ -157,15 +158,15 @@ type InsertCertificateResponse struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
-type Certificate struct {
-	ID             int64  `json:"id"`
-	Name           string `json:"name"`
-	Organization   string `json:"origanization"`
-	IssueDate      string `json:"issue_date"`
-	ExpirationDate string `json:"expiration_date"`
-	CredentialID   string `json:"credential_id"`
-	Url            string `json:"url"`
-}
+// type Certificate struct {
+// 	ID             int64  `json:"id"`
+// 	Name           string `json:"name"`
+// 	Organization   string `json:"origanization"`
+// 	IssueDate      string `json:"issue_date"`
+// 	ExpirationDate string `json:"expiration_date"`
+// 	CredentialID   string `json:"credential_id"`
+// 	Url            string `json:"url"`
+// }
 
 type UserDetailResponse struct {
 	ID              *int64     `json:"id"`

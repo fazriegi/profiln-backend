@@ -13,7 +13,7 @@ import (
 
 type IProfileRepository interface {
 	InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error)
-	InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error)
+	InsertUserCertificate(props *model.Certificate) (model.Certificate, error)
 	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
 	InsertSkill(name string) (db.Skill, error)
 	InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error)
@@ -23,7 +23,7 @@ type IProfileRepository interface {
 	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
 	UpdateProfile(avatar_url string, props *model.UpdateProfileRequest) error
 	UpdateAboutMe(userId int64, aboutMe string) error
-	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error
+	UpdateUserCertificate(userId int64, props *model.Certificate) error
 	AddUserOpenToWork(props *model.OpenToWork) error
 	GetUserAvatarById(id int64) (string, error)
 	UpdateUserInformation(props *model.UpdateUserInformation) error
@@ -172,14 +172,67 @@ func (r *ProfileRepository) InsertUserWorkExperience(props *model.WorkExperience
 	return *props, nil
 }
 
-func (r *ProfileRepository) InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error) {
-	certificate, err := r.query.InsertCertificate(context.Background(), arg)
+func (r *ProfileRepository) InsertUserCertificate(props *model.Certificate) (model.Certificate, error) {
+	var (
+		issueDate      time.Time
+		expirationDate time.Time
+		err            error
+	)
 
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return db.Certificate{}, err
+		return model.Certificate{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	if props.IssuingOrganization.ID < 1 {
+		createdIssuingOrganization, err :=
+			qtx.InsertIssuingOrganization(ctx, props.IssuingOrganization.Name)
+
+		if err != nil {
+			return model.Certificate{}, fmt.Errorf("could not insert issuing organization: %w", err)
+		}
+
+		props.IssuingOrganization.ID = createdIssuingOrganization.ID
 	}
 
-	return certificate, nil
+	issueDate, err = time.Parse("2006-01-02", props.IssueDate)
+	if err != nil {
+		return model.Certificate{}, fmt.Errorf("error parsing issue date: %w", err)
+	}
+
+	if props.ExpirationDate != "" {
+		expirationDate, err = time.Parse("2006-01-02", props.ExpirationDate)
+		if err != nil {
+			return model.Certificate{}, fmt.Errorf("error parsing expiration date: %w", err)
+		}
+	}
+
+	arg := db.InsertCertificateParams{
+		Name:                  sql.NullString{String: props.Name, Valid: true},
+		IssuingOrganizationID: sql.NullInt64{Int64: props.IssuingOrganization.ID, Valid: true},
+		IssueDate:             sql.NullTime{Time: issueDate, Valid: !issueDate.IsZero()},
+		ExpirationDate:        sql.NullTime{Time: expirationDate, Valid: !expirationDate.IsZero()},
+		CredentialID:          sql.NullString{String: props.CredentialID, Valid: true},
+		Url:                   sql.NullString{String: props.Url, Valid: true},
+		UserID:                sql.NullInt64{Int64: props.UserId, Valid: true},
+	}
+
+	createdData, err := qtx.InsertCertificate(ctx, arg)
+	if err != nil {
+		return model.Certificate{}, fmt.Errorf("could not insert user certificate: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.Certificate{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
 }
 
 func (r *ProfileRepository) InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error) {
@@ -302,7 +355,7 @@ func (r *ProfileRepository) UpdateAboutMe(userId int64, aboutMe string) error {
 	return nil
 }
 
-func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.UpdateCertificate) error {
+func (r *ProfileRepository) UpdateUserCertificate(userId int64, props *model.Certificate) error {
 	var (
 		issueDate      time.Time
 		expirationDate time.Time
@@ -973,8 +1026,11 @@ func (r *ProfileRepository) GetCertificatesByUserId(userId int64, offset, limit 
 		}
 
 		data[i] = model.Certificate{
-			ID:             certificate.ID,
-			Organization:   certificate.IssuingOrganizationName.String,
+			ID: certificate.ID,
+			IssuingOrganization: model.IssuingOrganization{
+				ID:   certificate.IssuingOrganizationID.Int64,
+				Name: certificate.IssuingOrganizationName.String,
+			},
 			Name:           certificate.Name.String,
 			IssueDate:      issueDate,
 			ExpirationDate: expirationDate,

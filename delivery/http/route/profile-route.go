@@ -25,11 +25,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 
 	profile := app.Group("profiles")
 	profile.Use(middleware.Authentication())
-	profile.POST("/user/certificate", controller.InsertCertificate)
 	profile.POST("/user/skill", controller.InsertUserSkills)
-	// profile.GET("/user/about", controller.GetUserAbout)
-	// profile.GET("/user/certificate", controller.GetUserCertificates)
-	// profile.GET("/user/skill", controller.GetUserSkillsLocationPortofolio)
 
 	app.Use(middleware.Authentication())
 
@@ -48,6 +44,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	me.DELETE("/certificates/:certificateId", controller.DeleteUserCertificate)
 	me.POST("/work-experiences", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.InsertUserWorkExperience)
 	me.POST("/educations", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats), controller.InsertUserEducation)
+	me.POST("/certificates", controller.InsertUserCertificate)
 	me.GET("/", controller.GetUserBasicInformation)
 
 	users := app.Group("users")
