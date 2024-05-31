@@ -16,7 +16,7 @@ type IProfileRepository interface {
 	InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error)
 	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
 	InsertSkill(name string) (db.Skill, error)
-	InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error)
+	InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error)
 	InsertUserAvatar(arg db.InsertUserAvatarParams) error
 	GetUserById(id int64) (model.User, error)
 	UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error
@@ -30,7 +30,7 @@ type IProfileRepository interface {
 	GetEducationById(id int64) (db.Education, error)
 	GetUserEducationFileURLs(educationId int64) ([]string, error)
 	GetWorkExperienceById(id int64) (db.WorkExperience, error)
-	UpdateUserWorkExperience(props *model.UpdateWorkExperience) error
+	UpdateUserWorkExperience(props *model.WorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
 	GetUserProfile(userId int64) (model.UserProfile, error)
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
@@ -87,15 +87,99 @@ func (r *ProfileRepository) UpdateUserDetailAbout(arg db.UpdateUserDetailAboutPa
 	return nil
 }
 
-func (r *ProfileRepository) InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error) {
-	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
+func (r *ProfileRepository) InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error) {
+	var (
+		startDate  time.Time
+		finishDate time.Time
+	)
 
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
 	if err != nil {
-		return db.WorkExperience{}, err
+		return model.WorkExperience{}, fmt.Errorf("could not begin edit profile transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	// If the company doesn't exist, insert the company first
+	if props.Company.ID < 1 {
+		company, err := qtx.InsertCompany(ctx, props.Company.Name)
+		if err != nil {
+			return model.WorkExperience{}, fmt.Errorf("could not insert company: %w", err)
+		}
+
+		props.Company.ID = company.ID
 	}
 
-	return workExperience, nil
+	startDate, err = time.Parse("2006-01-02", props.StartDate)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("error parsing start date: %w", err)
+	}
+
+	if props.FinishDate != "" {
+		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
+		if err != nil {
+			return model.WorkExperience{}, fmt.Errorf("error parsing finish date: %w", err)
+		}
+	}
+
+	insertUserWorkExperienceArg := db.InsertWorkExperienceParams{
+		UserID:         sql.NullInt64{Int64: props.UserId, Valid: true},
+		CompanyID:      sql.NullInt64{Int64: props.Company.ID, Valid: true},
+		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
+		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
+		Location:       sql.NullString{String: props.Location, Valid: true},
+		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
+		StartDate:      sql.NullTime{Time: startDate, Valid: !startDate.IsZero()},
+		FinishDate:     sql.NullTime{Time: finishDate, Valid: !finishDate.IsZero()},
+		Description:    sql.NullString{String: props.Description, Valid: true},
+	}
+	createdData, err := qtx.InsertWorkExperience(ctx, insertUserWorkExperienceArg)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not insert user work experience: %w", err)
+	}
+
+	// Batch insert new user skills
+	userSkillIDs, err := r.batchInsertUserSkills(ctx, qtx, props.UserId, props.Skills)
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user skills: %w", err)
+	}
+
+	err = qtx.BatchInsertWorkExperienceSkills(ctx, db.BatchInsertWorkExperienceSkillsParams{
+		WorkExperienceID: createdData.ID,
+		UserSkillID:      userSkillIDs,
+	})
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user work experience skills: %w", err)
+	}
+
+	_, err = qtx.BatchInsertWorkExperienceFiles(ctx, db.BatchInsertWorkExperienceFilesParams{
+		WorkExperienceID: createdData.ID,
+		Url:              props.FileURLs,
+	})
+	if err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not batch insert user work experience files: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.WorkExperience{}, fmt.Errorf("could not commit edit profile transaction: %w", err)
+	}
+
+	props.ID = createdData.ID
+
+	return *props, nil
 }
+
+// func (r *ProfileRepository) InsertWorkExperience(arg db.InsertWorkExperienceParams) (db.WorkExperience, error) {
+// 	workExperience, err := r.query.InsertWorkExperience(context.Background(), arg)
+
+// 	if err != nil {
+// 		return db.WorkExperience{}, err
+// 	}
+
+// 	return workExperience, nil
+// }
 
 func (r *ProfileRepository) InsertCertificate(arg db.InsertCertificateParams) (db.Certificate, error) {
 	certificate, err := r.query.InsertCertificate(context.Background(), arg)
@@ -475,7 +559,7 @@ func (r *ProfileRepository) GetWorkExperienceFileURLs(workExperienceId int64) ([
 	return urls, nil
 }
 
-func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExperience) error {
+func (r *ProfileRepository) UpdateUserWorkExperience(props *model.WorkExperience) error {
 	var (
 		startDate  time.Time
 		finishDate time.Time
@@ -529,13 +613,13 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.UpdateWorkExpe
 
 	startDate, err = time.Parse("2006-01-02", props.StartDate)
 	if err != nil {
-		return fmt.Errorf("error parsing expiration date: %w", err)
+		return fmt.Errorf("error parsing start date: %w", err)
 	}
 
 	if props.FinishDate != "" {
 		finishDate, err = time.Parse("2006-01-02", props.FinishDate)
 		if err != nil {
-			return fmt.Errorf("error parsing expiration date: %w", err)
+			return fmt.Errorf("error parsing finish date: %w", err)
 		}
 	}
 

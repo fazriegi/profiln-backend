@@ -36,6 +36,7 @@ type IProfileController interface {
 	DeleteUserCertificate(ctx *gin.Context)
 	FollowUser(ctx *gin.Context)
 	UnfollowUser(ctx *gin.Context)
+	InsertUserWorkExperience(ctx *gin.Context)
 }
 
 type ProfileController struct {
@@ -370,7 +371,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	var (
 		response model.Response
-		reqBody  model.UpdateWorkExperience
+		reqBody  model.WorkExperience
 	)
 	files := ctx.MustGet("files").([]*multipart.FileHeader)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
@@ -777,5 +778,43 @@ func (c *ProfileController) UnfollowUser(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UnfollowUser(userId, targetUserId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.WorkExperience
+	)
+	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+
+	response = c.usecase.InsertUserWorkExperience(files, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

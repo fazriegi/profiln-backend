@@ -25,17 +25,17 @@ type CertificateRequest struct {
 	Url                   string  `validate:"required"`
 }
 
-type WorkExperienceRequest struct {
-	// UserID           int64        `validate:"required"`
-	JobTitle       string       `validate:"required"`
-	CompanyID      int64        `validate:"required"`
-	EmploymentType string       `validate:"required"`
-	Location       string       `validate:"required"`
-	LocationType   string       `validate:"required"`
-	StartDate      sql.NullTime `validate:"required"`
-	FinishDate     sql.NullTime `validate:"required"`
-	Description    string       `validate:"required"`
-}
+// type WorkExperienceRequest struct {
+// 	// UserID           int64        `validate:"required"`
+// 	JobTitle       string       `validate:"required"`
+// 	CompanyID      int64        `validate:"required"`
+// 	EmploymentType string       `validate:"required"`
+// 	Location       string       `validate:"required"`
+// 	LocationType   string       `validate:"required"`
+// 	StartDate      sql.NullTime `validate:"required"`
+// 	FinishDate     sql.NullTime `validate:"required"`
+// 	Description    string       `validate:"required"`
+// }
 
 type EducationRequest struct {
 	// UserID           int64        `validate:"required"`
@@ -114,7 +114,7 @@ type UpdateEducationRequest struct {
 	Skills       []string `json:"skills" form:"skills"`
 }
 
-type UpdateWorkExperience struct {
+type WorkExperience struct {
 	ID             int64    `json:"id"`
 	UserId         int64    `json:"user_id"`
 	JobTitle       string   `json:"job_title" form:"job_title" validate:"required"`
@@ -201,19 +201,19 @@ type UserSkills struct {
 	OtherSkills []string `json:"other_skills"`
 }
 
-type WorkExperience struct {
-	ID             int64    `json:"id"`
-	JobTitle       string   `json:"job_title"`
-	Company        Company  `json:"company"`
-	EmploymentType string   `json:"employment_type"`
-	Location       string   `json:"location"`
-	LocationType   string   `json:"location_type"`
-	StartDate      string   `json:"start_date"`
-	FinishDate     string   `json:"finish_date"`
-	Description    string   `json:"description"`
-	FileURLs       []string `json:"file_urls"`
-	Skills         []string `json:"skills"`
-}
+// type WorkExperience struct {
+// 	ID             int64    `json:"id"`
+// 	JobTitle       string   `json:"job_title"`
+// 	Company        Company  `json:"company"`
+// 	EmploymentType string   `json:"employment_type"`
+// 	Location       string   `json:"location"`
+// 	LocationType   string   `json:"location_type"`
+// 	StartDate      string   `json:"start_date"`
+// 	FinishDate     string   `json:"finish_date"`
+// 	Description    string   `json:"description"`
+// 	FileURLs       []string `json:"file_urls"`
+// 	Skills         []string `json:"skills"`
+// }
 
 type Education struct {
 	ID           int64    `json:"id"`

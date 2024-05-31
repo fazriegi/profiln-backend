@@ -18,7 +18,7 @@ import (
 
 type IProfileUsecase interface {
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
-	InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response)
+	InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response
 	InsertCertificate(props *model.CertificateRequest, id int64) (resp model.Response)
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
 	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
@@ -26,7 +26,7 @@ type IProfileUsecase interface {
 	UpdateUserCertificate(userId int64, props *model.UpdateCertificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(files []*multipart.FileHeader, props *model.UpdateEducationRequest) (resp model.Response)
-	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response)
+	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response)
 	AddUserOpenToWork(props *model.OpenToWork) model.Response
 	GetUserProfile(userId int64) model.Response
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
@@ -150,30 +150,30 @@ func (u *ProfileUsecase) InsertCertificate(props *model.CertificateRequest, id i
 	return resp
 }
 
-func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
-	workExperienceParams := db.InsertWorkExperienceParams{
-		UserID:         sql.NullInt64{Int64: id, Valid: true},
-		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
-		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
-		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
-		Location:       sql.NullString{String: props.Location, Valid: true},
-		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
-		StartDate:      sql.NullTime{Time: props.StartDate.Time, Valid: true},
-		FinishDate:     sql.NullTime{Time: props.FinishDate.Time, Valid: true},
-		Description:    sql.NullString{String: props.Description, Valid: true},
-	}
+// func (u *ProfileUsecase) InsertWorkExperience(props *model.WorkExperienceRequest, id int64) (resp model.Response) {
+// 	workExperienceParams := db.InsertWorkExperienceParams{
+// 		UserID:         sql.NullInt64{Int64: id, Valid: true},
+// 		JobTitle:       sql.NullString{String: props.JobTitle, Valid: true},
+// 		CompanyID:      sql.NullInt64{Int64: props.CompanyID, Valid: true},
+// 		EmploymentType: sql.NullString{String: props.EmploymentType, Valid: true},
+// 		Location:       sql.NullString{String: props.Location, Valid: true},
+// 		LocationType:   sql.NullString{String: props.LocationType, Valid: true},
+// 		StartDate:      sql.NullTime{Time: props.StartDate.Time, Valid: true},
+// 		FinishDate:     sql.NullTime{Time: props.FinishDate.Time, Valid: true},
+// 		Description:    sql.NullString{String: props.Description, Valid: true},
+// 	}
 
-	workExperience, err := u.repository.InsertWorkExperience(workExperienceParams)
+// 	workExperience, err := u.repository.InsertWorkExperience(workExperienceParams)
 
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertWorkExperience %v", err)
-	}
+// 	if err != nil {
+// 		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
+// 		u.log.Errorf("repository.InsertWorkExperience %v", err)
+// 	}
 
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create work experience")
-	resp.Data = workExperience
-	return resp
-}
+// 	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create work experience")
+// 	resp.Data = workExperience
+// 	return resp
+// }
 
 func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
 	insertAboutParams := db.InsertUserDetailAboutParams{
@@ -438,7 +438,7 @@ func (u *ProfileUsecase) UpdateUserEducation(files []*multipart.FileHeader, prop
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.UpdateWorkExperience) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response) {
 	var (
 		err error
 	)
@@ -830,5 +830,78 @@ func (u *ProfileUsecase) UnfollowUser(userId, targetUserId int64) model.Response
 
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusOK, "Success unfollow user"),
+	}
+}
+
+func (u *ProfileUsecase) InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response {
+	var (
+		err error
+	)
+
+	if files != nil {
+		var wg sync.WaitGroup
+		objectPath := fmt.Sprintf("users/%d/work-experiences/files", props.UserId)
+
+		errChan := make(chan error, len(files))
+		urlChan := make(chan string, len(files))
+
+		// Loop through the files
+		for _, file := range files {
+			wg.Add(1)
+			file := file
+
+			// Handle object uploads to gcloud storage for each file asynchronously
+			go func(file *multipart.FileHeader) {
+				defer wg.Done()
+				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
+
+				if err != nil {
+					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
+					return
+				}
+
+				urlChan <- objectUrl
+
+			}(file)
+		}
+
+		wg.Wait()
+		close(errChan)
+		close(urlChan)
+
+		// Loop through error channel and check if any error occurred
+		for err := range errChan {
+			if err != nil {
+				u.log.Error(err)
+
+				return model.Response{
+					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+				}
+			}
+		}
+
+		// Loop through URL channel and append the URL to file URLs
+		for url := range urlChan {
+			props.FileURLs = append(props.FileURLs, url)
+		}
+	}
+
+	data, err := u.repository.InsertUserWorkExperience(props)
+	if err != nil {
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.FileURLs...)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		u.log.Errorf("repository.InsertUserWorkExperience (user id: %d): %v", props.UserId, err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's work experience"),
+		Data:   data,
 	}
 }
