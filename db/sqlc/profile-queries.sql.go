@@ -451,6 +451,7 @@ SELECT
 FROM certificates c 
 LEFT JOIN issuing_organizations io ON c.issuing_organization_id = io.id 
 WHERE user_id = $3::bigint
+ORDER BY c.issue_date desc, c.expiration_date DESC
 OFFSET $1
 LIMIT $2
 `
@@ -552,6 +553,7 @@ LEFT JOIN user_skills us ON es.user_skill_id = us.id
 LEFT JOIN skills ON us.skill_id = skills.id
 WHERE e.user_id = $3::bigint
 GROUP BY e.id, schools.name
+ORDER BY e.finish_date DESC, e.start_date DESC
 OFFSET $1
 LIMIT $2
 `
