@@ -27,6 +27,7 @@ type IPostsController interface {
 	DeletePost(ctx *gin.Context)
 	RepostPost(ctx *gin.Context)
 	UnrepostPost(ctx *gin.Context)
+	UploadFile(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -373,7 +374,7 @@ func (c *PostsController) InsertPost(ctx *gin.Context) {
 		reqBody  model.CreatePostRequest
 		response model.Response
 	)
-	imageFiles := ctx.MustGet("files").([]*multipart.FileHeader)
+
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -402,7 +403,7 @@ func (c *PostsController) InsertPost(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertPost(imageFiles, &reqBody)
+	response = c.usecase.InsertPost(&reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -510,5 +511,26 @@ func (c *PostsController) UnrepostPost(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UnrepostPost(userId, postId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UploadFile(ctx *gin.Context) {
+	var response model.Response
+
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UploadFile(userId, postId, fileNames)
+
 	ctx.JSON(response.Status.Code, response)
 }

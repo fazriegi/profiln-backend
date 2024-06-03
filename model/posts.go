@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type ReportPost struct {
 	PostId  int64    `json:"post_id"`

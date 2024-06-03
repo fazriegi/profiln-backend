@@ -116,6 +116,7 @@ type PostImage struct {
 	ID     int64
 	PostID sql.NullInt64
 	Url    sql.NullString
+	Index  sql.NullInt16
 }
 
 type ReportedPost struct {

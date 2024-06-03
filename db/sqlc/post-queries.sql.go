@@ -79,18 +79,19 @@ func (q *Queries) BatchDeleteRepostedPostByPost(ctx context.Context, postID int6
 
 const batchInsertPostImages = `-- name: BatchInsertPostImages :many
 INSERT INTO post_images
-	(post_id, url)
-SELECT $1::bigint, UNNEST($2::TEXT[])
-RETURNING id, post_id, url
+	(post_id, url, index)
+SELECT $1::bigint, UNNEST($2::TEXT[]), UNNEST($3::smallint[])
+RETURNING id, post_id, url, index
 `
 
 type BatchInsertPostImagesParams struct {
 	PostID int64
 	Url    []string
+	Index  []int16
 }
 
 func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPostImagesParams) ([]PostImage, error) {
-	rows, err := q.db.QueryContext(ctx, batchInsertPostImages, arg.PostID, pq.Array(arg.Url))
+	rows, err := q.db.QueryContext(ctx, batchInsertPostImages, arg.PostID, pq.Array(arg.Url), pq.Array(arg.Index))
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,12 @@ func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPost
 	var items []PostImage
 	for rows.Next() {
 		var i PostImage
-		if err := rows.Scan(&i.ID, &i.PostID, &i.Url); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.PostID,
+			&i.Url,
+			&i.Index,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -110,6 +116,19 @@ func (q *Queries) BatchInsertPostImages(ctx context.Context, arg BatchInsertPost
 		return nil, err
 	}
 	return items, nil
+}
+
+const countPostImages = `-- name: CountPostImages :one
+SELECT COUNT(*) AS count
+FROM post_images
+WHERE post_id = $1::bigint
+`
+
+func (q *Queries) CountPostImages(ctx context.Context, postID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPostImages, postID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const deleteLikedPost = `-- name: DeleteLikedPost :one
@@ -161,7 +180,7 @@ func (q *Queries) DeleteRepostedPost(ctx context.Context, arg DeleteRepostedPost
 const getDetailPost = `-- name: GetDetailPost :one
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
-	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
+	ARRAY_AGG(pi.url ORDER BY pi.index ASC) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
