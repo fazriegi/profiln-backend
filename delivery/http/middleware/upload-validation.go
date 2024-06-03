@@ -7,9 +7,10 @@ import (
 	"profiln-be/model"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
-func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []string) gin.HandlerFunc {
+func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []string, fs libs.IFileSystem, log *logrus.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		respMessageSize := fmt.Sprintf("File is too large. Maximum allowed size is %d bytes", maxBytes)
 		respMessageCount := fmt.Sprintf("Too many files. Maximum allowed is %d files", maxTotalFile)
@@ -33,7 +34,9 @@ func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []
 			return
 		}
 
-		for _, file := range files {
+		fileNames := make([]string, len(files))
+
+		for i, file := range files {
 			if !libs.IsFileExtensionAllowed(allowedExtensions, file) {
 				response := model.Response{
 					Status: libs.CustomResponse(http.StatusUnsupportedMediaType, respMessageFormat),
@@ -49,9 +52,23 @@ func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []
 				ctx.AbortWithStatusJSON(response.Status.Code, response)
 				return
 			}
+
+			newFilename := fs.GenerateNewFilename(file.Filename)
+			filePath := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+
+			if err := fs.SaveFile(file, filePath); err != nil {
+				log.Errorf("fileSystem.SaveFile: %v", err)
+				response := model.Response{
+					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+				}
+
+				ctx.AbortWithStatusJSON(response.Status.Code, response)
+				return
+			}
+			fileNames[i] = newFilename
 		}
 
-		ctx.Set("files", files)
+		ctx.Set("fileNames", fileNames)
 		ctx.Next()
 	}
 }

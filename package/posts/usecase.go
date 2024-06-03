@@ -23,24 +23,27 @@ type IPostsUsecase interface {
 	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
 	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	InsertPost(imageFile []*multipart.FileHeader, props *model.CreatePostRequest) model.Response
+	InsertPost(props *model.CreatePostRequest) model.Response
 	UpdatePost(imageFiles []*multipart.FileHeader, props *model.UpdatePostRequest) model.Response
 	DeletePost(userId, postId int64) model.Response
 	RepostPost(userId, postId int64) model.Response
 	UnrepostPost(userId, postId int64) model.Response
+	UploadFile(userId, postId int64, fileNames []string) model.Response
 }
 
 type PostsUsecase struct {
 	repository   repository.IPostsRepository
 	log          *logrus.Logger
 	googleBucket libs.IGoogleBucket
+	fs           libs.IFileSystem
 }
 
-func NewPostsUsecase(repository repository.IPostsRepository, log *logrus.Logger, googleBucket libs.IGoogleBucket) IPostsUsecase {
+func NewPostsUsecase(repository repository.IPostsRepository, log *logrus.Logger, googleBucket libs.IGoogleBucket, fs libs.IFileSystem) IPostsUsecase {
 	return &PostsUsecase{
 		repository,
 		log,
 		googleBucket,
+		fs,
 	}
 }
 
@@ -307,54 +310,7 @@ func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.
 	return
 }
 
-func (u *PostsUsecase) InsertPost(imageFiles []*multipart.FileHeader, props *model.CreatePostRequest) model.Response {
-	if imageFiles != nil {
-		var wg sync.WaitGroup
-		objectPath := fmt.Sprintf("users/%d/posts", props.UserId)
-
-		errChan := make(chan error, len(imageFiles))
-		urlChan := make(chan string, len(imageFiles))
-
-		// Loop through the imageFiles
-		for _, file := range imageFiles {
-			wg.Add(1)
-			file := file
-
-			// Handle object uploads to gcloud storage for each file asynchronously
-			go func(file *multipart.FileHeader) {
-				defer wg.Done()
-				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
-
-				if err != nil {
-					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
-					return
-				}
-
-				urlChan <- objectUrl
-
-			}(file)
-		}
-
-		wg.Wait()
-		close(errChan)
-		close(urlChan)
-
-		// Loop through error channel and check if any error occurred
-		for err := range errChan {
-			if err != nil {
-				u.log.Error(err)
-
-				return model.Response{
-					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
-				}
-			}
-		}
-
-		for url := range urlChan {
-			props.ImageUrls = append(props.ImageUrls, url)
-		}
-	}
-
+func (u *PostsUsecase) InsertPost(props *model.CreatePostRequest) model.Response {
 	data, err := u.repository.InsertPost(props)
 
 	if err != nil {
@@ -579,6 +535,89 @@ func (u *PostsUsecase) UnrepostPost(userId, postId int64) model.Response {
 		Data: map[string]any{
 			"id":           data.ID,
 			"repost_count": data.RepostCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UploadFile(userId, postId int64, fileNames []string) model.Response {
+	_, err := u.repository.GetPostById(postId)
+	if err != nil {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	defer func() {
+		for _, fileName := range fileNames {
+			filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}
+	}()
+
+	postImagesCount, err := u.repository.CountPostImages(postId)
+	if err != nil {
+		u.log.Errorf("repository.CountPostImages: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if postImagesCount > 0 {
+		currentUrls, err := u.repository.GetPostImagesUrl(postId)
+		if err != nil {
+			u.log.Errorf("repository.GetPostImagesUrl: %v", err)
+		}
+
+		if err := u.repository.DeletePost(postId); err != nil {
+			u.log.Errorf("repository.DeletePost: %v", err)
+		}
+
+		if err := u.googleBucket.HandleObjectDeletion(currentUrls...); err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Something went wrong"),
+		}
+	}
+
+	objectPath := fmt.Sprintf("users/%d/posts/files", userId)
+
+	urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+	if err != nil {
+		u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	_, err = u.repository.BatchInsertPostImages(postId, urls)
+	if err != nil {
+		u.log.Errorf("repository.BatchInsertPostImages: %v", err)
+
+		if err := u.repository.DeletePost(postId); err != nil {
+			u.log.Errorf("repository.DeletePost: %v", err)
+		}
+
+		if err := u.googleBucket.HandleObjectDeletion(urls...); err != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add post images"),
+		Data: map[string]any{
+			"post_id":    postId,
+			"image_urls": urls,
 		},
 	}
 }

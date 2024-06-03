@@ -29,6 +29,8 @@ type IPostsRepository interface {
 	DeletePost(postId int64) error
 	RepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error)
 	UnrepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error)
+	BatchInsertPostImages(postId int64, urls []string) ([]db.PostImage, error)
+	CountPostImages(postId int64) (int64, error)
 }
 
 type PostsRepository struct {
@@ -398,15 +400,6 @@ func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit 
 }
 
 func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post, error) {
-	ctx := context.Background()
-	tx, err := r.dbConn.Begin()
-	if err != nil {
-		return model.Post{}, fmt.Errorf("could not begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	qtx := r.query.WithTx(tx)
-
 	insertPostArg := db.InsertPostParams{
 		UserID:     sql.NullInt64{Int64: props.UserId, Valid: true},
 		Title:      props.Title,
@@ -414,21 +407,9 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 		Visibility: props.Visibility,
 	}
 
-	createdPost, err := qtx.InsertPost(ctx, insertPostArg)
+	createdPost, err := r.query.InsertPost(context.Background(), insertPostArg)
 	if err != nil {
-		return model.Post{}, fmt.Errorf("could not insert post: %w", err)
-	}
-
-	_, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
-		PostID: createdPost.ID,
-		Url:    props.ImageUrls,
-	})
-	if err != nil {
-		return model.Post{}, fmt.Errorf("could not insert post images: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return model.Post{}, fmt.Errorf("could not commit transaction: %w", err)
+		return model.Post{}, err
 	}
 
 	data := model.Post{
@@ -438,7 +419,6 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 		},
 		Title:        createdPost.Title,
 		Content:      createdPost.Content.String,
-		ImageUrls:    props.ImageUrls,
 		LikeCount:    createdPost.LikeCount.Int32,
 		CommentCount: createdPost.CommentCount.Int32,
 		RepostCount:  createdPost.RepostCount.Int32,
@@ -700,4 +680,31 @@ func (r *PostsRepository) UnrepostPost(userId, postId int64) (*db.UpdatePostRepo
 	}
 
 	return &post, nil
+}
+
+func (r *PostsRepository) BatchInsertPostImages(postId int64, urls []string) ([]db.PostImage, error) {
+	urlIndex := []int16{}
+	for i := range urls {
+		urlIndex = append(urlIndex, int16(i))
+	}
+
+	data, err := r.query.BatchInsertPostImages(context.Background(), db.BatchInsertPostImagesParams{
+		PostID: postId,
+		Index:  urlIndex,
+		Url:    urls,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (r *PostsRepository) CountPostImages(postId int64) (int64, error) {
+	count, err := r.query.CountPostImages(context.Background(), postId)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

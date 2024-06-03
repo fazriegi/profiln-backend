@@ -81,10 +81,19 @@ func IsFileSizeAllowed(allowedSize int64, files ...*multipart.FileHeader) bool {
 }
 
 func IsFileExtensionAllowed(allowedExtensions []string, file *multipart.FileHeader) bool {
-	fileExt := strings.ToLower(filepath.Ext(file.Filename))
+	fileTypes := map[string]string{
+		".pdf":  "application/pdf",
+		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		".png":  "image/png",
+		".jpg":  "image/jpeg",
+	}
 
+	fileExt := strings.ToLower(filepath.Ext(file.Filename))
+	fileType := file.Header.Get("Content-Type")
+
+	// Check if the file extension and type are allowed
 	for _, ext := range allowedExtensions {
-		if fileExt == strings.ToLower(ext) {
+		if ext == fileExt && fileTypes[ext] == fileType {
 			return true
 		}
 	}

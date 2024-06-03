@@ -1164,7 +1164,7 @@ func (r *ProfileRepository) FollowUser(userId, targetUserId int64) error {
 
 	_, err = qtx.LockUserForUpdate(ctx, userId)
 	if err != nil {
-		return fmt.Errorf("could not lock post for update: %w", err)
+		return fmt.Errorf("could not lock user for update: %w", err)
 	}
 
 	_, err = qtx.InsertFollowings(ctx, db.InsertFollowingsParams{
@@ -1216,7 +1216,7 @@ func (r *ProfileRepository) UnfollowUser(userId, targetUserId int64) error {
 
 	_, err = qtx.LockUserForUpdate(ctx, userId)
 	if err != nil {
-		return fmt.Errorf("could not lock post for update: %w", err)
+		return fmt.Errorf("could not lock user for update: %w", err)
 	}
 
 	_, err = qtx.DeleteFollowings(ctx, db.DeleteFollowingsParams{

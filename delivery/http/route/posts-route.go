@@ -19,7 +19,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	fileSystem := libs.NewFileSystem()
 	googleBucket := libs.NewGoogleBucket(fileSystem, log)
 	repository := repository.NewPostsRepository(db)
-	usecase := posts.NewPostsUsecase(repository, log, googleBucket)
+	usecase := posts.NewPostsUsecase(repository, log, googleBucket, fileSystem)
 	controller := http.NewPostsController(usecase)
 
 	app.Use(middleware.Authentication())
@@ -38,7 +38,8 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	myPosts.GET("/", controller.ListNewestPostsByUserId)
 	myPosts.GET("/like", controller.ListLikedPostsByUserId)
 	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
-	myPosts.POST("/", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats), controller.InsertPost)
-	myPosts.PATCH("/:postId", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats), controller.UpdatePost)
+	myPosts.POST("/", controller.InsertPost)
+	myPosts.PATCH("/:postId", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UpdatePost)
 	myPosts.DELETE("/:postId", controller.DeletePost)
+	myPosts.POST("/:postId/upload", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UploadFile)
 }

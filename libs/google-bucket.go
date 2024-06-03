@@ -18,6 +18,7 @@ import (
 type IGoogleBucket interface {
 	HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error)
 	HandleObjectDeletion(objectUrl ...string) error
+	HandleObjectUploads(newObjectPath string, filepaths ...string) ([]string, error)
 }
 
 type GoogleBucket struct {
@@ -70,33 +71,65 @@ func (g *GoogleBucket) HandleObjectDeletion(objectUrls ...string) error {
 	return nil
 }
 
-func (g *GoogleBucket) HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error) {
+func (g *GoogleBucket) HandleObjectUploads(newObjectPath string, fileNames ...string) ([]string, error) {
+	var wg sync.WaitGroup
+
+	objectUrls := make([]string, len(fileNames))
+	errChan := make(chan error, len(fileNames))
+
+	for i, fileName := range fileNames {
+		fileDest := fmt.Sprintf("./storage/temp/file/%s", fileName)
+		bucketObject := fmt.Sprintf("%s/%s", newObjectPath, fileName)
+
+		// Construct the new object URL
+		objectUrls[i] = fmt.Sprintf("https://storage.googleapis.com/%s/%s", g.bucketName, bucketObject)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Upload the new file to the bucket
+			if err := uploadBucketObject(g.bucketName, bucketObject, fileDest); err != nil {
+				errChan <- fmt.Errorf("uploadBucketObject: %w", err)
+			}
+
+		}()
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return objectUrls, nil
+}
+
+func (g *GoogleBucket) HandleObjectUpload(file *multipart.FileHeader, newObjectPath string) (string, error) {
 	// Generate a new filename and save the file locally
-	newFilename := g.fs.GenerateNewFilename(imageFile.Filename)
+	newFilename := g.fs.GenerateNewFilename(file.Filename)
 	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+	bucketObject := fmt.Sprintf("%s/%s", newObjectPath, newFilename)
+
+	// Construct the new object URL
+	objectUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", g.bucketName, bucketObject)
 
 	// Save file to local temporary storage
-	if err := g.fs.SaveFile(imageFile, fileDest); err != nil {
+	if err := g.fs.SaveFile(file, fileDest); err != nil {
 		return "", fmt.Errorf("fileSystem.SaveFile: %w", err)
 	}
 
 	// Upload the new file to the bucket
-	bucketObject := fmt.Sprintf("%s/%s", newObjectPath, newFilename)
 	if err := uploadBucketObject(g.bucketName, bucketObject, fileDest); err != nil {
 		return "", fmt.Errorf("uploadBucketObject: %w", err)
 	}
 
-	// If file exists, delete it from the local temporary storage asynchronously
-	if fileDest != "" {
-		go func() {
-			if err := g.fs.RemoveFile(fileDest); err != nil {
-				g.log.Errorf("fileSystem.RemoveFile: %v", err)
-			}
-		}()
+	if err := g.fs.RemoveFile(fileDest); err != nil {
+		g.log.Errorf("fileSystem.RemoveFile: %v", err)
 	}
 
-	// Construct the new object URL
-	objectUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", g.bucketName, bucketObject)
 	return objectUrl, nil
 }
 

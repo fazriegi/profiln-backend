@@ -7,7 +7,7 @@ RETURNING *;
 -- name: GetDetailPost :one
 SELECT p.*, 
     pu.id, pu.avatar_url, pu.full_name, pu.bio, pu.open_to_work,
-	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
+	ARRAY_AGG(pi.url ORDER BY pi.index ASC) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
     CASE 
     	WHEN lp.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
@@ -56,7 +56,7 @@ FOR UPDATE;
 
 -- name: UpdatePostLikeCount :one
 UPDATE posts
-SET like_count = like_count + @value::smallint
+SET like_count = GREATEST(like_count + @value::smallint, 0)
 WHERE id = @id::bigint
 RETURNING id, like_count;
 
@@ -159,8 +159,8 @@ WHERE id = @id::bigint;
 
 -- name: BatchInsertPostImages :many
 INSERT INTO post_images
-	(post_id, url)
-SELECT @post_id::bigint, UNNEST(@url::TEXT[])
+	(post_id, url, index)
+SELECT @post_id::bigint, UNNEST(@url::TEXT[]), UNNEST(@index::smallint[])
 RETURNING *;
 
 -- name: GetPostImagesUrl :many
@@ -209,7 +209,7 @@ RETURNING id;
 
 -- name: UpdatePostRepostCount :one
 UPDATE posts
-SET repost_count = repost_count + @value::smallint
+SET repost_count = GREATEST(repost_count + @value::smallint, 0)
 WHERE id = @id::bigint
 RETURNING id, repost_count;
 
@@ -223,3 +223,8 @@ RETURNING id;
 DELETE FROM reposted_posts
 WHERE user_id = @user_id::bigint AND post_id = @post_id::bigint
 RETURNING id;
+
+-- name: CountPostImages :one
+SELECT COUNT(*) AS count
+FROM post_images
+WHERE post_id = @post_id::bigint;

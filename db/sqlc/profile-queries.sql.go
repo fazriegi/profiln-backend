@@ -1734,7 +1734,7 @@ func (q *Queries) UpdateUserFollowersCount(ctx context.Context, arg UpdateUserFo
 
 const updateUserFollowingsCount = `-- name: UpdateUserFollowingsCount :one
 UPDATE users
-SET followings_count =  GREATEST(followings_count + $1::smallint, 0)
+SET followings_count = GREATEST(followings_count + $1::smallint, 0)
 WHERE id = $2::bigint
 RETURNING followings_count
 `
