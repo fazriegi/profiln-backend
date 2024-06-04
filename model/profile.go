@@ -4,18 +4,22 @@ import (
 	"time"
 )
 
-type SkillRequest struct {
-	Name string `validate:"required"`
+type AddUserSkill struct {
+	UserId int64    `json:"user_id"`
+	Skills []string `json:"skills" validate:"required"`
 }
 
 type UserDetailAboutRequest struct {
 	About string `json:"about" validate:"required"`
-	// UserID sql.NullInt64
 }
 
-type UserDetailRequest struct {
-	PhoneNumber string `validate:"required"`
-	Gender      string `validate:"required"`
+type AddProfileRequest struct {
+	UserId      int64  `json:"user_id" form:"user_id"`
+	Fullname    string `json:"fullname" form:"fullname" validate:"required"`
+	Email       string `json:"email" form:"email" validate:"required,email"`
+	PhoneNumber string `json:"phone_number" form:"phone_number" validate:"required"`
+	Gender      string `json:"gender" form:"gender" validate:"required"`
+	AvatarUrl   string `json:"avatar_url"`
 }
 
 type UpdateProfileRequest struct {
@@ -120,16 +124,6 @@ type InsertCertificateResponse struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
-// type Certificate struct {
-// 	ID             int64  `json:"id"`
-// 	Name           string `json:"name"`
-// 	Organization   string `json:"origanization"`
-// 	IssueDate      string `json:"issue_date"`
-// 	ExpirationDate string `json:"expiration_date"`
-// 	CredentialID   string `json:"credential_id"`
-// 	Url            string `json:"url"`
-// }
-
 type UserDetailResponse struct {
 	ID              *int64     `json:"id"`
 	UserID          *int64     `json:"user_id"`
@@ -162,30 +156,3 @@ type UserSkills struct {
 	MainSkills  []string `json:"main_skills"`
 	OtherSkills []string `json:"other_skills"`
 }
-
-// type WorkExperience struct {
-// 	ID             int64    `json:"id"`
-// 	JobTitle       string   `json:"job_title"`
-// 	Company        Company  `json:"company"`
-// 	EmploymentType string   `json:"employment_type"`
-// 	Location       string   `json:"location"`
-// 	LocationType   string   `json:"location_type"`
-// 	StartDate      string   `json:"start_date"`
-// 	FinishDate     string   `json:"finish_date"`
-// 	Description    string   `json:"description"`
-// 	FileURLs       []string `json:"file_urls"`
-// 	Skills         []string `json:"skills"`
-// }
-
-// type Education struct {
-// 	ID           int64    `json:"id"`
-// 	School       School   `json:"school"`
-// 	Degree       string   `json:"degree"`
-// 	FieldOfStudy string   `json:"field_of_study"`
-// 	StartDate    string   `json:"start_date"`
-// 	FinishDate   string   `json:"finish_date"`
-// 	GPA          string   `json:"gpa"`
-// 	Description  string   `json:"description" `
-// 	FileURLs     []string `json:"file_urls"`
-// 	Skills       []string `json:"skills"`
-// }

@@ -27,6 +27,7 @@ type PaginationResponse struct {
 
 type User struct {
 	ID         int64  `json:"id"`
+	Email      string `json:"email"`
 	AvatarUrl  string `json:"avatar_url"`
 	Fullname   string `json:"fullname"`
 	Bio        string `json:"bio"`

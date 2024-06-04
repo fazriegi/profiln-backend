@@ -23,14 +23,10 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	usecase := profile.NewProfileUsecase(repository, log, googleBucket, fileSystem)
 	controller := http.NewProfileController(usecase)
 
-	profile := app.Group("profiles")
-	profile.Use(middleware.Authentication())
-	profile.POST("/user/skill", controller.InsertUserSkills)
-
 	app.Use(middleware.Authentication())
 
 	me := app.Group("users/me")
-	me.POST("/about", controller.InsertUserAbout)
+	me.POST("/skills", controller.InsertUserSkills)
 	me.PUT("/profile", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.UpdateProfile)
 	me.PUT("/about", controller.UpdateAboutMe)
 	me.PUT("/certificates/:certificateId", controller.UpdateUserCertificate)
@@ -42,6 +38,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	me.DELETE("/work-experiences/:workExperienceId", controller.DeleteUserWorkExperience)
 	me.DELETE("/educations/:educationId", controller.DeleteUserEducation)
 	me.DELETE("/certificates/:certificateId", controller.DeleteUserCertificate)
+	me.POST("/profile", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertUserProfile)
 	me.POST("/work-experiences", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats, fileSystem, log), controller.InsertUserWorkExperience)
 	me.POST("/educations", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats, fileSystem, log), controller.InsertUserEducation)
 	me.POST("/certificates", controller.InsertUserCertificate)

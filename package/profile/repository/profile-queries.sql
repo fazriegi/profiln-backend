@@ -1,12 +1,5 @@
--- name: InsertUserAvatar :exec
-UPDATE users
-SET avatar_url = $1,
-    updated_at = NOW()
-WHERE id = $2
-RETURNING *;
-
 -- name: GetUserById :one
-SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
 LIMIT 1;
@@ -16,14 +9,6 @@ UPDATE user_details
 SET about = @about::text,
     updated_at = NOW()
 WHERE user_id = @user_id::bigint;
-
--- name: InsertUserDetailAbout :one
-INSERT INTO user_details (
-  user_id, about
-) VALUES (
-  $1, $2
-)
-RETURNING *;
 
 -- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
@@ -63,20 +48,6 @@ RETURNING *;
 
 -- name: InsertIssuingOrganization :one
 INSERT INTO issuing_organizations (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING *;
-
--- name: InsertUserSkill :one
-INSERT INTO user_skills (
-  user_id, skill_id, main_skill
-) VALUES (
-   $1, $2, $3
-)
-RETURNING *;
-
--- name: InsertSkill :one
-INSERT INTO skills (name)
 VALUES ($1)
 ON CONFLICT (name) DO NOTHING
 RETURNING *;
@@ -159,6 +130,13 @@ SET full_name = $1,
     updated_at = NOW()
 WHERE id = $3
 RETURNING full_name, avatar_url;
+
+-- name: UpdateUserEmail :one
+UPDATE users
+SET email = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING email;
 
 -- name: UpdateUserDetailByUserId :one
 UPDATE user_details

@@ -12,10 +12,8 @@ import (
 )
 
 type IProfileRepository interface {
-	InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error)
+	InsertUserPersonalData(props *model.AddProfileRequest) error
 	InsertUserCertificate(props *model.Certificate) (model.Certificate, error)
-	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
-	InsertSkill(name string) (db.Skill, error)
 	InsertUserWorkExperience(props *model.WorkExperience) (model.WorkExperience, error)
 	InsertUserEducation(props *model.Education) (model.Education, error)
 	GetUserById(id int64) (model.User, error)
@@ -43,6 +41,8 @@ type IProfileRepository interface {
 	DeleteUserCertificateById(userId, certificateId int64) error
 	FollowUser(userId, targetUserId int64) error
 	UnfollowUser(userId, targetUserId int64) error
+	GetUserByEmail(email string) (model.User, error)
+	BatchInsertUserSkills(userId int64, skills []string) error
 }
 
 type ProfileRepository struct {
@@ -55,16 +55,6 @@ func NewProfileRepository(dbConn *sql.DB) IProfileRepository {
 		dbConn: dbConn,
 		query:  db.New(dbConn),
 	}
-}
-
-func (r *ProfileRepository) InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error) {
-	userAbout, err := r.query.InsertUserDetailAbout(context.Background(), arg)
-
-	if err != nil {
-		return db.UserDetail{}, err
-	}
-
-	return userAbout, nil
 }
 
 func (r *ProfileRepository) UpdateUserDetailAbout(arg db.UpdateUserDetailAboutParams) error {
@@ -224,26 +214,6 @@ func (r *ProfileRepository) InsertUserCertificate(props *model.Certificate) (mod
 	return *props, nil
 }
 
-func (r *ProfileRepository) InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error) {
-	userSkill, err := r.query.InsertUserSkill(context.Background(), arg)
-
-	if err != nil {
-		return db.UserSkill{}, err
-	}
-
-	return userSkill, nil
-}
-
-func (r *ProfileRepository) InsertSkill(name string) (db.Skill, error) {
-	skill, err := r.query.InsertSkill(context.Background(), name)
-
-	if err != nil {
-		return db.Skill{}, err
-	}
-
-	return skill, nil
-}
-
 func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 	user, err := r.query.GetUserById(context.Background(), id)
 
@@ -253,6 +223,7 @@ func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 
 	data := model.User{
 		ID:         user.ID,
+		Email:      user.Email,
 		Fullname:   user.FullName,
 		AvatarUrl:  user.AvatarUrl.String,
 		Bio:        user.Bio.String,
@@ -1337,6 +1308,89 @@ func (r *ProfileRepository) InsertUserEducation(props *model.Education) (model.E
 	props.ID = createdData.ID
 
 	return *props, nil
+}
+
+func (r *ProfileRepository) InsertUserPersonalData(props *model.AddProfileRequest) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.UpdateUserEmail(ctx, db.UpdateUserEmailParams{
+		Email: props.Email,
+		ID:    props.UserId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user email: %w", err)
+	}
+
+	_, err = qtx.UpdateUser(ctx, db.UpdateUserParams{
+		ID:        props.UserId,
+		FullName:  props.Fullname,
+		AvatarUrl: sql.NullString{String: props.AvatarUrl, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user: %w", err)
+	}
+
+	_, err = qtx.UpdateUserDetailByUserId(ctx, db.UpdateUserDetailByUserIdParams{
+		UserID:      props.UserId,
+		PhoneNumber: sql.NullString{String: props.PhoneNumber, Valid: true},
+		Gender:      sql.NullString{String: props.Gender, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user detail: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+
+}
+
+func (r *ProfileRepository) GetUserByEmail(email string) (model.User, error) {
+	user, err := r.query.GetUserByEmail(context.Background(), email)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	data := model.User{
+		ID:         user.ID,
+		Email:      user.Email,
+		Fullname:   user.FullName,
+		AvatarUrl:  user.AvatarUrl.String,
+		Bio:        user.Bio.String,
+		OpenToWork: user.OpenToWork.Bool,
+	}
+
+	return data, nil
+}
+
+func (r *ProfileRepository) BatchInsertUserSkills(userId int64, skills []string) error {
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = r.batchInsertUserSkills(context.Background(), qtx, userId, skills)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (r *ProfileRepository) getUserSocialLinks(userId int64) ([]model.SocialLinks, error) {

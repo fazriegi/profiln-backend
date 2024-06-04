@@ -783,7 +783,8 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+
+SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
 LIMIT 1
@@ -791,6 +792,7 @@ LIMIT 1
 
 type GetUserByIdRow struct {
 	ID              int64
+	Email           string
 	FullName        string
 	AvatarUrl       sql.NullString
 	Bio             sql.NullString
@@ -799,11 +801,20 @@ type GetUserByIdRow struct {
 	FollowingsCount sql.NullInt32
 }
 
+// -- name: InsertUserAvatar :exec
+// UPDATE users
+// SET avatar_url = $1,
+//
+//	updated_at = NOW()
+//
+// WHERE id = $2
+// RETURNING *;
 func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
 	var i GetUserByIdRow
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.FullName,
 		&i.AvatarUrl,
 		&i.Bio,
@@ -1313,97 +1324,6 @@ func (q *Queries) InsertSchool(ctx context.Context, name string) (School, error)
 	return i, err
 }
 
-const insertSkill = `-- name: InsertSkill :one
-INSERT INTO skills (name)
-VALUES ($1)
-ON CONFLICT (name) DO NOTHING
-RETURNING id, name
-`
-
-func (q *Queries) InsertSkill(ctx context.Context, name string) (Skill, error) {
-	row := q.db.QueryRowContext(ctx, insertSkill, name)
-	var i Skill
-	err := row.Scan(&i.ID, &i.Name)
-	return i, err
-}
-
-const insertUserAvatar = `-- name: InsertUserAvatar :exec
-UPDATE users
-SET avatar_url = $1,
-    updated_at = NOW()
-WHERE id = $2
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
-`
-
-type InsertUserAvatarParams struct {
-	AvatarUrl sql.NullString
-	ID        int64
-}
-
-func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarParams) error {
-	_, err := q.db.ExecContext(ctx, insertUserAvatar, arg.AvatarUrl, arg.ID)
-	return err
-}
-
-const insertUserDetailAbout = `-- name: InsertUserDetailAbout :one
-INSERT INTO user_details (
-  user_id, about
-) VALUES (
-  $1, $2
-)
-RETURNING id, user_id, phone_number, gender, location, portfolio_url, about, hide_phone_number, created_at, updated_at
-`
-
-type InsertUserDetailAboutParams struct {
-	UserID int64
-	About  sql.NullString
-}
-
-func (q *Queries) InsertUserDetailAbout(ctx context.Context, arg InsertUserDetailAboutParams) (UserDetail, error) {
-	row := q.db.QueryRowContext(ctx, insertUserDetailAbout, arg.UserID, arg.About)
-	var i UserDetail
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.PhoneNumber,
-		&i.Gender,
-		&i.Location,
-		&i.PortfolioUrl,
-		&i.About,
-		&i.HidePhoneNumber,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const insertUserSkill = `-- name: InsertUserSkill :one
-INSERT INTO user_skills (
-  user_id, skill_id, main_skill
-) VALUES (
-   $1, $2, $3
-)
-RETURNING id, user_id, skill_id, main_skill
-`
-
-type InsertUserSkillParams struct {
-	UserID    sql.NullInt64
-	SkillID   sql.NullInt64
-	MainSkill sql.NullBool
-}
-
-func (q *Queries) InsertUserSkill(ctx context.Context, arg InsertUserSkillParams) (UserSkill, error) {
-	row := q.db.QueryRowContext(ctx, insertUserSkill, arg.UserID, arg.SkillID, arg.MainSkill)
-	var i UserSkill
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.SkillID,
-		&i.MainSkill,
-	)
-	return i, err
-}
-
 const insertWorkExperience = `-- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
   user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description, created_at, updated_at
@@ -1697,6 +1617,26 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUserEmail = `-- name: UpdateUserEmail :one
+UPDATE users
+SET email = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING email
+`
+
+type UpdateUserEmailParams struct {
+	Email string
+	ID    int64
+}
+
+func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, updateUserEmail, arg.Email, arg.ID)
+	var email string
+	err := row.Scan(&email)
+	return email, err
 }
 
 const updateUserFollowersCount = `-- name: UpdateUserFollowersCount :one
