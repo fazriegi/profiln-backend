@@ -18,7 +18,7 @@ import (
 
 type IProfileUsecase interface {
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
-	InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response
+	InsertUserWorkExperience(fileNames []string, props *model.WorkExperience) model.Response
 	InsertUserEducation(filenames []string, props *model.Education) model.Response
 	InsertUserCertificate(props *model.Certificate) model.Response
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
@@ -27,7 +27,7 @@ type IProfileUsecase interface {
 	UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
 	UpdateUserEducation(fileNames []string, props *model.Education) (resp model.Response)
-	UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response)
+	UpdateUserWorkExperience(fileNames []string, props *model.WorkExperience) (resp model.Response)
 	AddUserOpenToWork(props *model.OpenToWork) model.Response
 	GetUserProfile(userId int64) model.Response
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
@@ -356,7 +356,7 @@ func (u *ProfileUsecase) UpdateUserEducation(fileNames []string, props *model.Ed
 	}
 }
 
-func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) (resp model.Response) {
+func (u *ProfileUsecase) UpdateUserWorkExperience(fileNames []string, props *model.WorkExperience) (resp model.Response) {
 	var (
 		err error
 	)
@@ -378,52 +378,29 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 
 	props.FileURLs = currentObjectUrls
 
-	if files != nil {
-		var wg sync.WaitGroup
+	if fileNames != nil {
 		objectPath := fmt.Sprintf("users/%d/work-experiences/files", props.UserId)
 
-		errChan := make(chan error, len(files))
-		urlChan := make(chan string, len(files))
+		defer func() {
+			for _, fileName := range fileNames {
+				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
 
-		// Loop through the files
-		for _, file := range files {
-			wg.Add(1)
-			file := file
-
-			// Handle object uploads to gcloud storage for each file asynchronously
-			go func(file *multipart.FileHeader) {
-				defer wg.Done()
-				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
-
-				if err != nil {
-					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
-					return
+				if err := u.fs.RemoveFile(filePath); err != nil {
+					u.log.Errorf("fileSystem.RemoveFile: %v", err)
 				}
+			}
+		}()
 
-				urlChan <- objectUrl
+		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
-			}(file)
-		}
-
-		wg.Wait()
-		close(errChan)
-		close(urlChan)
-
-		// Loop through error channel and check if any error occurred
-		for err := range errChan {
-			if err != nil {
-				resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-				u.log.Error(err)
-				return
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
 			}
 		}
 
-		// Empty the file urls
-		props.FileURLs = []string{}
-		// Loop through URL channel and append the URL to file URLs
-		for url := range urlChan {
-			props.FileURLs = append(props.FileURLs, url)
-		}
+		props.FileURLs = urls
 	}
 
 	err = u.repository.UpdateUserWorkExperience(props)
@@ -434,18 +411,13 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(files []*multipart.FileHeader,
 			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
 		}
 
-		if err == sql.ErrNoRows {
-			resp.Status = libs.CustomResponse(http.StatusNotFound, "Data not found")
-			return
-		}
-
 		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
 		u.log.Errorf("repository.UpdateUserWorkExperience (user id: %d): %v", props.UserId, err)
 		return
 	}
 
 	// If previous objects exists, delete it from gcloud storage
-	if len(currentObjectUrls) > 0 && files != nil {
+	if len(currentObjectUrls) > 0 {
 		err := u.googleBucket.HandleObjectDeletion(currentObjectUrls...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, err)
@@ -751,57 +723,34 @@ func (u *ProfileUsecase) UnfollowUser(userId, targetUserId int64) model.Response
 	}
 }
 
-func (u *ProfileUsecase) InsertUserWorkExperience(files []*multipart.FileHeader, props *model.WorkExperience) model.Response {
+func (u *ProfileUsecase) InsertUserWorkExperience(fileNames []string, props *model.WorkExperience) model.Response {
 	var (
 		err error
 	)
 
-	if files != nil {
-		var wg sync.WaitGroup
+	if len(fileNames) > 0 {
 		objectPath := fmt.Sprintf("users/%d/work-experiences/files", props.UserId)
 
-		errChan := make(chan error, len(files))
-		urlChan := make(chan string, len(files))
+		defer func() {
+			for _, fileName := range fileNames {
+				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
 
-		// Loop through the files
-		for _, file := range files {
-			wg.Add(1)
-			file := file
-
-			// Handle object uploads to gcloud storage for each file asynchronously
-			go func(file *multipart.FileHeader) {
-				defer wg.Done()
-				objectUrl, err := u.googleBucket.HandleObjectUpload(file, objectPath)
-
-				if err != nil {
-					errChan <- fmt.Errorf("googleBucket.HandleObjectUpload (user id: %d): %v", props.UserId, err)
-					return
+				if err := u.fs.RemoveFile(filePath); err != nil {
+					u.log.Errorf("fileSystem.RemoveFile: %v", err)
 				}
+			}
+		}()
 
-				urlChan <- objectUrl
+		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
-			}(file)
-		}
-
-		wg.Wait()
-		close(errChan)
-		close(urlChan)
-
-		// Loop through error channel and check if any error occurred
-		for err := range errChan {
-			if err != nil {
-				u.log.Error(err)
-
-				return model.Response{
-					Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
-				}
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
 			}
 		}
 
-		// Loop through URL channel and append the URL to file URLs
-		for url := range urlChan {
-			props.FileURLs = append(props.FileURLs, url)
-		}
+		props.FileURLs = urls
 	}
 
 	data, err := u.repository.InsertUserWorkExperience(props)

@@ -376,7 +376,7 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.WorkExperience
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -415,7 +415,7 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = workExperienceId
 
-	response = c.usecase.UpdateUserWorkExperience(files, &reqBody)
+	response = c.usecase.UpdateUserWorkExperience(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -789,7 +789,7 @@ func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.WorkExperience
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -818,7 +818,7 @@ func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertUserWorkExperience(files, &reqBody)
+	response = c.usecase.InsertUserWorkExperience(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
