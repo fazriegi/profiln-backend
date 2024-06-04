@@ -16,7 +16,7 @@ import (
 
 type IGoogleBucket interface {
 	HandleObjectDeletion(objectUrl ...string) error
-	HandleObjectUploads(newObjectPath string, filepaths ...string) ([]string, error)
+	HandleObjectUploads(userId int64, newObjectPath string, filepaths ...string) ([]string, error)
 }
 
 type GoogleBucket struct {
@@ -67,14 +67,14 @@ func (g *GoogleBucket) HandleObjectDeletion(objectUrls ...string) error {
 	return nil
 }
 
-func (g *GoogleBucket) HandleObjectUploads(newObjectPath string, fileNames ...string) ([]string, error) {
+func (g *GoogleBucket) HandleObjectUploads(userId int64, newObjectPath string, fileNames ...string) ([]string, error) {
 	var wg sync.WaitGroup
 
 	objectUrls := make([]string, len(fileNames))
 	errChan := make(chan error, len(fileNames))
 
 	for i, fileName := range fileNames {
-		fileDest := fmt.Sprintf("./storage/temp/file/%s", fileName)
+		fileDest := fmt.Sprintf("./storage/temp/users/%d/files/%s", userId, fileName)
 		bucketObject := fmt.Sprintf("%s/%s", newObjectPath, fileName)
 
 		// Construct the new object URL

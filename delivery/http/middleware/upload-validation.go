@@ -6,6 +6,7 @@ import (
 	"profiln-be/libs"
 	"profiln-be/model"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -15,6 +16,9 @@ func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []
 		respMessageSize := fmt.Sprintf("File is too large. Maximum allowed size is %d bytes", maxBytes)
 		respMessageCount := fmt.Sprintf("Too many files. Maximum allowed is %d files", maxTotalFile)
 		respMessageFormat := fmt.Sprintf("File format not allowed. Allowed formats are: %v", allowedExtensions)
+
+		userData := ctx.MustGet("userData").(jwt.MapClaims)
+		userId := int64(userData["id"].(float64))
 
 		form, err := ctx.MultipartForm()
 		if err != nil {
@@ -54,7 +58,7 @@ func ValidateFileUpload(maxBytes int64, maxTotalFile uint8, allowedExtensions []
 			}
 
 			newFilename := fs.GenerateNewFilename(file.Filename)
-			filePath := fmt.Sprintf("./storage/temp/file/%s", newFilename)
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", userId, newFilename)
 
 			if err := fs.SaveFile(file, filePath); err != nil {
 				log.Errorf("fileSystem.SaveFile: %v", err)

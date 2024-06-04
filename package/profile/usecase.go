@@ -168,14 +168,14 @@ func (u *ProfileUsecase) UpdateProfile(imageFileNames []string, props *model.Upd
 		objectPath := fmt.Sprintf("users/%d/avatar", props.UserId)
 
 		defer func() {
-			filePath := fmt.Sprintf("./storage/temp/file/%s", imageFileNames[0])
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
 
 			if err := u.fs.RemoveFile(filePath); err != nil {
 				u.log.Errorf("fileSystem.RemoveFile: %v", err)
 			}
 		}()
 
-		urls, err := u.googleBucket.HandleObjectUploads(objectPath, imageFileNames[0])
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
@@ -302,7 +302,7 @@ func (u *ProfileUsecase) UpdateUserEducation(fileNames []string, props *model.Ed
 	if len(fileNames) > 0 {
 		defer func() {
 			for _, fileName := range fileNames {
-				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+				filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, fileName)
 
 				if err := u.fs.RemoveFile(filePath); err != nil {
 					u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -312,7 +312,7 @@ func (u *ProfileUsecase) UpdateUserEducation(fileNames []string, props *model.Ed
 
 		objectPath := fmt.Sprintf("users/%d/educations/files", props.UserId)
 
-		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, fileNames...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
@@ -378,7 +378,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(fileNames []string, props *mod
 
 		defer func() {
 			for _, fileName := range fileNames {
-				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+				filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, fileName)
 
 				if err := u.fs.RemoveFile(filePath); err != nil {
 					u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -386,7 +386,7 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(fileNames []string, props *mod
 			}
 		}()
 
-		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, fileNames...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
@@ -728,7 +728,7 @@ func (u *ProfileUsecase) InsertUserWorkExperience(fileNames []string, props *mod
 
 		defer func() {
 			for _, fileName := range fileNames {
-				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+				filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, fileName)
 
 				if err := u.fs.RemoveFile(filePath); err != nil {
 					u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -736,7 +736,7 @@ func (u *ProfileUsecase) InsertUserWorkExperience(fileNames []string, props *mod
 			}
 		}()
 
-		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, fileNames...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
@@ -776,7 +776,7 @@ func (u *ProfileUsecase) InsertUserEducation(fileNames []string, props *model.Ed
 	if len(fileNames) > 0 {
 		defer func() {
 			for _, fileName := range fileNames {
-				filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+				filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, fileName)
 
 				if err := u.fs.RemoveFile(filePath); err != nil {
 					u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -786,7 +786,7 @@ func (u *ProfileUsecase) InsertUserEducation(fileNames []string, props *model.Ed
 
 		objectPath := fmt.Sprintf("users/%d/educations/files", props.UserId)
 
-		urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, fileNames...)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 

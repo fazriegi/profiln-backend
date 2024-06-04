@@ -469,7 +469,7 @@ func (u *PostsUsecase) UploadFileForInsertPost(userId, postId int64, fileNames [
 
 	defer func() {
 		for _, fileName := range fileNames {
-			filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", userId, fileName)
 
 			if err := u.fs.RemoveFile(filePath); err != nil {
 				u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -507,7 +507,7 @@ func (u *PostsUsecase) UploadFileForInsertPost(userId, postId int64, fileNames [
 
 	objectPath := fmt.Sprintf("users/%d/posts/files", userId)
 
-	urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+	urls, err := u.googleBucket.HandleObjectUploads(userId, objectPath, fileNames...)
 	if err != nil {
 		u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
@@ -552,7 +552,7 @@ func (u *PostsUsecase) UploadFileForUpdatePost(userId, postId int64, fileNames [
 
 	defer func() {
 		for _, fileName := range fileNames {
-			filePath := fmt.Sprintf("./storage/temp/file/%s", fileName)
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", userId, fileName)
 
 			if err := u.fs.RemoveFile(filePath); err != nil {
 				u.log.Errorf("fileSystem.RemoveFile: %v", err)
@@ -567,7 +567,7 @@ func (u *PostsUsecase) UploadFileForUpdatePost(userId, postId int64, fileNames [
 
 	objectPath := fmt.Sprintf("users/%d/posts/files", userId)
 
-	urls, err := u.googleBucket.HandleObjectUploads(objectPath, fileNames...)
+	urls, err := u.googleBucket.HandleObjectUploads(userId, objectPath, fileNames...)
 	if err != nil {
 		u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
 
