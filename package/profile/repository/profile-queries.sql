@@ -1,6 +1,7 @@
 -- name: InsertUserAvatar :exec
 UPDATE users
-SET avatar_url = $1
+SET avatar_url = $1,
+    updated_at = NOW()
 WHERE id = $2
 RETURNING *;
 
@@ -12,7 +13,8 @@ LIMIT 1;
 
 -- name: UpdateUserDetailAbout :exec
 UPDATE user_details
-SET about = @about::text
+SET about = @about::text,
+    updated_at = NOW()
 WHERE user_id = @user_id::bigint;
 
 -- name: InsertUserDetailAbout :one
@@ -25,17 +27,17 @@ RETURNING *;
 
 -- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
-  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description
+  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
 )
 RETURNING *;
 
 -- name: InsertEducation :one 
 INSERT INTO educations (
-  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8
+  $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
 )
 RETURNING *;
 
@@ -53,9 +55,9 @@ RETURNING *;
 
 -- name: InsertCertificate :one
 INSERT INTO certificates (
-  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url
+  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url, created_at, updated_at
 ) VALUES (
-   $1, $2, $3, $4, $5, $6, $7
+   $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
 )
 RETURNING *;
 
@@ -153,7 +155,8 @@ RETURNING id;
 -- name: UpdateUser :one
 UPDATE users
 SET full_name = $1,
-    avatar_url = $2
+    avatar_url = $2,
+    updated_at = NOW()
 WHERE id = $3
 RETURNING full_name, avatar_url;
 
@@ -161,7 +164,8 @@ RETURNING full_name, avatar_url;
 UPDATE user_details
 SET hide_phone_number = $2,
     phone_number = $3,
-    gender = $4
+    gender = $4,
+    updated_at = NOW()
 WHERE user_id = $1
 RETURNING hide_phone_number, phone_number, gender;
 
@@ -178,7 +182,8 @@ SET name = @name::text,
     issue_date = @issue_date::date, 
     expiration_date = @expiration_date::date, 
     credential_id = @credential_id::text, 
-    url = @url::text
+    url = @url::text,
+    updated_at = NOW()
 WHERE id = @id::bigint AND user_id = @user_id::bigint
 RETURNING id; 
 
@@ -200,7 +205,8 @@ SET phone_number = $2,
     location = $4,
     portfolio_url = $5,
     about = $6,
-    hide_phone_number = $7
+    hide_phone_number = $7,
+    updated_at = NOW()
 WHERE user_id = $1
 RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_number;
 
@@ -212,7 +218,8 @@ SET school_id = $2,
     gpa = $5,
     start_date = $6,
     finish_date = $7,
-    description = $8
+    description = $8,
+    updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -250,7 +257,8 @@ SET job_title = $2,
     location_type = $6,
     start_date = $7,
     finish_date = $8,
-    description = $9
+    description = $9,
+    updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -393,7 +401,8 @@ LIMIT $2;
 
 -- name: UpdateUserOpenToWork :one
 UPDATE users
-SET open_to_work = @open_to_work::boolean
+SET open_to_work = @open_to_work::boolean,
+    updated_at = NOW()
 WHERE id = @user_id::bigint
 RETURNING id;
 
@@ -447,13 +456,15 @@ FOR UPDATE;
 
 -- name: UpdateUserFollowingsCount :one
 UPDATE users
-SET followings_count = GREATEST(followings_count + @value::smallint, 0)
+SET followings_count = GREATEST(followings_count + @value::smallint, 0),
+    updated_at = NOW()
 WHERE id = @user_id::bigint
 RETURNING followings_count;
 
 -- name: UpdateUserFollowersCount :one
 UPDATE users
-SET followers_count = GREATEST(followers_count + @value::smallint, 0)
+SET followers_count = GREATEST(followers_count + @value::smallint, 0),
+    updated_at = NOW()
 WHERE id = @user_id::bigint
 RETURNING followers_count;
 

@@ -56,7 +56,8 @@ FOR UPDATE;
 
 -- name: UpdatePostLikeCount :one
 UPDATE posts
-SET like_count = GREATEST(like_count + @value::smallint, 0)
+SET like_count = GREATEST(like_count + @value::smallint, 0),
+    updated_at = NOW()
 WHERE id = @id::bigint
 RETURNING id, like_count;
 
@@ -210,7 +211,8 @@ RETURNING id;
 
 -- name: UpdatePostRepostCount :one
 UPDATE posts
-SET repost_count = GREATEST(repost_count + @value::smallint, 0)
+SET repost_count = GREATEST(repost_count + @value::smallint, 0),
+    updated_at = NOW()
 WHERE id = @id::bigint
 RETURNING id, repost_count;
 

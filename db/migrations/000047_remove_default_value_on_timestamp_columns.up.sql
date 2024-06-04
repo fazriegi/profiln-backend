@@ -1,3 +1,31 @@
 ALTER TABLE "posts"
 ALTER COLUMN "created_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "post_comments"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "post_comment_replies"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "educations"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "work_experiences"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "certificates"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "user_details"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+ALTER TABLE "users"
+ALTER COLUMN "created_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" DROP DEFAULT;
