@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -162,18 +161,12 @@ func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {
 
 func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 	var (
-		response  model.Response
-		reqBody   model.UpdateProfileRequest
-		imageFile *multipart.FileHeader
+		response model.Response
+		reqBody  model.UpdateProfileRequest
 	)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
-
-	// Get the first file
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
-	if files != nil {
-		imageFile = files[0]
-	}
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
 		response.Status =
@@ -200,7 +193,7 @@ func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.UpdateProfile(imageFile, &reqBody)
+	response = c.usecase.UpdateProfile(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -328,7 +321,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.Education
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -367,7 +360,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = educationId
 
-	response = c.usecase.UpdateUserEducation(files, &reqBody)
+	response = c.usecase.UpdateUserEducation(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -376,7 +369,7 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.WorkExperience
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -415,7 +408,7 @@ func (c *ProfileController) UpdateUserWorkExperience(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = workExperienceId
 
-	response = c.usecase.UpdateUserWorkExperience(files, &reqBody)
+	response = c.usecase.UpdateUserWorkExperience(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -789,7 +782,7 @@ func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.WorkExperience
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -818,7 +811,7 @@ func (c *ProfileController) InsertUserWorkExperience(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertUserWorkExperience(files, &reqBody)
+	response = c.usecase.InsertUserWorkExperience(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -827,7 +820,7 @@ func (c *ProfileController) InsertUserEducation(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.Education
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -856,6 +849,6 @@ func (c *ProfileController) InsertUserEducation(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertUserEducation(files, &reqBody)
+	response = c.usecase.InsertUserEducation(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }

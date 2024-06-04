@@ -904,7 +904,8 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) error {
 
 const updatePostLikeCount = `-- name: UpdatePostLikeCount :one
 UPDATE posts
-SET like_count = GREATEST(like_count + $1::smallint, 0)
+SET like_count = GREATEST(like_count + $1::smallint, 0),
+    updated_at = NOW()
 WHERE id = $2::bigint
 RETURNING id, like_count
 `
@@ -928,7 +929,8 @@ func (q *Queries) UpdatePostLikeCount(ctx context.Context, arg UpdatePostLikeCou
 
 const updatePostRepostCount = `-- name: UpdatePostRepostCount :one
 UPDATE posts
-SET repost_count = GREATEST(repost_count + $1::smallint, 0)
+SET repost_count = GREATEST(repost_count + $1::smallint, 0),
+    updated_at = NOW()
 WHERE id = $2::bigint
 RETURNING id, repost_count
 `

@@ -867,8 +867,6 @@ func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int6
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-
-
 SELECT 
     u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
     ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
@@ -893,25 +891,6 @@ type GetUserProfileRow struct {
 	About           sql.NullString
 }
 
-// -- name: GetUserCertificates :many
-// SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name
-// FROM users u
-// LEFT JOIN certificates c
-// ON u.id = c.user_id
-// LEFT JOIN
-// issuing_organizations i
-// ON c.issuing_organization_id = i.id
-// WHERE u.id = $1;
-// -- name: GetUserSkillsAndLocation :many
-// SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
-// FROM users u
-// LEFT JOIN user_skills us
-// ON u.id = us.user_id
-// LEFT JOIN skills s
-// ON us.skill_id = s.id
-// LEFT JOIN user_details ud
-// ON u.id = ud.user_id
-// WHERE u.id = $1;
 func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserProfile, id)
 	var i GetUserProfileRow
@@ -1168,9 +1147,9 @@ func (q *Queries) GetWorkExperiencesByUserId(ctx context.Context, arg GetWorkExp
 
 const insertCertificate = `-- name: InsertCertificate :one
 INSERT INTO certificates (
-  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url
+  user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url, created_at, updated_at
 ) VALUES (
-   $1, $2, $3, $4, $5, $6, $7
+   $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
 )
 RETURNING id, user_id, name, issuing_organization_id, issue_date, expiration_date, credential_id, url, created_at, updated_at
 `
@@ -1227,9 +1206,9 @@ func (q *Queries) InsertCompany(ctx context.Context, name string) (Company, erro
 
 const insertEducation = `-- name: InsertEducation :one
 INSERT INTO educations (
-  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description
+  user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8
+  $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
 )
 RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 `
@@ -1350,7 +1329,8 @@ func (q *Queries) InsertSkill(ctx context.Context, name string) (Skill, error) {
 
 const insertUserAvatar = `-- name: InsertUserAvatar :exec
 UPDATE users
-SET avatar_url = $1
+SET avatar_url = $1,
+    updated_at = NOW()
 WHERE id = $2
 RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
 `
@@ -1426,9 +1406,9 @@ func (q *Queries) InsertUserSkill(ctx context.Context, arg InsertUserSkillParams
 
 const insertWorkExperience = `-- name: InsertWorkExperience :one
 INSERT INTO work_experiences (
-  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description
+  user_id, job_title, company_id, employment_type, location, location_type, start_date, finish_date, description, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
 )
 RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, location_type, employment_type
 `
@@ -1493,7 +1473,8 @@ const updateUser = `-- name: UpdateUser :one
 
 UPDATE users
 SET full_name = $1,
-    avatar_url = $2
+    avatar_url = $2,
+    updated_at = NOW()
 WHERE id = $3
 RETURNING full_name, avatar_url
 `
@@ -1524,7 +1505,8 @@ SET name = $1::text,
     issue_date = $3::date, 
     expiration_date = $4::date, 
     credential_id = $5::text, 
-    url = $6::text
+    url = $6::text,
+    updated_at = NOW()
 WHERE id = $7::bigint AND user_id = $8::bigint
 RETURNING id
 `
@@ -1563,7 +1545,8 @@ SET phone_number = $2,
     location = $4,
     portfolio_url = $5,
     about = $6,
-    hide_phone_number = $7
+    hide_phone_number = $7,
+    updated_at = NOW()
 WHERE user_id = $1
 RETURNING id, phone_number, gender, location, portfolio_url, about, hide_phone_number
 `
@@ -1613,7 +1596,8 @@ func (q *Queries) UpdateUserDetail(ctx context.Context, arg UpdateUserDetailPara
 
 const updateUserDetailAbout = `-- name: UpdateUserDetailAbout :exec
 UPDATE user_details
-SET about = $1::text
+SET about = $1::text,
+    updated_at = NOW()
 WHERE user_id = $2::bigint
 `
 
@@ -1631,7 +1615,8 @@ const updateUserDetailByUserId = `-- name: UpdateUserDetailByUserId :one
 UPDATE user_details
 SET hide_phone_number = $2,
     phone_number = $3,
-    gender = $4
+    gender = $4,
+    updated_at = NOW()
 WHERE user_id = $1
 RETURNING hide_phone_number, phone_number, gender
 `
@@ -1669,7 +1654,8 @@ SET school_id = $2,
     gpa = $5,
     start_date = $6,
     finish_date = $7,
-    description = $8
+    description = $8,
+    updated_at = NOW()
 WHERE id = $1
 RETURNING id, user_id, school_id, degree, field_of_study, gpa, start_date, finish_date, description, created_at, updated_at
 `
@@ -1715,7 +1701,8 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 
 const updateUserFollowersCount = `-- name: UpdateUserFollowersCount :one
 UPDATE users
-SET followers_count = GREATEST(followers_count + $1::smallint, 0)
+SET followers_count = GREATEST(followers_count + $1::smallint, 0),
+    updated_at = NOW()
 WHERE id = $2::bigint
 RETURNING followers_count
 `
@@ -1734,7 +1721,8 @@ func (q *Queries) UpdateUserFollowersCount(ctx context.Context, arg UpdateUserFo
 
 const updateUserFollowingsCount = `-- name: UpdateUserFollowingsCount :one
 UPDATE users
-SET followings_count = GREATEST(followings_count + $1::smallint, 0)
+SET followings_count = GREATEST(followings_count + $1::smallint, 0),
+    updated_at = NOW()
 WHERE id = $2::bigint
 RETURNING followings_count
 `
@@ -1765,7 +1753,8 @@ func (q *Queries) UpdateUserMainSkillToFalse(ctx context.Context, userID int64) 
 
 const updateUserOpenToWork = `-- name: UpdateUserOpenToWork :one
 UPDATE users
-SET open_to_work = $1::boolean
+SET open_to_work = $1::boolean,
+    updated_at = NOW()
 WHERE id = $2::bigint
 RETURNING id
 `
@@ -1791,7 +1780,8 @@ SET job_title = $2,
     location_type = $6,
     start_date = $7,
     finish_date = $8,
-    description = $9
+    description = $9,
+    updated_at = NOW()
 WHERE id = $1
 RETURNING id, user_id, job_title, company_id, location, start_date, finish_date, description, created_at, updated_at, location_type, employment_type
 `
@@ -1841,7 +1831,7 @@ func (q *Queries) UpdateUserWorkExperience(ctx context.Context, arg UpdateUserWo
 const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec
 INSERT INTO user_social_links (user_id, platform, url)
 SELECT $1, $2, $3
-ON CONFLICT (user_id, social_link_id) DO UPDATE
+ON CONFLICT (user_id, platform) DO UPDATE
 SET url = EXCLUDED.url
 `
 

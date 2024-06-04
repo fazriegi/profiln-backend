@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/url"
 	"os"
 	"strings"
@@ -16,21 +15,18 @@ import (
 )
 
 type IGoogleBucket interface {
-	HandleObjectUpload(imageFile *multipart.FileHeader, newObjectPath string) (string, error)
 	HandleObjectDeletion(objectUrl ...string) error
-	HandleObjectUploads(newObjectPath string, filepaths ...string) ([]string, error)
+	HandleObjectUploads(userId int64, newObjectPath string, filepaths ...string) ([]string, error)
 }
 
 type GoogleBucket struct {
-	fs         IFileSystem
 	log        *logrus.Logger
 	bucketName string
 }
 
-func NewGoogleBucket(fs IFileSystem, log *logrus.Logger) IGoogleBucket {
+func NewGoogleBucket(log *logrus.Logger) IGoogleBucket {
 	return &GoogleBucket{
 		bucketName: os.Getenv("BUCKET_NAME"),
-		fs:         fs,
 		log:        log,
 	}
 }
@@ -71,14 +67,14 @@ func (g *GoogleBucket) HandleObjectDeletion(objectUrls ...string) error {
 	return nil
 }
 
-func (g *GoogleBucket) HandleObjectUploads(newObjectPath string, fileNames ...string) ([]string, error) {
+func (g *GoogleBucket) HandleObjectUploads(userId int64, newObjectPath string, fileNames ...string) ([]string, error) {
 	var wg sync.WaitGroup
 
 	objectUrls := make([]string, len(fileNames))
 	errChan := make(chan error, len(fileNames))
 
 	for i, fileName := range fileNames {
-		fileDest := fmt.Sprintf("./storage/temp/file/%s", fileName)
+		fileDest := fmt.Sprintf("./storage/temp/users/%d/files/%s", userId, fileName)
 		bucketObject := fmt.Sprintf("%s/%s", newObjectPath, fileName)
 
 		// Construct the new object URL
@@ -105,32 +101,6 @@ func (g *GoogleBucket) HandleObjectUploads(newObjectPath string, fileNames ...st
 	}
 
 	return objectUrls, nil
-}
-
-func (g *GoogleBucket) HandleObjectUpload(file *multipart.FileHeader, newObjectPath string) (string, error) {
-	// Generate a new filename and save the file locally
-	newFilename := g.fs.GenerateNewFilename(file.Filename)
-	fileDest := fmt.Sprintf("./storage/temp/file/%s", newFilename)
-	bucketObject := fmt.Sprintf("%s/%s", newObjectPath, newFilename)
-
-	// Construct the new object URL
-	objectUrl := fmt.Sprintf("https://storage.googleapis.com/%s/%s", g.bucketName, bucketObject)
-
-	// Save file to local temporary storage
-	if err := g.fs.SaveFile(file, fileDest); err != nil {
-		return "", fmt.Errorf("fileSystem.SaveFile: %w", err)
-	}
-
-	// Upload the new file to the bucket
-	if err := uploadBucketObject(g.bucketName, bucketObject, fileDest); err != nil {
-		return "", fmt.Errorf("uploadBucketObject: %w", err)
-	}
-
-	if err := g.fs.RemoveFile(fileDest); err != nil {
-		g.log.Errorf("fileSystem.RemoveFile: %v", err)
-	}
-
-	return objectUrl, nil
 }
 
 func uploadBucketObject(bucket, object, localFilepath string) error {

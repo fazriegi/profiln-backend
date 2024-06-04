@@ -1,8 +1,8 @@
 -- name: InsertUser :one
 INSERT INTO users (
-  email, password, full_name, verified_email
+  email, password, full_name, verified_email, created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, NOW(), NOW()
 )
 RETURNING *;
 
@@ -13,13 +13,15 @@ LIMIT 1;
 
 -- name: UpdateUserPassword :exec
 UPDATE users
-SET password = $2
+SET password = $2,
+    updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
 -- name: UpdateVerifiedEmail :one
 UPDATE users
-SET verified_email = TRUE
+SET verified_email = TRUE,
+    updated_at = NOW()
 FROM user_otps 
 WHERE users.id = user_otps.user_id AND user_otps.otp = $1 AND users.email = $2
 RETURNING users.id, users.email;
@@ -49,6 +51,6 @@ WHERE users.email = $1 AND users.verified_email = FALSE
 LIMIT 1;
 
 -- name: InsertUserDetail :one
-INSERT INTO user_details (user_id) 
-VALUES (@user_id::bigint)
+INSERT INTO user_details (user_id, created_at, updated_at) 
+VALUES (@user_id::bigint, NOW(), NOW())
 RETURNING *;

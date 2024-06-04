@@ -19,6 +19,7 @@ func ValidateRequest(data any) []ValidationErrResponse {
 	validate := validator.New()
 	validate.RegisterValidation("password", Password)               // register custom validator
 	validate.RegisterValidation("isNotEmptyArray", isNotEmptyArray) // register custom validator
+	validate.RegisterValidation("boolean", isBoolean)               // register custom validator
 
 	err := validate.Struct(data)
 	if err != nil {
@@ -58,4 +59,9 @@ func isNotEmptyArray(fl validator.FieldLevel) bool {
 	default:
 		return false
 	}
+}
+
+func isBoolean(fl validator.FieldLevel) bool {
+	field := fl.Field()
+	return field.Kind() == reflect.Bool
 }
