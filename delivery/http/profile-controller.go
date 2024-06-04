@@ -328,7 +328,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.Education
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -367,7 +367,7 @@ func (c *ProfileController) UpdateUserEducation(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = educationId
 
-	response = c.usecase.UpdateUserEducation(files, &reqBody)
+	response = c.usecase.UpdateUserEducation(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -827,7 +827,7 @@ func (c *ProfileController) InsertUserEducation(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.Education
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -856,6 +856,6 @@ func (c *ProfileController) InsertUserEducation(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.InsertUserEducation(files, &reqBody)
+	response = c.usecase.InsertUserEducation(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
