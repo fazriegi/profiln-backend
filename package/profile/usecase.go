@@ -15,6 +15,7 @@ import (
 )
 
 type IProfileUsecase interface {
+	InsertUserProfile(imageFileNames []string, props *model.AddProfileRequest) model.Response
 	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
 	InsertUserWorkExperience(fileNames []string, props *model.WorkExperience) model.Response
 	InsertUserEducation(filenames []string, props *model.Education) model.Response
@@ -161,8 +162,6 @@ func (u *ProfileUsecase) UpdateProfile(imageFileNames []string, props *model.Upd
 		u.log.Errorf("repository.GetUserAvatarById: %v", err)
 		return
 	}
-
-	// avatarUrl = currentAvatarUrl
 
 	if len(imageFileNames) > 0 {
 		objectPath := fmt.Sprintf("users/%d/avatar", props.UserId)
@@ -815,5 +814,69 @@ func (u *ProfileUsecase) InsertUserEducation(fileNames []string, props *model.Ed
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusCreated, "Success add user's education"),
 		Data:   data,
+	}
+}
+
+func (u *ProfileUsecase) InsertUserProfile(imageFileNames []string, props *model.AddProfileRequest) model.Response {
+	_, err := u.repository.GetUserById(props.UserId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	existingUser, err := u.repository.GetUserByEmail(props.Email)
+	if err != nil && err != sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	if existingUser.ID != props.UserId {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusBadRequest, "Email already exists"),
+		}
+	}
+
+	if len(imageFileNames) > 0 {
+		objectPath := fmt.Sprintf("users/%d/avatar", props.UserId)
+
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}()
+
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
+		}
+
+		props.AvatarUrl = urls[0]
+	}
+
+	err = u.repository.InsertUserPersonalData(props)
+	if err != nil {
+		u.log.Errorf("repository.InsertUserPersonalData (user id: %d): %v", props.UserId, err)
+
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.AvatarUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's personal data"),
+		Data:   props,
 	}
 }

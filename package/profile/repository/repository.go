@@ -12,6 +12,7 @@ import (
 )
 
 type IProfileRepository interface {
+	InsertUserPersonalData(props *model.AddProfileRequest) error
 	InsertUserDetailAbout(arg db.InsertUserDetailAboutParams) (db.UserDetail, error)
 	InsertUserCertificate(props *model.Certificate) (model.Certificate, error)
 	InsertUserSkill(arg db.InsertUserSkillParams) (db.UserSkill, error)
@@ -43,6 +44,7 @@ type IProfileRepository interface {
 	DeleteUserCertificateById(userId, certificateId int64) error
 	FollowUser(userId, targetUserId int64) error
 	UnfollowUser(userId, targetUserId int64) error
+	GetUserByEmail(email string) (model.User, error)
 }
 
 type ProfileRepository struct {
@@ -1338,6 +1340,68 @@ func (r *ProfileRepository) InsertUserEducation(props *model.Education) (model.E
 	props.ID = createdData.ID
 
 	return *props, nil
+}
+
+func (r *ProfileRepository) InsertUserPersonalData(props *model.AddProfileRequest) error {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.UpdateUserEmail(ctx, db.UpdateUserEmailParams{
+		Email: props.Email,
+		ID:    props.UserId,
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user email: %w", err)
+	}
+
+	_, err = qtx.UpdateUser(ctx, db.UpdateUserParams{
+		ID:        props.UserId,
+		FullName:  props.Fullname,
+		AvatarUrl: sql.NullString{String: props.AvatarUrl, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user: %w", err)
+	}
+
+	_, err = qtx.UpdateUserDetailByUserId(ctx, db.UpdateUserDetailByUserIdParams{
+		UserID:      props.UserId,
+		PhoneNumber: sql.NullString{String: props.PhoneNumber, Valid: true},
+		Gender:      sql.NullString{String: props.Gender, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user detail: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return nil
+
+}
+
+func (r *ProfileRepository) GetUserByEmail(email string) (model.User, error) {
+	user, err := r.query.GetUserByEmail(context.Background(), email)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	data := model.User{
+		ID:         user.ID,
+		Email:      user.Email,
+		Fullname:   user.FullName,
+		AvatarUrl:  user.AvatarUrl.String,
+		Bio:        user.Bio.String,
+		OpenToWork: user.OpenToWork.Bool,
+	}
+
+	return data, nil
 }
 
 func (r *ProfileRepository) getUserSocialLinks(userId int64) ([]model.SocialLinks, error) {

@@ -1,9 +1,9 @@
--- name: InsertUserAvatar :exec
-UPDATE users
-SET avatar_url = $1,
-    updated_at = NOW()
-WHERE id = $2
-RETURNING *;
+-- -- name: InsertUserAvatar :exec
+-- UPDATE users
+-- SET avatar_url = $1,
+--     updated_at = NOW()
+-- WHERE id = $2
+-- RETURNING *;
 
 -- name: GetUserById :one
 SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
@@ -159,6 +159,13 @@ SET full_name = $1,
     updated_at = NOW()
 WHERE id = $3
 RETURNING full_name, avatar_url;
+
+-- name: UpdateUserEmail :one
+UPDATE users
+SET email = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING email;
 
 -- name: UpdateUserDetailByUserId :one
 UPDATE user_details

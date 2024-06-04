@@ -783,6 +783,7 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
+
 SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
@@ -800,6 +801,14 @@ type GetUserByIdRow struct {
 	FollowingsCount sql.NullInt32
 }
 
+// -- name: InsertUserAvatar :exec
+// UPDATE users
+// SET avatar_url = $1,
+//
+//	updated_at = NOW()
+//
+// WHERE id = $2
+// RETURNING *;
 func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
 	var i GetUserByIdRow
@@ -1329,24 +1338,6 @@ func (q *Queries) InsertSkill(ctx context.Context, name string) (Skill, error) {
 	return i, err
 }
 
-const insertUserAvatar = `-- name: InsertUserAvatar :exec
-UPDATE users
-SET avatar_url = $1,
-    updated_at = NOW()
-WHERE id = $2
-RETURNING id, email, password, full_name, verified_email, avatar_url, bio, open_to_work, created_at, updated_at, deleted_at, followers_count, followings_count
-`
-
-type InsertUserAvatarParams struct {
-	AvatarUrl sql.NullString
-	ID        int64
-}
-
-func (q *Queries) InsertUserAvatar(ctx context.Context, arg InsertUserAvatarParams) error {
-	_, err := q.db.ExecContext(ctx, insertUserAvatar, arg.AvatarUrl, arg.ID)
-	return err
-}
-
 const insertUserDetailAbout = `-- name: InsertUserDetailAbout :one
 INSERT INTO user_details (
   user_id, about
@@ -1699,6 +1690,26 @@ func (q *Queries) UpdateUserEducation(ctx context.Context, arg UpdateUserEducati
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateUserEmail = `-- name: UpdateUserEmail :one
+UPDATE users
+SET email = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING email
+`
+
+type UpdateUserEmailParams struct {
+	Email string
+	ID    int64
+}
+
+func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, updateUserEmail, arg.Email, arg.ID)
+	var email string
+	err := row.Scan(&email)
+	return email, err
 }
 
 const updateUserFollowersCount = `-- name: UpdateUserFollowersCount :one

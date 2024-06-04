@@ -42,6 +42,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	me.DELETE("/work-experiences/:workExperienceId", controller.DeleteUserWorkExperience)
 	me.DELETE("/educations/:educationId", controller.DeleteUserEducation)
 	me.DELETE("/certificates/:certificateId", controller.DeleteUserCertificate)
+	me.POST("/profile", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertUserProfile)
 	me.POST("/work-experiences", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats, fileSystem, log), controller.InsertUserWorkExperience)
 	me.POST("/educations", middleware.ValidateFileUpload(int64(twoMegaBytes), 3, imageAndDocumentFormats, fileSystem, log), controller.InsertUserEducation)
 	me.POST("/certificates", controller.InsertUserCertificate)
