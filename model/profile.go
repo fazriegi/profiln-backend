@@ -8,44 +8,6 @@ type SkillRequest struct {
 	Name string `validate:"required"`
 }
 
-// type UserSkillRequest struct {
-// 	UserID    int64  `validate:"required"`
-// 	SkillID   int64  `validate:"required"`
-// 	MainSkill bool   `validate:"required"`
-// 	Skills    string `validate:"required"`
-// }
-
-// type CertificateRequest struct {
-// 	Name                  string  `validate:"required"`
-// 	IssuingOrganizationID int64   `validate:"required"`
-// 	IssueDate             string  `validate:"required"`
-// 	ExpirationDate        *string `validate:"omitempty"`
-// 	CredentialID          string  `validate:"required"`
-// 	Url                   string  `validate:"required"`
-// }
-
-// type WorkExperienceRequest struct {
-// 	// UserID           int64        `validate:"required"`
-// 	JobTitle       string       `validate:"required"`
-// 	CompanyID      int64        `validate:"required"`
-// 	EmploymentType string       `validate:"required"`
-// 	Location       string       `validate:"required"`
-// 	LocationType   string       `validate:"required"`
-// 	StartDate      sql.NullTime `validate:"required"`
-// 	FinishDate     sql.NullTime `validate:"required"`
-// 	Description    string       `validate:"required"`
-// }
-
-// type EducationRequest struct {
-// 	// UserID           int64        `validate:"required"`
-// 	SchoolID     int64        `validate:"required"`
-// 	Degree       string       `validate:"required"`
-// 	FieldOfStudy string       `validate:"required"`
-// 	Gpa          string       `validate:"required"`
-// 	StartDate    sql.NullTime `validate:"required"`
-// 	FinishDate   sql.NullTime `validate:"required"`
-// }
-
 type UserDetailAboutRequest struct {
 	About string `json:"about" validate:"required"`
 	// UserID sql.NullInt64

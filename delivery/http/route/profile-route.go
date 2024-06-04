@@ -18,7 +18,7 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	imageAndDocumentFormats := append(imageFormats, ".pdf", ".doc", ".docx")
 
 	fileSystem := libs.NewFileSystem()
-	googleBucket := libs.NewGoogleBucket(fileSystem, log)
+	googleBucket := libs.NewGoogleBucket(log)
 	repository := repository.NewProfileRepository(db)
 	usecase := profile.NewProfileUsecase(repository, log, googleBucket, fileSystem)
 	controller := http.NewProfileController(usecase)

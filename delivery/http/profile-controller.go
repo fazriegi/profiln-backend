@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -162,18 +161,12 @@ func (c *ProfileController) InsertUserAbout(ctx *gin.Context) {
 
 func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 	var (
-		response  model.Response
-		reqBody   model.UpdateProfileRequest
-		imageFile *multipart.FileHeader
+		response model.Response
+		reqBody  model.UpdateProfileRequest
 	)
+	fileNames := ctx.MustGet("fileNames").([]string)
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
-
-	// Get the first file
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
-	if files != nil {
-		imageFile = files[0]
-	}
 
 	if err := ctx.ShouldBind(&reqBody); err != nil {
 		response.Status =
@@ -200,7 +193,7 @@ func (c *ProfileController) UpdateProfile(ctx *gin.Context) {
 
 	reqBody.UserId = userId
 
-	response = c.usecase.UpdateProfile(imageFile, &reqBody)
+	response = c.usecase.UpdateProfile(fileNames, &reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 

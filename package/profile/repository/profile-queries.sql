@@ -172,7 +172,7 @@ RETURNING hide_phone_number, phone_number, gender;
 -- name: UpsertUserSocialLink :exec
 INSERT INTO user_social_links (user_id, platform, url)
 SELECT $1, $2, $3
-ON CONFLICT (user_id, social_link_id) DO UPDATE
+ON CONFLICT (user_id, platform) DO UPDATE
 SET url = EXCLUDED.url;
 
 -- name: UpdateUserCertificate :one
@@ -299,27 +299,6 @@ WHERE work_experience_id = @work_experience_id::bigint;
 SELECT us.id FROM user_skills us
 JOIN skills s ON us.skill_id = s.id
 WHERE s.name = ANY(@name::text[]);
-
--- -- name: GetUserCertificates :many
--- SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name 
--- FROM users u 
--- LEFT JOIN certificates c 
--- ON u.id = c.user_id 
--- LEFT JOIN 
--- issuing_organizations i 
--- ON c.issuing_organization_id = i.id
--- WHERE u.id = $1;
-
--- -- name: GetUserSkillsAndLocation :many
--- SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
--- FROM users u
--- LEFT JOIN user_skills us
--- ON u.id = us.user_id
--- LEFT JOIN skills s
--- ON us.skill_id = s.id
--- LEFT JOIN user_details ud
--- ON u.id = ud.user_id
--- WHERE u.id = $1;
 
 -- name: GetUserProfile :one
 SELECT 

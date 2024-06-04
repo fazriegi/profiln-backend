@@ -867,8 +867,6 @@ func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int6
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-
-
 SELECT 
     u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
     ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
@@ -893,25 +891,6 @@ type GetUserProfileRow struct {
 	About           sql.NullString
 }
 
-// -- name: GetUserCertificates :many
-// SELECT u.*, c.id, c.name, c.issue_date, c.expiration_date, c.credential_id, c.url, i.name
-// FROM users u
-// LEFT JOIN certificates c
-// ON u.id = c.user_id
-// LEFT JOIN
-// issuing_organizations i
-// ON c.issuing_organization_id = i.id
-// WHERE u.id = $1;
-// -- name: GetUserSkillsAndLocation :many
-// SELECT u.id, u.email, u.full_name, s.id, s.name, ud.*
-// FROM users u
-// LEFT JOIN user_skills us
-// ON u.id = us.user_id
-// LEFT JOIN skills s
-// ON us.skill_id = s.id
-// LEFT JOIN user_details ud
-// ON u.id = ud.user_id
-// WHERE u.id = $1;
 func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserProfile, id)
 	var i GetUserProfileRow
@@ -1852,7 +1831,7 @@ func (q *Queries) UpdateUserWorkExperience(ctx context.Context, arg UpdateUserWo
 const upsertUserSocialLink = `-- name: UpsertUserSocialLink :exec
 INSERT INTO user_social_links (user_id, platform, url)
 SELECT $1, $2, $3
-ON CONFLICT (user_id, social_link_id) DO UPDATE
+ON CONFLICT (user_id, platform) DO UPDATE
 SET url = EXCLUDED.url
 `
 

@@ -17,7 +17,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	imageFormats := []string{".png", ".jpg"}
 
 	fileSystem := libs.NewFileSystem()
-	googleBucket := libs.NewGoogleBucket(fileSystem, log)
+	googleBucket := libs.NewGoogleBucket(log)
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket, fileSystem)
 	controller := http.NewPostsController(usecase)

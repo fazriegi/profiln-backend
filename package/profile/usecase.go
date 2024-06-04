@@ -3,10 +3,8 @@ package profile
 import (
 	"database/sql"
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"strings"
-	"sync"
 
 	db "profiln-be/db/sqlc"
 	"profiln-be/libs"
@@ -22,7 +20,7 @@ type IProfileUsecase interface {
 	InsertUserEducation(filenames []string, props *model.Education) model.Response
 	InsertUserCertificate(props *model.Certificate) model.Response
 	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
-	UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response)
+	UpdateProfile(imageFileNames []string, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
 	UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response)
 	UpdateUserInformation(props *model.UpdateUserInformation) (resp model.Response)
@@ -151,7 +149,7 @@ func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutReque
 	return resp
 }
 
-func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *model.UpdateProfileRequest) (resp model.Response) {
+func (u *ProfileUsecase) UpdateProfile(imageFileNames []string, props *model.UpdateProfileRequest) (resp model.Response) {
 	var (
 		avatarUrl string
 		err       error
@@ -164,37 +162,34 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		return
 	}
 
-	avatarUrl = currentAvatarUrl
+	// avatarUrl = currentAvatarUrl
 
-	if imageFile != nil {
-		var wg sync.WaitGroup
+	if len(imageFileNames) > 0 {
 		objectPath := fmt.Sprintf("users/%d/avatar", props.UserId)
 
-		errChan := make(chan error, 1)
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/file/%s", imageFileNames[0])
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			var err error
-
-			avatarUrl, err = u.googleBucket.HandleObjectUpload(imageFile, objectPath)
-			if err != nil {
-				errChan <- fmt.Errorf("googleBucket.HandleObjectUpload: %v", err)
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
 			}
 		}()
-		wg.Wait()
-		close(errChan)
 
-		if err, ok := <-errChan; ok {
-			resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred")
-			u.log.Errorf("goroutine error: %v", err)
-			return
+		urls, err := u.googleBucket.HandleObjectUploads(objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
 		}
+
+		avatarUrl = urls[0]
 	}
 
 	err = u.repository.UpdateProfile(avatarUrl, props)
 	if err != nil {
-		errObjectDelete := u.googleBucket.HandleObjectDeletion(currentAvatarUrl)
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(avatarUrl)
 		if errObjectDelete != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", errObjectDelete)
 		}
@@ -204,7 +199,7 @@ func (u *ProfileUsecase) UpdateProfile(imageFile *multipart.FileHeader, props *m
 		return
 	}
 
-	if currentAvatarUrl != "" && imageFile != nil {
+	if currentAvatarUrl != "" {
 		err := u.googleBucket.HandleObjectDeletion(currentAvatarUrl)
 		if err != nil {
 			u.log.Errorf("googleBucket.HandleObjectDeletion: %v", err)
