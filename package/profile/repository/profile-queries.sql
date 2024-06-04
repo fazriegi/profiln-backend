@@ -6,7 +6,7 @@ WHERE id = $2
 RETURNING *;
 
 -- name: GetUserById :one
-SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
 LIMIT 1;

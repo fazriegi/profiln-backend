@@ -253,6 +253,7 @@ func (r *ProfileRepository) GetUserById(id int64) (model.User, error) {
 
 	data := model.User{
 		ID:         user.ID,
+		Email:      user.Email,
 		Fullname:   user.FullName,
 		AvatarUrl:  user.AvatarUrl.String,
 		Bio:        user.Bio.String,

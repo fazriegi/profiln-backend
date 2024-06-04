@@ -783,7 +783,7 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
+SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
 LIMIT 1
@@ -791,6 +791,7 @@ LIMIT 1
 
 type GetUserByIdRow struct {
 	ID              int64
+	Email           string
 	FullName        string
 	AvatarUrl       sql.NullString
 	Bio             sql.NullString
@@ -804,6 +805,7 @@ func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, er
 	var i GetUserByIdRow
 	err := row.Scan(
 		&i.ID,
+		&i.Email,
 		&i.FullName,
 		&i.AvatarUrl,
 		&i.Bio,
