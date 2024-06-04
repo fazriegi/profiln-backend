@@ -1,7 +1,6 @@
 package http
 
 import (
-	"mime/multipart"
 	"net/http"
 	"profiln-be/libs"
 	"profiln-be/model"
@@ -27,7 +26,8 @@ type IPostsController interface {
 	DeletePost(ctx *gin.Context)
 	RepostPost(ctx *gin.Context)
 	UnrepostPost(ctx *gin.Context)
-	UploadFile(ctx *gin.Context)
+	UploadFileForInsertPost(ctx *gin.Context)
+	UploadFileForUpdatePost(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -412,7 +412,7 @@ func (c *PostsController) UpdatePost(ctx *gin.Context) {
 		response model.Response
 		reqBody  model.UpdatePostRequest
 	)
-	files := ctx.MustGet("files").([]*multipart.FileHeader)
+
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
 
@@ -451,7 +451,7 @@ func (c *PostsController) UpdatePost(ctx *gin.Context) {
 	reqBody.UserId = userId
 	reqBody.ID = postId
 
-	response = c.usecase.UpdatePost(files, &reqBody)
+	response = c.usecase.UpdatePost(&reqBody)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -514,7 +514,7 @@ func (c *PostsController) UnrepostPost(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) UploadFile(ctx *gin.Context) {
+func (c *PostsController) UploadFileForInsertPost(ctx *gin.Context) {
 	var response model.Response
 
 	fileNames := ctx.MustGet("fileNames").([]string)
@@ -530,7 +530,28 @@ func (c *PostsController) UploadFile(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.UploadFile(userId, postId, fileNames)
+	response = c.usecase.UploadFileForInsertPost(userId, postId, fileNames)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UploadFileForUpdatePost(ctx *gin.Context) {
+	var response model.Response
+
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UploadFileForUpdatePost(userId, postId, fileNames)
 
 	ctx.JSON(response.Status.Code, response)
 }

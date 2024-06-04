@@ -11,20 +11,18 @@ type ReportPost struct {
 }
 
 type CreatePostRequest struct {
-	UserId     int64    `json:"user_id"`
-	Title      string   `json:"title" form:"title" validate:"required"`
-	Content    string   `json:"content" form:"content"`
-	ImageUrls  []string `json:"image_urls"`
-	Visibility string   `json:"visibility" form:"visibility" validate:"required"`
+	UserId     int64  `json:"user_id"`
+	Title      string `json:"title" form:"title" validate:"required"`
+	Content    string `json:"content" form:"content"`
+	Visibility string `json:"visibility" form:"visibility" validate:"required"`
 }
 
 type UpdatePostRequest struct {
-	ID         int64    `json:"id"`
-	UserId     int64    `json:"user_id"`
-	Title      string   `json:"title" form:"title" validate:"required"`
-	Content    string   `json:"content" form:"content"`
-	ImageUrls  []string `json:"image_urls"`
-	Visibility string   `json:"visibility" form:"visibility" validate:"required"`
+	ID         int64  `json:"id"`
+	UserId     int64  `json:"user_id"`
+	Title      string `json:"title" form:"title" validate:"required"`
+	Content    string `json:"content" form:"content"`
+	Visibility string `json:"visibility" form:"visibility" validate:"required"`
 }
 
 type Post struct {

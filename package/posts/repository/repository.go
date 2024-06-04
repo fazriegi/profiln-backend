@@ -431,19 +431,19 @@ func (r *PostsRepository) InsertPost(props *model.CreatePostRequest) (model.Post
 }
 
 func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
-	ctx := context.Background()
-	tx, err := r.dbConn.Begin()
-	if err != nil {
-		return fmt.Errorf("could not begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+	// ctx := context.Background()
+	// tx, err := r.dbConn.Begin()
+	// if err != nil {
+	// 	return fmt.Errorf("could not begin transaction: %w", err)
+	// }
+	// defer tx.Rollback()
 
-	qtx := r.query.WithTx(tx)
+	// qtx := r.query.WithTx(tx)
 
-	err = qtx.BatchDeletePostImagesByPost(ctx, props.ID)
-	if err != nil {
-		return fmt.Errorf("could not batch delete post images: %w", err)
-	}
+	// err = qtx.BatchDeletePostImagesByPost(ctx, props.ID)
+	// if err != nil {
+	// 	return fmt.Errorf("could not batch delete post images: %w", err)
+	// }
 
 	updatePostArg := db.UpdatePostParams{
 		ID:         props.ID,
@@ -452,21 +452,21 @@ func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
 		Content:    props.Content,
 		Visibility: props.Visibility,
 	}
-	if err = qtx.UpdatePost(ctx, updatePostArg); err != nil {
+	if err := r.query.UpdatePost(context.Background(), updatePostArg); err != nil {
 		return fmt.Errorf("could not update post: %w", err)
 	}
 
-	_, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
-		PostID: props.ID,
-		Url:    props.ImageUrls,
-	})
-	if err != nil {
-		return fmt.Errorf("could not insert post images: %w", err)
-	}
+	// _, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
+	// 	PostID: props.ID,
+	// 	Url:    props.ImageUrls,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("could not insert post images: %w", err)
+	// }
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("could not commit transaction: %w", err)
-	}
+	// if err := tx.Commit(); err != nil {
+	// 	return fmt.Errorf("could not commit transaction: %w", err)
+	// }
 
 	return nil
 }
@@ -683,18 +683,36 @@ func (r *PostsRepository) UnrepostPost(userId, postId int64) (*db.UpdatePostRepo
 }
 
 func (r *PostsRepository) BatchInsertPostImages(postId int64, urls []string) ([]db.PostImage, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	err = qtx.BatchDeletePostImagesByPost(ctx, postId)
+	if err != nil {
+		return nil, fmt.Errorf("could not batch delete post images: %w", err)
+	}
+
 	urlIndex := []int16{}
 	for i := range urls {
 		urlIndex = append(urlIndex, int16(i))
 	}
 
-	data, err := r.query.BatchInsertPostImages(context.Background(), db.BatchInsertPostImagesParams{
+	data, err := qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
 		PostID: postId,
 		Index:  urlIndex,
 		Url:    urls,
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
 	}
 
 	return data, nil

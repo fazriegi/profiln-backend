@@ -39,7 +39,8 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	myPosts.GET("/like", controller.ListLikedPostsByUserId)
 	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
 	myPosts.POST("/", controller.InsertPost)
-	myPosts.PATCH("/:postId", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UpdatePost)
+	myPosts.PATCH("/:postId", controller.UpdatePost)
 	myPosts.DELETE("/:postId", controller.DeletePost)
-	myPosts.POST("/:postId/upload", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UploadFile)
+	myPosts.POST("/:postId/upload", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UploadFileForInsertPost)
+	myPosts.PUT("/:postId/upload", middleware.ValidateFileUpload(int64(twoMegaBytes), 10, imageFormats, fileSystem, log), controller.UploadFileForUpdatePost)
 }

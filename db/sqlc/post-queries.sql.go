@@ -483,8 +483,8 @@ func (q *Queries) InsertLikedPost(ctx context.Context, arg InsertLikedPostParams
 
 const insertPost = `-- name: InsertPost :one
 INSERT INTO posts
-(user_id, title, content, visibility)
-VALUES ($1, $2, $3, $4)
+(user_id, title, content, visibility, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
 RETURNING id, user_id, content, like_count, comment_count, repost_count, created_at, updated_at, title, visibility
 `
 
@@ -878,7 +878,8 @@ const updatePost = `-- name: UpdatePost :exec
 UPDATE posts
 SET title = $1::text,
     content = $2::text,
-    visibility = $3::varchar(10)
+    visibility = $3::varchar(10),
+	updated_at = NOW()
 WHERE id = $4::bigint AND user_id = $5::bigint
 `
 

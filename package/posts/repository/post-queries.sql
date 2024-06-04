@@ -137,8 +137,8 @@ LIMIT $3;
 
 -- name: InsertPost :one
 INSERT INTO posts
-(user_id, title, content, visibility)
-VALUES ($1, $2, $3, $4)
+(user_id, title, content, visibility, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
 RETURNING *;
 
 -- name: GetPostById :one
@@ -150,7 +150,8 @@ LIMIT 1;
 UPDATE posts
 SET title = @title::text,
     content = @content::text,
-    visibility = @visibility::varchar(10)
+    visibility = @visibility::varchar(10),
+	updated_at = NOW()
 WHERE id = @id::bigint AND user_id = @user_id::bigint;
 
 -- name: DeletePostById :exec
