@@ -23,14 +23,10 @@ func NewProfileRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	usecase := profile.NewProfileUsecase(repository, log, googleBucket, fileSystem)
 	controller := http.NewProfileController(usecase)
 
-	profile := app.Group("profiles")
-	profile.Use(middleware.Authentication())
-	profile.POST("/user/skill", controller.InsertUserSkills)
-
 	app.Use(middleware.Authentication())
 
 	me := app.Group("users/me")
-	me.POST("/about", controller.InsertUserAbout)
+	me.POST("/skills", controller.InsertUserSkills)
 	me.PUT("/profile", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.UpdateProfile)
 	me.PUT("/about", controller.UpdateAboutMe)
 	me.PUT("/certificates/:certificateId", controller.UpdateUserCertificate)

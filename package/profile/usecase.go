@@ -4,9 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"strings"
 
-	db "profiln-be/db/sqlc"
 	"profiln-be/libs"
 	"profiln-be/model"
 	repository "profiln-be/package/profile/repository"
@@ -16,11 +14,10 @@ import (
 
 type IProfileUsecase interface {
 	InsertUserProfile(imageFileNames []string, props *model.AddProfileRequest) model.Response
-	InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response)
 	InsertUserWorkExperience(fileNames []string, props *model.WorkExperience) model.Response
 	InsertUserEducation(filenames []string, props *model.Education) model.Response
 	InsertUserCertificate(props *model.Certificate) model.Response
-	InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response)
+	InsertUserSkills(props *model.AddUserSkill) model.Response
 	UpdateProfile(imageFileNames []string, props *model.UpdateProfileRequest) (resp model.Response)
 	UpdateAboutMe(userId int64, aboutMe string) (resp model.Response)
 	UpdateUserCertificate(userId int64, props *model.Certificate) (resp model.Response)
@@ -58,50 +55,20 @@ func NewProfileUsecase(repository repository.IProfileRepository, log *logrus.Log
 	}
 }
 
-func (u *ProfileUsecase) InsertSkill(props *model.SkillRequest) (resp model.Response) {
-	skill, err := u.repository.InsertSkill(props.Name)
-
+func (u *ProfileUsecase) InsertUserSkills(props *model.AddUserSkill) (resp model.Response) {
+	err := u.repository.BatchInsertUserSkills(props.UserId, props.Skills)
 	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertSkill %v", err)
-	}
+		u.log.Errorf("repository.BatchInsertUserSkills (user id: %d): %v", props.UserId, err)
 
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create skill")
-	resp.Data = skill
-	return resp
-}
-
-func (u *ProfileUsecase) InsertUserSkill(props *model.SkillRequest, id int64) (resp model.Response) {
-	data := strings.Split(props.Name, ",")
-
-	for _, value := range data {
-
-		skill, err := u.repository.InsertSkill(strings.ToLower(value))
-
-		if err != nil {
-			resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-			u.log.Errorf("repository.InsertSkill %v, while %v", err, value)
-			return
-		}
-
-		userSkillParams := db.InsertUserSkillParams{
-			UserID:    sql.NullInt64{Int64: id, Valid: true},
-			SkillID:   sql.NullInt64{Int64: skill.ID, Valid: true},
-			MainSkill: sql.NullBool{Bool: false, Valid: true},
-		}
-
-		_, err = u.repository.InsertUserSkill(userSkillParams)
-
-		if err != nil {
-			resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-			u.log.Errorf("repository.InsertUserSkill %v", err)
-			return
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
 		}
 	}
 
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create skills")
-	resp.Data = data
-	return resp
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success add user's skills"),
+		Data:   props,
+	}
 }
 
 func (u *ProfileUsecase) InsertUserCertificate(props *model.Certificate) model.Response {
@@ -118,36 +85,6 @@ func (u *ProfileUsecase) InsertUserCertificate(props *model.Certificate) model.R
 		Status: libs.CustomResponse(http.StatusCreated, "Success add user's certificate"),
 		Data:   data,
 	}
-}
-
-func (u *ProfileUsecase) InsertUserDetailAbout(props *model.UserDetailAboutRequest, id int64) (resp model.Response) {
-	insertAboutParams := db.InsertUserDetailAboutParams{
-		About:  sql.NullString{String: props.About, Valid: true},
-		UserID: id,
-	}
-
-	_, err := u.repository.GetUserById(id)
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "User not found")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserById: %v", err)
-		return
-	}
-
-	about, err := u.repository.InsertUserDetailAbout(insertAboutParams)
-
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("repository.InsertUserDetailAbout %v", err)
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusCreated, "Success to create user about")
-	resp.Data = about.About.String
-	return resp
 }
 
 func (u *ProfileUsecase) UpdateProfile(imageFileNames []string, props *model.UpdateProfileRequest) (resp model.Response) {
