@@ -281,10 +281,15 @@ WHERE s.name = ANY(@name::text[]);
 -- name: GetUserProfile :one
 SELECT 
     u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
-    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about,
+    CASE
+    	WHEN f.user_id IS NOT NULL THEN true
+    	ELSE false
+    END AS is_following
 FROM users u
-LEFT JOIN user_details ud ON u.id = ud.user_id 
-WHERE u.id = $1
+LEFT JOIN user_details ud ON u.id = ud.user_id
+LEFT JOIN followings f ON u.id = f.follow_user_id AND f.user_id = @user_id::bigint
+WHERE u.id = @target_user_id::bigint
 LIMIT 1;
 
 -- name: GetUserSocialLinks :many

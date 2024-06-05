@@ -783,7 +783,6 @@ func (q *Queries) GetUserAvatarById(ctx context.Context, id int64) (sql.NullStri
 }
 
 const getUserById = `-- name: GetUserById :one
-
 SELECT u.id, u.email, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count
 FROM users u
 WHERE u.id = $1
@@ -801,14 +800,6 @@ type GetUserByIdRow struct {
 	FollowingsCount sql.NullInt32
 }
 
-// -- name: InsertUserAvatar :exec
-// UPDATE users
-// SET avatar_url = $1,
-//
-//	updated_at = NOW()
-//
-// WHERE id = $2
-// RETURNING *;
 func (q *Queries) GetUserById(ctx context.Context, id int64) (GetUserByIdRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserById, id)
 	var i GetUserByIdRow
@@ -880,12 +871,22 @@ func (q *Queries) GetUserEducationFileURLs(ctx context.Context, educationID int6
 const getUserProfile = `-- name: GetUserProfile :one
 SELECT 
     u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work, u.followers_count, u.followings_count,
-    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about
+    ud.phone_number, ud.gender, ud.location, ud.portfolio_url, ud.about,
+    CASE
+    	WHEN f.user_id IS NOT NULL THEN true
+    	ELSE false
+    END AS is_following
 FROM users u
-LEFT JOIN user_details ud ON u.id = ud.user_id 
-WHERE u.id = $1
+LEFT JOIN user_details ud ON u.id = ud.user_id
+LEFT JOIN followings f ON u.id = f.follow_user_id AND f.user_id = $1::bigint
+WHERE u.id = $2::bigint
 LIMIT 1
 `
+
+type GetUserProfileParams struct {
+	UserID       int64
+	TargetUserID int64
+}
 
 type GetUserProfileRow struct {
 	ID              int64
@@ -900,10 +901,11 @@ type GetUserProfileRow struct {
 	Location        sql.NullString
 	PortfolioUrl    sql.NullString
 	About           sql.NullString
+	IsFollowing     bool
 }
 
-func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserProfile, id)
+func (q *Queries) GetUserProfile(ctx context.Context, arg GetUserProfileParams) (GetUserProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, arg.UserID, arg.TargetUserID)
 	var i GetUserProfileRow
 	err := row.Scan(
 		&i.ID,
@@ -918,6 +920,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, id int64) (GetUserProfileR
 		&i.Location,
 		&i.PortfolioUrl,
 		&i.About,
+		&i.IsFollowing,
 	)
 	return i, err
 }

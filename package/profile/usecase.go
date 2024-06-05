@@ -25,7 +25,7 @@ type IProfileUsecase interface {
 	UpdateUserEducation(fileNames []string, props *model.Education) (resp model.Response)
 	UpdateUserWorkExperience(fileNames []string, props *model.WorkExperience) (resp model.Response)
 	AddUserOpenToWork(props *model.OpenToWork) model.Response
-	GetUserProfile(userId int64) model.Response
+	GetUserProfile(userId, targetUserId int64) model.Response
 	GetWorkExperiencesByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetEducationsByUserId(userId int64, pagination model.PaginationRequest) model.Response
 	GetCertificatesByUserId(userId int64, pagination model.PaginationRequest) model.Response
@@ -361,8 +361,8 @@ func (u *ProfileUsecase) UpdateUserWorkExperience(fileNames []string, props *mod
 	}
 }
 
-func (u *ProfileUsecase) GetUserProfile(userId int64) model.Response {
-	data, err := u.repository.GetUserProfile(userId)
+func (u *ProfileUsecase) GetUserProfile(userId, targetUserId int64) model.Response {
+	data, err := u.repository.GetUserProfile(userId, targetUserId)
 	if err != nil && err == sql.ErrNoRows {
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
