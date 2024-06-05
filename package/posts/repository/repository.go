@@ -19,9 +19,9 @@ type IPostsRepository interface {
 	GetPostCommentReplies(postId, postCommentId int64, offset, limit int32) ([]db.GetPostCommentRepliesRow, int64, error)
 	LikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error)
 	UnlikePost(userId, postId int64) (*db.UpdatePostLikeCountRow, error)
-	ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
-	ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
-	ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error)
+	ListNewestPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error)
+	ListLikedPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error)
+	ListRepostedPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error)
 	InsertPost(props *model.CreatePostRequest) (model.Post, error)
 	UpdatePostById(props *model.UpdatePostRequest) error
 	GetPostById(postId int64) (model.Post, error)
@@ -242,15 +242,15 @@ func (r *PostsRepository) UnlikePost(userId, postId int64) (*db.UpdatePostLikeCo
 	return &post, nil
 }
 
-func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := db.ListNewestPostsByUserIdParams{
-		UserID: sql.NullInt64{Int64: userId, Valid: true},
-		Offset: offset,
-		Limit:  limit,
+func (r *PostsRepository) ListNewestPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error) {
+	arg := db.ListNewestPostsByTargetUserParams{
+		UserID:       userId,
+		Offset:       offset,
+		Limit:        limit,
+		TargetUserID: targetUserId,
 	}
-	fmt.Println(arg)
 
-	data, err := r.query.ListNewestPostsByUserId(context.Background(), arg)
+	data, err := r.query.ListNewestPostsByTargetUser(context.Background(), arg)
 	if err != nil {
 		return []model.Post{}, 0, err
 	}
@@ -295,14 +295,15 @@ func (r *PostsRepository) ListNewestPostsByUserId(userId int64, offset, limit in
 	return posts, count, nil
 }
 
-func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := db.ListLikedPostsByUserIdParams{
-		UserID: sql.NullInt64{Int64: userId, Valid: true},
-		Offset: offset,
-		Limit:  limit,
+func (r *PostsRepository) ListLikedPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error) {
+	arg := db.ListLikedPostsByTargetUserParams{
+		UserID:       userId,
+		Offset:       offset,
+		Limit:        limit,
+		TargetUserID: targetUserId,
 	}
 
-	data, err := r.query.ListLikedPostsByUserId(context.Background(), arg)
+	data, err := r.query.ListLikedPostsByTargetUser(context.Background(), arg)
 	if err != nil {
 		return []model.Post{}, 0, err
 	}
@@ -347,14 +348,15 @@ func (r *PostsRepository) ListLikedPostsByUserId(userId int64, offset, limit int
 	return posts, count, nil
 }
 
-func (r *PostsRepository) ListRepostedPostsByUserId(userId int64, offset, limit int32) ([]model.Post, int64, error) {
-	arg := db.ListRepostedPostsByUserIdParams{
-		UserID: sql.NullInt64{Int64: userId, Valid: true},
-		Offset: offset,
-		Limit:  limit,
+func (r *PostsRepository) ListRepostedPostsByTargetUser(userId, targetUserId int64, offset, limit int32) ([]model.Post, int64, error) {
+	arg := db.ListRepostedPostsByTargetUserParams{
+		UserID:       userId,
+		Offset:       offset,
+		Limit:        limit,
+		TargetUserID: targetUserId,
 	}
 
-	data, err := r.query.ListRepostedPostsByUserId(context.Background(), arg)
+	data, err := r.query.ListRepostedPostsByTargetUser(context.Background(), arg)
 	if err != nil {
 		return []model.Post{}, 0, err
 	}

@@ -18,9 +18,9 @@ type IPostsUsecase interface {
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
 	LikePost(userId, postId int64) model.Response
 	UnlikePost(userId, postId int64) model.Response
-	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListNewestPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListLikedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListRepostedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
 	InsertPost(props *model.CreatePostRequest) model.Response
 	UpdatePost(props *model.UpdatePostRequest) model.Response
 	DeletePost(userId, postId int64) model.Response
@@ -53,12 +53,6 @@ func (u *PostsUsecase) InsertReportedPost(userId int64, props *model.ReportPost)
 		u.log.Errorf("repository.InsertReportedPost: %v", err)
 		return
 	}
-
-	// data := model.ReportPost{
-	// 	PostId:  reportedPost.PostID.Int64,
-	// 	Reason:  reportedPost.Reason.String,
-	// 	Message: reportedPost.Message.String,
-	// }
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success report post")
 	resp.Data = props
@@ -225,12 +219,12 @@ func (u *PostsUsecase) UnlikePost(userId, postId int64) model.Response {
 	}
 }
 
-func (u *PostsUsecase) ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListNewestPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListNewestPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListNewestPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListNewestPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListNewestPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}
@@ -253,12 +247,12 @@ func (u *PostsUsecase) ListNewestPostsByUserId(userId int64, pagination model.Pa
 	return
 }
 
-func (u *PostsUsecase) ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListLikedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListLikedPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListLikedPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListLikedPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListLikedPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}
@@ -281,12 +275,12 @@ func (u *PostsUsecase) ListLikedPostsByUserId(userId int64, pagination model.Pag
 	return
 }
 
-func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListRepostedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListRepostedPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListRepostedPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListRepostedPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListRepostedPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}

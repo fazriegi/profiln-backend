@@ -569,13 +569,13 @@ func (q *Queries) InsertRepostedPost(ctx context.Context, arg InsertRepostedPost
 	return id, err
 }
 
-const listLikedPostsByUserId = `-- name: ListLikedPostsByUserId :many
+const listLikedPostsByTargetUser = `-- name: ListLikedPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
-    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	WHEN lp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS liked,
 	CASE 
@@ -584,24 +584,26 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN liked_posts lp2 ON p.id = lp2.post_id AND lp2.user_id = $4::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $4::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE lp.user_id = $1
+WHERE lp.user_id = $3::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
+    p.id, u.id, lp.user_id, rpp.user_id, lp2.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+OFFSET $1
+LIMIT $2
 `
 
-type ListLikedPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListLikedPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	TargetUserID int64
+	UserID       int64
 }
 
-type ListLikedPostsByUserIdRow struct {
+type ListLikedPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -623,15 +625,20 @@ type ListLikedPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPostsByUserIdParams) ([]ListLikedPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listLikedPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListLikedPostsByTargetUser(ctx context.Context, arg ListLikedPostsByTargetUserParams) ([]ListLikedPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLikedPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.TargetUserID,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListLikedPostsByUserIdRow
+	var items []ListLikedPostsByTargetUserRow
 	for rows.Next() {
-		var i ListLikedPostsByUserIdRow
+		var i ListLikedPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -666,7 +673,7 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 	return items, nil
 }
 
-const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
+const listNewestPostsByTargetUser = `-- name: ListNewestPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -681,24 +688,25 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $3::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE p.user_id = $1
+WHERE p.user_id = $4::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+OFFSET $1
+LIMIT $2
 `
 
-type ListNewestPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListNewestPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	UserID       int64
+	TargetUserID int64
 }
 
-type ListNewestPostsByUserIdRow struct {
+type ListNewestPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -720,15 +728,20 @@ type ListNewestPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPostsByUserIdParams) ([]ListNewestPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listNewestPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListNewestPostsByTargetUser(ctx context.Context, arg ListNewestPostsByTargetUserParams) ([]ListNewestPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listNewestPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.UserID,
+		arg.TargetUserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListNewestPostsByUserIdRow
+	var items []ListNewestPostsByTargetUserRow
 	for rows.Next() {
-		var i ListNewestPostsByUserIdRow
+		var i ListNewestPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -763,7 +776,7 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 	return items, nil
 }
 
-const listRepostedPostsByUserId = `-- name: ListRepostedPostsByUserId :many
+const listRepostedPostsByTargetUser = `-- name: ListRepostedPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -773,29 +786,31 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
     	ELSE FALSE 
   	END AS liked,
 	CASE 
-    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	WHEN rpp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $4::bigint
+LEFT JOIN reposted_posts rpp2 ON p.id = rpp2.post_id AND rpp2.user_id = $3::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE rpp.user_id = $1
+WHERE rpp.user_id = $4::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
+    p.id, u.id, lp.user_id, rpp.user_id, rpp2.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+OFFSET $1
+LIMIT $2
 `
 
-type ListRepostedPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListRepostedPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	UserID       int64
+	TargetUserID int64
 }
 
-type ListRepostedPostsByUserIdRow struct {
+type ListRepostedPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -817,15 +832,20 @@ type ListRepostedPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListRepostedPostsByUserIdParams) ([]ListRepostedPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRepostedPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListRepostedPostsByTargetUser(ctx context.Context, arg ListRepostedPostsByTargetUserParams) ([]ListRepostedPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRepostedPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.UserID,
+		arg.TargetUserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRepostedPostsByUserIdRow
+	var items []ListRepostedPostsByTargetUserRow
 	for rows.Next() {
-		var i ListRepostedPostsByUserIdRow
+		var i ListRepostedPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,

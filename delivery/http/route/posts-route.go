@@ -24,6 +24,10 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 
 	app.Use(middleware.Authentication())
 
+	app.GET("/users/:userId/posts", controller.ListNewestPostsByTargetUser)
+	app.GET("/users/:userId/posts/like", controller.ListLikedPostsByTargetUser)
+	app.GET("/users/:userId/posts/repost", controller.ListRepostedPostsByTargetUser)
+
 	posts := app.Group("posts")
 	posts.POST("/:postId/report", controller.ReportPost)
 	posts.GET("/:postId", controller.GetDetailPost)
@@ -35,9 +39,6 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.POST("/:postId/unrepost", controller.UnrepostPost)
 
 	myPosts := app.Group("users/me/posts")
-	myPosts.GET("/", controller.ListNewestPostsByUserId)
-	myPosts.GET("/like", controller.ListLikedPostsByUserId)
-	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
 	myPosts.POST("/", controller.InsertPost)
 	myPosts.PATCH("/:postId", controller.UpdatePost)
 	myPosts.DELETE("/:postId", controller.DeletePost)

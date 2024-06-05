@@ -18,9 +18,9 @@ type IPostsController interface {
 	GetPostCommentReplies(ctx *gin.Context)
 	LikePost(ctx *gin.Context)
 	UnlikePost(ctx *gin.Context)
-	ListNewestPostsByUserId(ctx *gin.Context)
-	ListLikedPostsByUserId(ctx *gin.Context)
-	ListRepostedPostsByUserId(ctx *gin.Context)
+	ListNewestPostsByTargetUser(ctx *gin.Context)
+	ListLikedPostsByTargetUser(ctx *gin.Context)
+	ListRepostedPostsByTargetUser(ctx *gin.Context)
 	InsertPost(ctx *gin.Context)
 	UpdatePost(ctx *gin.Context)
 	DeletePost(ctx *gin.Context)
@@ -246,11 +246,20 @@ func (c *PostsController) UnlikePost(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListNewestPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListNewestPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -283,15 +292,24 @@ func (c *PostsController) ListNewestPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListNewestPostsByUserId(userId, pagination)
+	response = c.usecase.ListNewestPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListLikedPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListLikedPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -324,15 +342,24 @@ func (c *PostsController) ListLikedPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListLikedPostsByUserId(userId, pagination)
+	response = c.usecase.ListLikedPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListRepostedPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -365,7 +392,7 @@ func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListRepostedPostsByUserId(userId, pagination)
+	response = c.usecase.ListRepostedPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 

@@ -61,7 +61,7 @@ SET like_count = GREATEST(like_count + @value::smallint, 0),
 WHERE id = @id::bigint
 RETURNING id, like_count;
 
--- name: ListNewestPostsByUserId :many
+-- name: ListNewestPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -76,23 +76,23 @@ SELECT p.*,
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE p.user_id = $1
+WHERE p.user_id = @target_user_id::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+OFFSET $1
+LIMIT $2;
 
--- name: ListLikedPostsByUserId :many
+-- name: ListLikedPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
-    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	WHEN lp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS liked,
 	CASE 
@@ -101,17 +101,18 @@ SELECT p.*,
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @target_user_id::bigint
+LEFT JOIN liked_posts lp2 ON p.id = lp2.post_id AND lp2.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE lp.user_id = $1
+WHERE lp.user_id = @target_user_id::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
+    p.id, u.id, lp.user_id, rpp.user_id, lp2.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+OFFSET $1
+LIMIT $2;
 
--- name: ListRepostedPostsByUserId :many
+-- name: ListRepostedPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -121,20 +122,21 @@ SELECT p.*,
     	ELSE FALSE 
   	END AS liked,
 	CASE 
-    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	WHEN rpp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @target_user_id::bigint
+LEFT JOIN reposted_posts rpp2 ON p.id = rpp2.post_id AND rpp2.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE rpp.user_id = $1
+WHERE rpp.user_id = @target_user_id::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
+    p.id, u.id, lp.user_id, rpp.user_id, rpp2.user_id
 ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+OFFSET $1
+LIMIT $2;
 
 -- name: InsertPost :one
 INSERT INTO posts
