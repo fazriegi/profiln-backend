@@ -30,7 +30,7 @@ type IProfileRepository interface {
 	GetWorkExperienceById(id int64) (db.WorkExperience, error)
 	UpdateUserWorkExperience(props *model.WorkExperience) error
 	GetWorkExperienceFileURLs(workExperienceId int64) ([]string, error)
-	GetUserProfile(userId int64) (model.UserProfile, error)
+	GetUserProfile(userId, targetUserId int64) (model.UserProfile, error)
 	GetWorkExperiencesByUserId(userId int64, offset, limit int32) ([]model.WorkExperience, int64, error)
 	GetEducationsByUserId(userId int64, offset, limit int32) ([]model.Education, int64, error)
 	GetCertificatesByUserId(userId int64, offset, limit int32) ([]model.Certificate, int64, error)
@@ -658,7 +658,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.WorkExperience
 	return nil
 }
 
-func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, error) {
+func (r *ProfileRepository) GetUserProfile(userId, targetUserId int64) (model.UserProfile, error) {
 	var (
 		wg sync.WaitGroup
 	)
@@ -671,7 +671,10 @@ func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, err
 	wg.Add(1)
 	go func(userId int64) {
 		defer wg.Done()
-		data, err := r.query.GetUserProfile(context.Background(), userId)
+		data, err := r.query.GetUserProfile(context.Background(), db.GetUserProfileParams{
+			UserID:       userId,
+			TargetUserID: targetUserId,
+		})
 		if err != nil {
 			errChan <- err
 			close(userChan)
@@ -737,6 +740,7 @@ func (r *ProfileRepository) GetUserProfile(userId int64) (model.UserProfile, err
 		Location:        user.Location.String,
 		WebPortfolioUrl: user.PortfolioUrl.String,
 		About:           user.About.String,
+		IsFollowing:     user.IsFollowing,
 	}
 
 	return data, nil

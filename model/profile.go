@@ -150,6 +150,7 @@ type UserProfile struct {
 	Location        string        `json:"location"`
 	WebPortfolioUrl string        `json:"web_portfolio_url"`
 	About           string        `json:"about"`
+	IsFollowing     bool          `json:"is_following"`
 }
 
 type UserSkills struct {

@@ -382,8 +382,10 @@ func (c *ProfileController) GetUserProfile(ctx *gin.Context) {
 	var (
 		response model.Response
 	)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
 
-	userId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
 	if err != nil {
 		response.Status =
 			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
@@ -392,7 +394,7 @@ func (c *ProfileController) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.GetUserProfile(userId)
+	response = c.usecase.GetUserProfile(userId, targetUserId)
 	ctx.JSON(response.Status.Code, response)
 }
 
