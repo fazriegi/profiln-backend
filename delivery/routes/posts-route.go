@@ -35,10 +35,12 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger, wsHub *
 	posts.GET("/:postId/comments", controller.GetPostComments)
 	posts.GET("/:postId/comments/:postCommentId/replies", controller.GetPostCommentReplies)
 	posts.POST("/:postId/like", controller.LikePost)
-	posts.POST("/:postId/unlike", controller.UnlikePost)
+	posts.DELETE("/:postId/like", controller.UnlikePost)
 	posts.POST("/:postId/repost", controller.RepostPost)
 	posts.POST("/:postId/unrepost", controller.UnrepostPost)
 	posts.POST("/:postId/comments", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertPostComment)
+	posts.POST("/:postId/comments/:postCommentId/like", controller.LikePostComment)
+	posts.DELETE("/:postId/comments/:postCommentId/like", controller.UnlikePostComment)
 
 	myPosts := app.Group("users/me/posts")
 	myPosts.POST("/", controller.InsertPost)

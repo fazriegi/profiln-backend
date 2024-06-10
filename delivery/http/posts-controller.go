@@ -30,6 +30,8 @@ type IPostsController interface {
 	UploadFileForInsertPost(ctx *gin.Context)
 	UploadFileForUpdatePost(ctx *gin.Context)
 	InsertPostComment(ctx *gin.Context)
+	LikePostComment(ctx *gin.Context)
+	UnlikePostComment(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -641,5 +643,43 @@ func (c *PostsController) InsertPostComment(ctx *gin.Context) {
 		c.hub.Broadcast(comment)
 	}
 
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) LikePostComment(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.LikePostComment(userId, postCommentId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UnlikePostComment(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnlikePostComment(userId, postCommentId)
 	ctx.JSON(response.Status.Code, response)
 }

@@ -74,6 +74,18 @@ type LikedPost struct {
 	PostID sql.NullInt64
 }
 
+type LikedPostComment struct {
+	ID            int64
+	UserID        sql.NullInt64
+	PostCommentID sql.NullInt64
+}
+
+type LikedPostCommentReply struct {
+	ID                 int64
+	UserID             sql.NullInt64
+	PostCommentReplyID sql.NullInt64
+}
+
 type Post struct {
 	ID           int64
 	UserID       sql.NullInt64

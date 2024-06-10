@@ -29,6 +29,8 @@ type IPostsUsecase interface {
 	UploadFileForInsertPost(userId, postId int64, fileNames []string) model.Response
 	UploadFileForUpdatePost(userId, postId int64, fileNames []string) model.Response
 	InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response
+	LikePostComment(userId, postCommentId int64) model.Response
+	UnlikePostComment(userId, postCommentId int64) model.Response
 }
 
 type PostsUsecase struct {
@@ -651,5 +653,49 @@ func (u *PostsUsecase) InsertPostComment(imageFileNames []string, props *model.A
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment"),
 		Data:   data,
+	}
+}
+
+func (u *PostsUsecase) LikePostComment(userId, postCommentId int64) model.Response {
+	data, err := u.repository.LikePostComment(userId, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.LikePostComment: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success like post comment"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnlikePostComment(userId, postCommentId int64) model.Response {
+	data, err := u.repository.UnlikePostComment(userId, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnlikePostComment: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unlike post comment"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
 	}
 }

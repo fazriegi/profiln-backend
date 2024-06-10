@@ -32,6 +32,8 @@ type IPostsRepository interface {
 	BatchInsertPostImages(postId int64, urls []string) ([]db.PostImage, error)
 	CountPostImages(postId int64) (int64, error)
 	InsertPostComment(props *model.AddPostCommentReq) (model.PostComment, error)
+	LikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error)
+	UnlikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error)
 }
 
 type PostsRepository struct {
@@ -225,9 +227,13 @@ func (r *PostsRepository) UnlikePost(userId, postId int64) (*db.UpdatePostLikeCo
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			if post.LikeCount.Int32 > 0 {
+				post.LikeCount.Int32 = post.LikeCount.Int32 + 1
+			}
+
 			post = db.UpdatePostLikeCountRow{
 				ID:        post.ID,
-				LikeCount: sql.NullInt32{Int32: post.LikeCount.Int32 + 1, Valid: true},
+				LikeCount: sql.NullInt32{Int32: post.LikeCount.Int32, Valid: true},
 			}
 
 			return &post, nil
@@ -776,4 +782,108 @@ func (r *PostsRepository) InsertPostComment(props *model.AddPostCommentReq) (mod
 	}
 
 	return postComment, nil
+}
+
+func (r *PostsRepository) LikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockPostCommentForUpdate(ctx, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("could not lock post for update: %w", err)
+	}
+
+	postComment, err := qtx.UpdatePostCommentsLikeCount(ctx, db.UpdatePostCommentsLikeCountParams{
+		ID:    postCommentId,
+		Value: 1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update like count: %w", err)
+	}
+
+	_, err = qtx.InsertLikedPostComments(ctx, db.InsertLikedPostCommentsParams{
+		UserID:        userId,
+		PostCommentID: postCommentId,
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			postComment = db.UpdatePostCommentsLikeCountRow{
+				ID:        postComment.ID,
+				LikeCount: sql.NullInt32{Int32: postComment.LikeCount.Int32 - 1, Valid: true},
+			}
+
+			return &postComment, nil
+		}
+
+		return nil, fmt.Errorf("could not insert liked post: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return &postComment, nil
+}
+
+func (r *PostsRepository) UnlikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	_, err = qtx.LockPostCommentForUpdate(ctx, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("could not lock for update: %w", err)
+	}
+
+	postComment, err := qtx.UpdatePostCommentsLikeCount(ctx, db.UpdatePostCommentsLikeCountParams{
+		ID:    postCommentId,
+		Value: -1,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update like count: %w", err)
+	}
+
+	_, err = qtx.DeleteLikedPostComment(ctx, db.DeleteLikedPostCommentParams{
+		UserID:        userId,
+		PostCommentID: postCommentId,
+	})
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			if postComment.LikeCount.Int32 > 0 {
+				postComment.LikeCount.Int32 = postComment.LikeCount.Int32 + 1
+			}
+
+			postComment = db.UpdatePostCommentsLikeCountRow{
+				ID:        postCommentId,
+				LikeCount: sql.NullInt32{Int32: postComment.LikeCount.Int32, Valid: true},
+			}
+
+			return &postComment, nil
+		}
+
+		return nil, fmt.Errorf("could not delete liked post: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	return &postComment, nil
 }

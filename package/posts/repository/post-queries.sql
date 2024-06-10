@@ -245,3 +245,27 @@ RETURNING id, comment_count;
 INSERT INTO post_comments (user_id, post_id, content, image_url, is_post_author, created_at, updated_at)
 VALUES (@user_id::bigint, @post_id::bigint, @content::text, @image_url::text, @is_post_author::boolean, NOW(), NOW())
 RETURNING *;
+
+-- name: LockPostCommentForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostCommentsLikeCount :one
+UPDATE post_comments
+SET like_count = GREATEST(like_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, like_count;
+
+-- name: InsertLikedPostComments :one
+INSERT INTO liked_post_comments (user_id, post_comment_id)
+VALUES (@user_id::bigint, @post_comment_id::bigint)
+ON CONFLICT (user_id, post_comment_id) DO NOTHING
+RETURNING id;
+
+-- name: DeleteLikedPostComment :one
+DELETE FROM liked_post_comments
+WHERE user_id = @user_id::bigint AND post_comment_id = @post_comment_id::bigint
+RETURNING id;
