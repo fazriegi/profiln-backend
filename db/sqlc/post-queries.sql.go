@@ -740,7 +740,7 @@ LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE lp.user_id = $3::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id, lp2.user_id
-ORDER BY p.updated_at DESC
+ORDER BY p.created_at DESC
 OFFSET $1
 LIMIT $2
 `
@@ -843,7 +843,7 @@ LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE p.user_id = $4::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
+ORDER BY p.created_at DESC
 OFFSET $1
 LIMIT $2
 `
@@ -947,7 +947,7 @@ LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE rpp.user_id = $4::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id, rpp2.user_id
-ORDER BY p.updated_at DESC
+ORDER BY p.created_at DESC
 OFFSET $1
 LIMIT $2
 `
