@@ -34,6 +34,7 @@ type IPostsRepository interface {
 	InsertPostComment(props *model.AddPostCommentReq) (model.PostComment, error)
 	LikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error)
 	UnlikePostComment(userId, postCommentId int64) (*db.UpdatePostCommentsLikeCountRow, error)
+	InsertPostCommentReply(props *model.AddPostCommentReplyReq) (model.PostCommentReply, error)
 }
 
 type PostsRepository struct {
@@ -886,4 +887,63 @@ func (r *PostsRepository) UnlikePostComment(userId, postCommentId int64) (*db.Up
 	}
 
 	return &postComment, nil
+}
+
+func (r *PostsRepository) InsertPostCommentReply(props *model.AddPostCommentReplyReq) (model.PostCommentReply, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return model.PostCommentReply{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	arg := db.InsertPostCommentReplyParams{
+		UserID:        props.UserId,
+		PostCommentID: props.PostCommentId,
+		Content:       props.Content,
+		ImageUrl:      props.ImageUrl,
+		IsPostAuthor:  props.IsPostAuthor,
+	}
+	createdData, err := qtx.InsertPostCommentReply(ctx, arg)
+	if err != nil {
+		return model.PostCommentReply{}, fmt.Errorf("could not insert post comment reply: %w", err)
+	}
+
+	_, err = qtx.UpdatePostCommentReplyCount(ctx, db.UpdatePostCommentReplyCountParams{
+		ID:    props.PostCommentId,
+		Value: 1,
+	})
+	if err != nil {
+		return model.PostCommentReply{}, fmt.Errorf("could not update post comment reply count: %w", err)
+	}
+
+	user, err := qtx.GetUserById(ctx, props.UserId)
+	if err != nil {
+		return model.PostCommentReply{}, fmt.Errorf("could not get user: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.PostCommentReply{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	PostCommentReply := model.PostCommentReply{
+		ID:            createdData.ID,
+		PostCommentId: props.PostCommentId,
+		User: model.User{
+			ID:         props.UserId,
+			Fullname:   user.FullName,
+			AvatarUrl:  user.AvatarUrl.String,
+			Bio:        user.Bio.String,
+			OpenToWork: user.OpenToWork.Bool,
+		},
+		Content:      createdData.Content.String,
+		ImageUrl:     createdData.ImageUrl.String,
+		LikeCount:    createdData.LikeCount.Int32,
+		IsPostAuthor: createdData.IsPostAuthor.Bool,
+		UpdatedAt:    createdData.UpdatedAt.Time,
+	}
+
+	return PostCommentReply, nil
 }

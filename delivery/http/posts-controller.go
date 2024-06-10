@@ -32,6 +32,7 @@ type IPostsController interface {
 	InsertPostComment(ctx *gin.Context)
 	LikePostComment(ctx *gin.Context)
 	UnlikePostComment(ctx *gin.Context)
+	InsertPostCommentReply(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -681,5 +682,63 @@ func (c *PostsController) UnlikePostComment(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UnlikePostComment(userId, postCommentId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) InsertPostCommentReply(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.AddPostCommentReplyReq
+	)
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+	reqBody.PostCommentId = postCommentId
+
+	response = c.usecase.InsertPostCommentReply(fileNames, postId, &reqBody)
+
 	ctx.JSON(response.Status.Code, response)
 }

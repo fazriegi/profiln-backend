@@ -31,6 +31,7 @@ type IPostsUsecase interface {
 	InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response
 	LikePostComment(userId, postCommentId int64) model.Response
 	UnlikePostComment(userId, postCommentId int64) model.Response
+	InsertPostCommentReply(imageFileNames []string, postId int64, props *model.AddPostCommentReplyReq) model.Response
 }
 
 type PostsUsecase struct {
@@ -697,5 +698,62 @@ func (u *PostsUsecase) UnlikePostComment(userId, postCommentId int64) model.Resp
 			"id":         data.ID,
 			"like_count": data.LikeCount.Int32,
 		},
+	}
+}
+
+func (u *PostsUsecase) InsertPostCommentReply(imageFileNames []string, postId int64, props *model.AddPostCommentReplyReq) model.Response {
+	post, err := u.repository.GetPostById(postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if post.User.ID == props.UserId {
+		props.IsPostAuthor = true
+	}
+
+	if len(imageFileNames) > 0 {
+		objectPath := fmt.Sprintf("users/%d/posts/comments/replies", props.UserId)
+
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}()
+
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
+		}
+
+		props.ImageUrl = urls[0]
+	}
+
+	data, err := u.repository.InsertPostCommentReply(props)
+
+	if err != nil {
+		u.log.Errorf("repository.InsertPostCommentReply (user id %d): %v", props.UserId, err)
+
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.ImageUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment reply"),
+		Data:   data,
 	}
 }

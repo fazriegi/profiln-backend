@@ -32,7 +32,7 @@ SELECT pc.*,
 FROM post_comments pc 
 LEFT JOIN users pcu ON pc.user_id = pcu.id
 WHERE pc.post_id = $1
-ORDER BY pc.updated_at DESC
+ORDER BY pc.created_at DESC
 OFFSET $2
 LIMIT $3;
 
@@ -44,7 +44,7 @@ FROM post_comment_replies pcr
 LEFT JOIN users pcr_user ON pcr.user_id = pcr_user.id
 LEFT JOIN post_comments pc ON pc.id = pcr.post_comment_id
 WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
-ORDER BY pcr.updated_at DESC
+ORDER BY pcr.created_at DESC
 OFFSET $3
 LIMIT $4;
 
@@ -269,3 +269,15 @@ RETURNING id;
 DELETE FROM liked_post_comments
 WHERE user_id = @user_id::bigint AND post_comment_id = @post_comment_id::bigint
 RETURNING id;
+
+-- name: InsertPostCommentReply :one
+INSERT INTO post_comment_replies (user_id, post_comment_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES (@user_id::bigint, @post_comment_id::bigint, @content::text, @image_url::text, @is_post_author::boolean, NOW(), NOW())
+RETURNING *;
+
+-- name: UpdatePostCommentReplyCount :one
+UPDATE post_comments
+SET reply_count = GREATEST(reply_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, reply_count;

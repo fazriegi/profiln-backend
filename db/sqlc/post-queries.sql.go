@@ -301,7 +301,7 @@ FROM post_comment_replies pcr
 LEFT JOIN users pcr_user ON pcr.user_id = pcr_user.id
 LEFT JOIN post_comments pc ON pc.id = pcr.post_comment_id
 WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
-ORDER BY pcr.updated_at DESC
+ORDER BY pcr.created_at DESC
 OFFSET $3
 LIMIT $4
 `
@@ -382,7 +382,7 @@ SELECT pc.id, pc.user_id, pc.post_id, pc.content, pc.image_url, pc.like_count, p
 FROM post_comments pc 
 LEFT JOIN users pcu ON pc.user_id = pcu.id
 WHERE pc.post_id = $1
-ORDER BY pc.updated_at DESC
+ORDER BY pc.created_at DESC
 OFFSET $2
 LIMIT $3
 `
@@ -586,6 +586,43 @@ func (q *Queries) InsertPostComment(ctx context.Context, arg InsertPostCommentPa
 		&i.ImageUrl,
 		&i.LikeCount,
 		&i.ReplyCount,
+		&i.IsPostAuthor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const insertPostCommentReply = `-- name: InsertPostCommentReply :one
+INSERT INTO post_comment_replies (user_id, post_comment_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES ($1::bigint, $2::bigint, $3::text, $4::text, $5::boolean, NOW(), NOW())
+RETURNING id, user_id, post_comment_id, content, image_url, like_count, is_post_author, created_at, updated_at
+`
+
+type InsertPostCommentReplyParams struct {
+	UserID        int64
+	PostCommentID int64
+	Content       string
+	ImageUrl      string
+	IsPostAuthor  bool
+}
+
+func (q *Queries) InsertPostCommentReply(ctx context.Context, arg InsertPostCommentReplyParams) (PostCommentReply, error) {
+	row := q.db.QueryRowContext(ctx, insertPostCommentReply,
+		arg.UserID,
+		arg.PostCommentID,
+		arg.Content,
+		arg.ImageUrl,
+		arg.IsPostAuthor,
+	)
+	var i PostCommentReply
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostCommentID,
+		&i.Content,
+		&i.ImageUrl,
+		&i.LikeCount,
 		&i.IsPostAuthor,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1033,6 +1070,31 @@ func (q *Queries) UpdatePostCommentCount(ctx context.Context, arg UpdatePostComm
 	row := q.db.QueryRowContext(ctx, updatePostCommentCount, arg.Value, arg.ID)
 	var i UpdatePostCommentCountRow
 	err := row.Scan(&i.ID, &i.CommentCount)
+	return i, err
+}
+
+const updatePostCommentReplyCount = `-- name: UpdatePostCommentReplyCount :one
+UPDATE post_comments
+SET reply_count = GREATEST(reply_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, reply_count
+`
+
+type UpdatePostCommentReplyCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentReplyCountRow struct {
+	ID         int64
+	ReplyCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentReplyCount(ctx context.Context, arg UpdatePostCommentReplyCountParams) (UpdatePostCommentReplyCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentReplyCount, arg.Value, arg.ID)
+	var i UpdatePostCommentReplyCountRow
+	err := row.Scan(&i.ID, &i.ReplyCount)
 	return i, err
 }
 
