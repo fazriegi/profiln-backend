@@ -32,7 +32,7 @@ SELECT pc.*,
 FROM post_comments pc 
 LEFT JOIN users pcu ON pc.user_id = pcu.id
 WHERE pc.post_id = $1
-ORDER BY pc.updated_at DESC
+ORDER BY pc.created_at DESC
 OFFSET $2
 LIMIT $3;
 
@@ -44,7 +44,7 @@ FROM post_comment_replies pcr
 LEFT JOIN users pcr_user ON pcr.user_id = pcr_user.id
 LEFT JOIN post_comments pc ON pc.id = pcr.post_comment_id
 WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
-ORDER BY pcr.updated_at DESC
+ORDER BY pcr.created_at DESC
 OFFSET $3
 LIMIT $4;
 
@@ -61,7 +61,7 @@ SET like_count = GREATEST(like_count + @value::smallint, 0),
 WHERE id = @id::bigint
 RETURNING id, like_count;
 
--- name: ListNewestPostsByUserId :many
+-- name: ListNewestPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -76,23 +76,23 @@ SELECT p.*,
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE p.user_id = $1
+WHERE p.user_id = @target_user_id::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2;
 
--- name: ListLikedPostsByUserId :many
+-- name: ListLikedPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
-    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	WHEN lp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS liked,
 	CASE 
@@ -101,17 +101,18 @@ SELECT p.*,
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @target_user_id::bigint
+LEFT JOIN liked_posts lp2 ON p.id = lp2.post_id AND lp2.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE lp.user_id = $1
+WHERE lp.user_id = @target_user_id::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+    p.id, u.id, lp.user_id, rpp.user_id, lp2.user_id
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2;
 
--- name: ListRepostedPostsByUserId :many
+-- name: ListRepostedPostsByTargetUser :many
 SELECT p.*, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -121,20 +122,21 @@ SELECT p.*,
     	ELSE FALSE 
   	END AS liked,
 	CASE 
-    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	WHEN rpp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = @user_id::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = @target_user_id::bigint
+LEFT JOIN reposted_posts rpp2 ON p.id = rpp2.post_id AND rpp2.user_id = @user_id::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE rpp.user_id = $1
+WHERE rpp.user_id = @target_user_id::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3;
+    p.id, u.id, lp.user_id, rpp.user_id, rpp2.user_id
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2;
 
 -- name: InsertPost :one
 INSERT INTO posts
@@ -231,3 +233,75 @@ RETURNING id;
 SELECT COUNT(*) AS count
 FROM post_images
 WHERE post_id = @post_id::bigint;
+
+-- name: UpdatePostCommentCount :one
+UPDATE posts
+SET comment_count = GREATEST(comment_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, comment_count;
+
+-- name: InsertPostComment :one
+INSERT INTO post_comments (user_id, post_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES (@user_id::bigint, @post_id::bigint, @content::text, @image_url::text, @is_post_author::boolean, NOW(), NOW())
+RETURNING *;
+
+-- name: LockPostCommentForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostCommentsLikeCount :one
+UPDATE post_comments
+SET like_count = GREATEST(like_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, like_count;
+
+-- name: InsertLikedPostComments :one
+INSERT INTO liked_post_comments (user_id, post_comment_id)
+VALUES (@user_id::bigint, @post_comment_id::bigint)
+ON CONFLICT (user_id, post_comment_id) DO NOTHING
+RETURNING id;
+
+-- name: DeleteLikedPostComment :one
+DELETE FROM liked_post_comments
+WHERE user_id = @user_id::bigint AND post_comment_id = @post_comment_id::bigint
+RETURNING id;
+
+-- name: InsertPostCommentReply :one
+INSERT INTO post_comment_replies (user_id, post_comment_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES (@user_id::bigint, @post_comment_id::bigint, @content::text, @image_url::text, @is_post_author::boolean, NOW(), NOW())
+RETURNING *;
+
+-- name: UpdatePostCommentReplyCount :one
+UPDATE post_comments
+SET reply_count = GREATEST(reply_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, reply_count;
+
+-- name: LockPostCommentReplyForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostCommentRepliesLikeCount :one
+UPDATE post_comment_replies
+SET like_count = GREATEST(like_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, like_count;
+
+-- name: InsertLikedPostCommentReplies :one
+INSERT INTO liked_post_comment_replies (user_id, post_comment_reply_id)
+VALUES (@user_id::bigint, @post_comment_reply_id::bigint)
+ON CONFLICT (user_id, post_comment_reply_id) DO NOTHING
+RETURNING id;
+
+-- name: DeleteLikedPostCommentReplies :one
+DELETE FROM liked_post_comment_replies
+WHERE user_id = @user_id::bigint AND post_comment_reply_id = @post_comment_reply_id::bigint
+RETURNING id;

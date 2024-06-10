@@ -149,6 +149,42 @@ func (q *Queries) DeleteLikedPost(ctx context.Context, arg DeleteLikedPostParams
 	return id, err
 }
 
+const deleteLikedPostComment = `-- name: DeleteLikedPostComment :one
+DELETE FROM liked_post_comments
+WHERE user_id = $1::bigint AND post_comment_id = $2::bigint
+RETURNING id
+`
+
+type DeleteLikedPostCommentParams struct {
+	UserID        int64
+	PostCommentID int64
+}
+
+func (q *Queries) DeleteLikedPostComment(ctx context.Context, arg DeleteLikedPostCommentParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteLikedPostComment, arg.UserID, arg.PostCommentID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteLikedPostCommentReplies = `-- name: DeleteLikedPostCommentReplies :one
+DELETE FROM liked_post_comment_replies
+WHERE user_id = $1::bigint AND post_comment_reply_id = $2::bigint
+RETURNING id
+`
+
+type DeleteLikedPostCommentRepliesParams struct {
+	UserID             int64
+	PostCommentReplyID int64
+}
+
+func (q *Queries) DeleteLikedPostCommentReplies(ctx context.Context, arg DeleteLikedPostCommentRepliesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteLikedPostCommentReplies, arg.UserID, arg.PostCommentReplyID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deletePostById = `-- name: DeletePostById :exec
 DELETE FROM posts
 WHERE id = $1::bigint
@@ -283,7 +319,7 @@ FROM post_comment_replies pcr
 LEFT JOIN users pcr_user ON pcr.user_id = pcr_user.id
 LEFT JOIN post_comments pc ON pc.id = pcr.post_comment_id
 WHERE pc.post_id = $1 AND pcr.post_comment_id = $2
-ORDER BY pcr.updated_at DESC
+ORDER BY pcr.created_at DESC
 OFFSET $3
 LIMIT $4
 `
@@ -364,7 +400,7 @@ SELECT pc.id, pc.user_id, pc.post_id, pc.content, pc.image_url, pc.like_count, p
 FROM post_comments pc 
 LEFT JOIN users pcu ON pc.user_id = pcu.id
 WHERE pc.post_id = $1
-ORDER BY pc.updated_at DESC
+ORDER BY pc.created_at DESC
 OFFSET $2
 LIMIT $3
 `
@@ -481,6 +517,44 @@ func (q *Queries) InsertLikedPost(ctx context.Context, arg InsertLikedPostParams
 	return id, err
 }
 
+const insertLikedPostCommentReplies = `-- name: InsertLikedPostCommentReplies :one
+INSERT INTO liked_post_comment_replies (user_id, post_comment_reply_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, post_comment_reply_id) DO NOTHING
+RETURNING id
+`
+
+type InsertLikedPostCommentRepliesParams struct {
+	UserID             int64
+	PostCommentReplyID int64
+}
+
+func (q *Queries) InsertLikedPostCommentReplies(ctx context.Context, arg InsertLikedPostCommentRepliesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertLikedPostCommentReplies, arg.UserID, arg.PostCommentReplyID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertLikedPostComments = `-- name: InsertLikedPostComments :one
+INSERT INTO liked_post_comments (user_id, post_comment_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, post_comment_id) DO NOTHING
+RETURNING id
+`
+
+type InsertLikedPostCommentsParams struct {
+	UserID        int64
+	PostCommentID int64
+}
+
+func (q *Queries) InsertLikedPostComments(ctx context.Context, arg InsertLikedPostCommentsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertLikedPostComments, arg.UserID, arg.PostCommentID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertPost = `-- name: InsertPost :one
 INSERT INTO posts
 (user_id, title, content, visibility, created_at, updated_at)
@@ -514,6 +588,81 @@ func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, e
 		&i.UpdatedAt,
 		&i.Title,
 		&i.Visibility,
+	)
+	return i, err
+}
+
+const insertPostComment = `-- name: InsertPostComment :one
+INSERT INTO post_comments (user_id, post_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES ($1::bigint, $2::bigint, $3::text, $4::text, $5::boolean, NOW(), NOW())
+RETURNING id, user_id, post_id, content, image_url, like_count, reply_count, is_post_author, created_at, updated_at
+`
+
+type InsertPostCommentParams struct {
+	UserID       int64
+	PostID       int64
+	Content      string
+	ImageUrl     string
+	IsPostAuthor bool
+}
+
+func (q *Queries) InsertPostComment(ctx context.Context, arg InsertPostCommentParams) (PostComment, error) {
+	row := q.db.QueryRowContext(ctx, insertPostComment,
+		arg.UserID,
+		arg.PostID,
+		arg.Content,
+		arg.ImageUrl,
+		arg.IsPostAuthor,
+	)
+	var i PostComment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostID,
+		&i.Content,
+		&i.ImageUrl,
+		&i.LikeCount,
+		&i.ReplyCount,
+		&i.IsPostAuthor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const insertPostCommentReply = `-- name: InsertPostCommentReply :one
+INSERT INTO post_comment_replies (user_id, post_comment_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES ($1::bigint, $2::bigint, $3::text, $4::text, $5::boolean, NOW(), NOW())
+RETURNING id, user_id, post_comment_id, content, image_url, like_count, is_post_author, created_at, updated_at
+`
+
+type InsertPostCommentReplyParams struct {
+	UserID        int64
+	PostCommentID int64
+	Content       string
+	ImageUrl      string
+	IsPostAuthor  bool
+}
+
+func (q *Queries) InsertPostCommentReply(ctx context.Context, arg InsertPostCommentReplyParams) (PostCommentReply, error) {
+	row := q.db.QueryRowContext(ctx, insertPostCommentReply,
+		arg.UserID,
+		arg.PostCommentID,
+		arg.Content,
+		arg.ImageUrl,
+		arg.IsPostAuthor,
+	)
+	var i PostCommentReply
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostCommentID,
+		&i.Content,
+		&i.ImageUrl,
+		&i.LikeCount,
+		&i.IsPostAuthor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -569,13 +718,13 @@ func (q *Queries) InsertRepostedPost(ctx context.Context, arg InsertRepostedPost
 	return id, err
 }
 
-const listLikedPostsByUserId = `-- name: ListLikedPostsByUserId :many
+const listLikedPostsByTargetUser = `-- name: ListLikedPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
 	COUNT(p.id) OVER () AS total_rows,
     CASE 
-    	WHEN lp.user_id IS NOT NULL THEN TRUE 
+    	WHEN lp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS liked,
 	CASE 
@@ -584,24 +733,26 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN liked_posts lp2 ON p.id = lp2.post_id AND lp2.user_id = $4::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $4::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE lp.user_id = $1
+WHERE lp.user_id = $3::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+    p.id, u.id, lp.user_id, rpp.user_id, lp2.user_id
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2
 `
 
-type ListLikedPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListLikedPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	TargetUserID int64
+	UserID       int64
 }
 
-type ListLikedPostsByUserIdRow struct {
+type ListLikedPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -623,15 +774,20 @@ type ListLikedPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPostsByUserIdParams) ([]ListLikedPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listLikedPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListLikedPostsByTargetUser(ctx context.Context, arg ListLikedPostsByTargetUserParams) ([]ListLikedPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLikedPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.TargetUserID,
+		arg.UserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListLikedPostsByUserIdRow
+	var items []ListLikedPostsByTargetUserRow
 	for rows.Next() {
-		var i ListLikedPostsByUserIdRow
+		var i ListLikedPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -666,7 +822,7 @@ func (q *Queries) ListLikedPostsByUserId(ctx context.Context, arg ListLikedPosts
 	return items, nil
 }
 
-const listNewestPostsByUserId = `-- name: ListNewestPostsByUserId :many
+const listNewestPostsByTargetUser = `-- name: ListNewestPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -681,24 +837,25 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $3::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE p.user_id = $1
+WHERE p.user_id = $4::bigint
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2
 `
 
-type ListNewestPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListNewestPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	UserID       int64
+	TargetUserID int64
 }
 
-type ListNewestPostsByUserIdRow struct {
+type ListNewestPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -720,15 +877,20 @@ type ListNewestPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPostsByUserIdParams) ([]ListNewestPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listNewestPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListNewestPostsByTargetUser(ctx context.Context, arg ListNewestPostsByTargetUserParams) ([]ListNewestPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listNewestPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.UserID,
+		arg.TargetUserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListNewestPostsByUserIdRow
+	var items []ListNewestPostsByTargetUserRow
 	for rows.Next() {
-		var i ListNewestPostsByUserIdRow
+		var i ListNewestPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -763,7 +925,7 @@ func (q *Queries) ListNewestPostsByUserId(ctx context.Context, arg ListNewestPos
 	return items, nil
 }
 
-const listRepostedPostsByUserId = `-- name: ListRepostedPostsByUserId :many
+const listRepostedPostsByTargetUser = `-- name: ListRepostedPostsByTargetUser :many
 SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count, p.created_at, p.updated_at, p.title, p.visibility, 
 	u.id, u.full_name, u.avatar_url, u.bio, u.open_to_work,
 	ARRAY_AGG(pi.url) FILTER (WHERE pi.url IS NOT NULL) AS image_urls,
@@ -773,29 +935,31 @@ SELECT p.id, p.user_id, p.content, p.like_count, p.comment_count, p.repost_count
     	ELSE FALSE 
   	END AS liked,
 	CASE 
-    	WHEN rpp.user_id IS NOT NULL THEN TRUE 
+    	WHEN rpp2.user_id IS NOT NULL THEN TRUE 
     	ELSE FALSE 
   	END AS repost
 FROM posts p
 LEFT JOIN users u ON p.user_id = u.id
-LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $1
-LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $1
+LEFT JOIN liked_posts lp ON p.id = lp.post_id AND lp.user_id = $3::bigint
+LEFT JOIN reposted_posts rpp ON p.id = rpp.post_id AND rpp.user_id = $4::bigint
+LEFT JOIN reposted_posts rpp2 ON p.id = rpp2.post_id AND rpp2.user_id = $3::bigint
 LEFT JOIN post_images pi ON p.id = pi.post_id
-WHERE rpp.user_id = $1
+WHERE rpp.user_id = $4::bigint
 GROUP BY 
-    p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
-OFFSET $2
-LIMIT $3
+    p.id, u.id, lp.user_id, rpp.user_id, rpp2.user_id
+ORDER BY p.created_at DESC
+OFFSET $1
+LIMIT $2
 `
 
-type ListRepostedPostsByUserIdParams struct {
-	UserID sql.NullInt64
-	Offset int32
-	Limit  int32
+type ListRepostedPostsByTargetUserParams struct {
+	Offset       int32
+	Limit        int32
+	UserID       int64
+	TargetUserID int64
 }
 
-type ListRepostedPostsByUserIdRow struct {
+type ListRepostedPostsByTargetUserRow struct {
 	ID           int64
 	UserID       sql.NullInt64
 	Content      sql.NullString
@@ -817,15 +981,20 @@ type ListRepostedPostsByUserIdRow struct {
 	Repost       bool
 }
 
-func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListRepostedPostsByUserIdParams) ([]ListRepostedPostsByUserIdRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRepostedPostsByUserId, arg.UserID, arg.Offset, arg.Limit)
+func (q *Queries) ListRepostedPostsByTargetUser(ctx context.Context, arg ListRepostedPostsByTargetUserParams) ([]ListRepostedPostsByTargetUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRepostedPostsByTargetUser,
+		arg.Offset,
+		arg.Limit,
+		arg.UserID,
+		arg.TargetUserID,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRepostedPostsByUserIdRow
+	var items []ListRepostedPostsByTargetUserRow
 	for rows.Next() {
-		var i ListRepostedPostsByUserIdRow
+		var i ListRepostedPostsByTargetUserRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -858,6 +1027,34 @@ func (q *Queries) ListRepostedPostsByUserId(ctx context.Context, arg ListReposte
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockPostCommentForUpdate = `-- name: LockPostCommentForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockPostCommentForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockPostCommentForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const lockPostCommentReplyForUpdate = `-- name: LockPostCommentReplyForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockPostCommentReplyForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockPostCommentReplyForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const lockPostForUpdate = `-- name: LockPostForUpdate :one
@@ -900,6 +1097,106 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) error {
 		arg.UserID,
 	)
 	return err
+}
+
+const updatePostCommentCount = `-- name: UpdatePostCommentCount :one
+UPDATE posts
+SET comment_count = GREATEST(comment_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, comment_count
+`
+
+type UpdatePostCommentCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentCountRow struct {
+	ID           int64
+	CommentCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentCount(ctx context.Context, arg UpdatePostCommentCountParams) (UpdatePostCommentCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentCount, arg.Value, arg.ID)
+	var i UpdatePostCommentCountRow
+	err := row.Scan(&i.ID, &i.CommentCount)
+	return i, err
+}
+
+const updatePostCommentRepliesLikeCount = `-- name: UpdatePostCommentRepliesLikeCount :one
+UPDATE post_comment_replies
+SET like_count = GREATEST(like_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, like_count
+`
+
+type UpdatePostCommentRepliesLikeCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentRepliesLikeCountRow struct {
+	ID        int64
+	LikeCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentRepliesLikeCount(ctx context.Context, arg UpdatePostCommentRepliesLikeCountParams) (UpdatePostCommentRepliesLikeCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentRepliesLikeCount, arg.Value, arg.ID)
+	var i UpdatePostCommentRepliesLikeCountRow
+	err := row.Scan(&i.ID, &i.LikeCount)
+	return i, err
+}
+
+const updatePostCommentReplyCount = `-- name: UpdatePostCommentReplyCount :one
+UPDATE post_comments
+SET reply_count = GREATEST(reply_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, reply_count
+`
+
+type UpdatePostCommentReplyCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentReplyCountRow struct {
+	ID         int64
+	ReplyCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentReplyCount(ctx context.Context, arg UpdatePostCommentReplyCountParams) (UpdatePostCommentReplyCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentReplyCount, arg.Value, arg.ID)
+	var i UpdatePostCommentReplyCountRow
+	err := row.Scan(&i.ID, &i.ReplyCount)
+	return i, err
+}
+
+const updatePostCommentsLikeCount = `-- name: UpdatePostCommentsLikeCount :one
+UPDATE post_comments
+SET like_count = GREATEST(like_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, like_count
+`
+
+type UpdatePostCommentsLikeCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentsLikeCountRow struct {
+	ID        int64
+	LikeCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentsLikeCount(ctx context.Context, arg UpdatePostCommentsLikeCountParams) (UpdatePostCommentsLikeCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentsLikeCount, arg.Value, arg.ID)
+	var i UpdatePostCommentsLikeCountRow
+	err := row.Scan(&i.ID, &i.LikeCount)
+	return i, err
 }
 
 const updatePostLikeCount = `-- name: UpdatePostLikeCount :one

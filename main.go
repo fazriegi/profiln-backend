@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"profiln-be/config"
-	"profiln-be/delivery/http/route"
+	"profiln-be/delivery/routes"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -21,7 +21,7 @@ func main() {
 	defer file.Close()
 
 	app := gin.Default()
-	route.NewRoute(app, db, log)
+	routes.NewRoute(app, db, log)
 	port := os.Getenv("PORT")
 
 	log.Fatal(app.Run(fmt.Sprintf(":%s", port)))

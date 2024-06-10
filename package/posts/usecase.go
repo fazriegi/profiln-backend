@@ -18,9 +18,9 @@ type IPostsUsecase interface {
 	GetPostCommentReplies(postId, postCommentId int64, pagination model.PaginationRequest) (resp model.Response)
 	LikePost(userId, postId int64) model.Response
 	UnlikePost(userId, postId int64) model.Response
-	ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
-	ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListNewestPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListLikedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
+	ListRepostedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response)
 	InsertPost(props *model.CreatePostRequest) model.Response
 	UpdatePost(props *model.UpdatePostRequest) model.Response
 	DeletePost(userId, postId int64) model.Response
@@ -28,6 +28,12 @@ type IPostsUsecase interface {
 	UnrepostPost(userId, postId int64) model.Response
 	UploadFileForInsertPost(userId, postId int64, fileNames []string) model.Response
 	UploadFileForUpdatePost(userId, postId int64, fileNames []string) model.Response
+	InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response
+	LikePostComment(userId, postCommentId int64) model.Response
+	UnlikePostComment(userId, postCommentId int64) model.Response
+	InsertPostCommentReply(imageFileNames []string, postId int64, props *model.AddPostCommentReplyReq) model.Response
+	LikePostCommentReply(userId, postCommentReplyId int64) model.Response
+	UnlikePostCommentReply(userId, postCommentReplyId int64) model.Response
 }
 
 type PostsUsecase struct {
@@ -53,12 +59,6 @@ func (u *PostsUsecase) InsertReportedPost(userId int64, props *model.ReportPost)
 		u.log.Errorf("repository.InsertReportedPost: %v", err)
 		return
 	}
-
-	// data := model.ReportPost{
-	// 	PostId:  reportedPost.PostID.Int64,
-	// 	Reason:  reportedPost.Reason.String,
-	// 	Message: reportedPost.Message.String,
-	// }
 
 	resp.Status = libs.CustomResponse(http.StatusOK, "Success report post")
 	resp.Data = props
@@ -225,12 +225,12 @@ func (u *PostsUsecase) UnlikePost(userId, postId int64) model.Response {
 	}
 }
 
-func (u *PostsUsecase) ListNewestPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListNewestPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListNewestPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListNewestPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListNewestPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListNewestPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}
@@ -253,12 +253,12 @@ func (u *PostsUsecase) ListNewestPostsByUserId(userId int64, pagination model.Pa
 	return
 }
 
-func (u *PostsUsecase) ListLikedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListLikedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListLikedPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListLikedPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListLikedPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListLikedPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}
@@ -281,12 +281,12 @@ func (u *PostsUsecase) ListLikedPostsByUserId(userId int64, pagination model.Pag
 	return
 }
 
-func (u *PostsUsecase) ListRepostedPostsByUserId(userId int64, pagination model.PaginationRequest) (resp model.Response) {
+func (u *PostsUsecase) ListRepostedPostsByTargetUser(userId, targetUserId int64, pagination model.PaginationRequest) (resp model.Response) {
 	offset := (pagination.Page - 1) * pagination.Limit
-	data, totalRows, err := u.repository.ListRepostedPostsByUserId(userId, int32(offset), int32(pagination.Limit))
+	data, totalRows, err := u.repository.ListRepostedPostsByTargetUser(userId, targetUserId, int32(offset), int32(pagination.Limit))
 
 	if err != nil {
-		u.log.Errorf("repository.ListRepostedPostsByUserId (user id %d): %v", userId, err)
+		u.log.Errorf("repository.ListRepostedPostsByTargetUser (user id %d): %v", userId, err)
 		return model.Response{
 			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
 		}
@@ -598,6 +598,208 @@ func (u *PostsUsecase) UploadFileForUpdatePost(userId, postId int64, fileNames [
 		Data: map[string]any{
 			"post_id":    postId,
 			"image_urls": urls,
+		},
+	}
+}
+
+func (u *PostsUsecase) InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response {
+	post, err := u.repository.GetPostById(props.PostId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if post.User.ID == props.UserId {
+		props.IsPostAuthor = true
+	}
+
+	if len(imageFileNames) > 0 {
+		objectPath := fmt.Sprintf("users/%d/posts/comments", props.UserId)
+
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}()
+
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
+		}
+
+		props.ImageUrl = urls[0]
+	}
+
+	data, err := u.repository.InsertPostComment(props)
+
+	if err != nil {
+		u.log.Errorf("repository.InsertPostComment (user id %d): %v", props.UserId, err)
+
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.ImageUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment"),
+		Data:   data,
+	}
+}
+
+func (u *PostsUsecase) LikePostComment(userId, postCommentId int64) model.Response {
+	data, err := u.repository.LikePostComment(userId, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.LikePostComment: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success like post comment"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnlikePostComment(userId, postCommentId int64) model.Response {
+	data, err := u.repository.UnlikePostComment(userId, postCommentId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnlikePostComment: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unlike post comment"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) InsertPostCommentReply(imageFileNames []string, postId int64, props *model.AddPostCommentReplyReq) model.Response {
+	post, err := u.repository.GetPostById(postId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if post.User.ID == props.UserId {
+		props.IsPostAuthor = true
+	}
+
+	if len(imageFileNames) > 0 {
+		objectPath := fmt.Sprintf("users/%d/posts/comments/replies", props.UserId)
+
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}()
+
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
+		}
+
+		props.ImageUrl = urls[0]
+	}
+
+	data, err := u.repository.InsertPostCommentReply(props)
+
+	if err != nil {
+		u.log.Errorf("repository.InsertPostCommentReply (user id %d): %v", props.UserId, err)
+
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.ImageUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment reply"),
+		Data:   data,
+	}
+}
+
+func (u *PostsUsecase) LikePostCommentReply(userId, postCommentReplyId int64) model.Response {
+	data, err := u.repository.LikePostCommentReply(userId, postCommentReplyId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.LikePostCommentReply: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success like post comment reply"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnlikePostCommentReply(userId, postCommentReplyId int64) model.Response {
+	data, err := u.repository.UnlikePostCommentReply(userId, postCommentReplyId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnlikePostCommentReply: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unlike post comment reply"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
 		},
 	}
 }

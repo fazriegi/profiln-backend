@@ -1,0 +1,1 @@
+DROP TABLE "liked_post_comment_replies";

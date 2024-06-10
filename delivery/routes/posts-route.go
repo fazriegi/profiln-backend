@@ -1,9 +1,10 @@
-package route
+package routes
 
 import (
 	"database/sql"
 	"profiln-be/delivery/http"
 	"profiln-be/delivery/http/middleware"
+	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/package/posts"
 	repository "profiln-be/package/posts/repository"
@@ -12,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
+func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger, wsHub *ws.Hub) {
 	twoMegaBytes := 2 * 1024 * 1024
 	imageFormats := []string{".png", ".jpg"}
 
@@ -20,9 +21,13 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	googleBucket := libs.NewGoogleBucket(log)
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket, fileSystem)
-	controller := http.NewPostsController(usecase)
+	controller := http.NewPostsController(usecase, wsHub)
 
 	app.Use(middleware.Authentication())
+
+	app.GET("/users/:userId/posts", controller.ListNewestPostsByTargetUser)
+	app.GET("/users/:userId/posts/like", controller.ListLikedPostsByTargetUser)
+	app.GET("/users/:userId/posts/repost", controller.ListRepostedPostsByTargetUser)
 
 	posts := app.Group("posts")
 	posts.POST("/:postId/report", controller.ReportPost)
@@ -30,14 +35,17 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.GET("/:postId/comments", controller.GetPostComments)
 	posts.GET("/:postId/comments/:postCommentId/replies", controller.GetPostCommentReplies)
 	posts.POST("/:postId/like", controller.LikePost)
-	posts.POST("/:postId/unlike", controller.UnlikePost)
+	posts.DELETE("/:postId/like", controller.UnlikePost)
 	posts.POST("/:postId/repost", controller.RepostPost)
 	posts.POST("/:postId/unrepost", controller.UnrepostPost)
+	posts.POST("/:postId/comments", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertPostComment)
+	posts.POST("/:postId/comments/:postCommentId/like", controller.LikePostComment)
+	posts.DELETE("/:postId/comments/:postCommentId/like", controller.UnlikePostComment)
+	posts.POST("/:postId/comments/:postCommentId/replies", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertPostCommentReply)
+	posts.POST("/:postId/comments/:postCommentId/replies/:postCommentReplyId/like", controller.LikePostCommentReply)
+	posts.DELETE("/:postId/comments/:postCommentId/replies/:postCommentReplyId/like", controller.UnlikePostCommentReply)
 
 	myPosts := app.Group("users/me/posts")
-	myPosts.GET("/", controller.ListNewestPostsByUserId)
-	myPosts.GET("/like", controller.ListLikedPostsByUserId)
-	myPosts.GET("/repost", controller.ListRepostedPostsByUserId)
 	myPosts.POST("/", controller.InsertPost)
 	myPosts.PATCH("/:postId", controller.UpdatePost)
 	myPosts.DELETE("/:postId", controller.DeletePost)

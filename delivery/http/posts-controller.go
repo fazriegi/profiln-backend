@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/model"
 	"profiln-be/package/posts"
@@ -18,9 +19,9 @@ type IPostsController interface {
 	GetPostCommentReplies(ctx *gin.Context)
 	LikePost(ctx *gin.Context)
 	UnlikePost(ctx *gin.Context)
-	ListNewestPostsByUserId(ctx *gin.Context)
-	ListLikedPostsByUserId(ctx *gin.Context)
-	ListRepostedPostsByUserId(ctx *gin.Context)
+	ListNewestPostsByTargetUser(ctx *gin.Context)
+	ListLikedPostsByTargetUser(ctx *gin.Context)
+	ListRepostedPostsByTargetUser(ctx *gin.Context)
 	InsertPost(ctx *gin.Context)
 	UpdatePost(ctx *gin.Context)
 	DeletePost(ctx *gin.Context)
@@ -28,15 +29,23 @@ type IPostsController interface {
 	UnrepostPost(ctx *gin.Context)
 	UploadFileForInsertPost(ctx *gin.Context)
 	UploadFileForUpdatePost(ctx *gin.Context)
+	InsertPostComment(ctx *gin.Context)
+	LikePostComment(ctx *gin.Context)
+	UnlikePostComment(ctx *gin.Context)
+	InsertPostCommentReply(ctx *gin.Context)
+	LikePostCommentReply(ctx *gin.Context)
+	UnlikePostCommentReply(ctx *gin.Context)
 }
 
 type PostsController struct {
 	usecase posts.IPostsUsecase
+	hub     *ws.Hub
 }
 
-func NewPostsController(usecase posts.IPostsUsecase) IPostsController {
+func NewPostsController(usecase posts.IPostsUsecase, hub *ws.Hub) IPostsController {
 	return &PostsController{
 		usecase,
+		hub,
 	}
 }
 
@@ -246,11 +255,20 @@ func (c *PostsController) UnlikePost(ctx *gin.Context) {
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListNewestPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListNewestPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -283,15 +301,24 @@ func (c *PostsController) ListNewestPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListNewestPostsByUserId(userId, pagination)
+	response = c.usecase.ListNewestPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListLikedPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListLikedPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -324,15 +351,24 @@ func (c *PostsController) ListLikedPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListLikedPostsByUserId(userId, pagination)
+	response = c.usecase.ListLikedPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
-func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
+func (c *PostsController) ListRepostedPostsByTargetUser(ctx *gin.Context) {
 	var response model.Response
 
 	userData := ctx.MustGet("userData").(jwt.MapClaims)
 	userId := int64(userData["id"].(float64))
+
+	targetUserId, err := strconv.ParseInt(ctx.Param("userId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request query")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
@@ -365,7 +401,7 @@ func (c *PostsController) ListRepostedPostsByUserId(ctx *gin.Context) {
 		Limit: limit,
 	}
 
-	response = c.usecase.ListRepostedPostsByUserId(userId, pagination)
+	response = c.usecase.ListRepostedPostsByTargetUser(userId, targetUserId, pagination)
 	ctx.JSON(response.Status.Code, response)
 }
 
@@ -553,5 +589,196 @@ func (c *PostsController) UploadFileForUpdatePost(ctx *gin.Context) {
 
 	response = c.usecase.UploadFileForUpdatePost(userId, postId, fileNames)
 
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) InsertPostComment(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.AddPostCommentReq
+	)
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+	reqBody.PostId = postId
+
+	response = c.usecase.InsertPostComment(fileNames, &reqBody)
+
+	if response.Status.IsSuccess {
+		comment := ws.Message{
+			PostId: postId,
+			Data:   response.Data,
+		}
+		c.hub.Broadcast(comment)
+	}
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) LikePostComment(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.LikePostComment(userId, postCommentId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UnlikePostComment(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnlikePostComment(userId, postCommentId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) InsertPostCommentReply(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.AddPostCommentReplyReq
+	)
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	postCommentId, err := strconv.ParseInt(ctx.Param("postCommentId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+	reqBody.PostCommentId = postCommentId
+
+	response = c.usecase.InsertPostCommentReply(fileNames, postId, &reqBody)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) LikePostCommentReply(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentReplyId, err := strconv.ParseInt(ctx.Param("postCommentReplyId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.LikePostCommentReply(userId, postCommentReplyId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UnlikePostCommentReply(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentReplyId, err := strconv.ParseInt(ctx.Param("postCommentReplyId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnlikePostCommentReply(userId, postCommentReplyId)
 	ctx.JSON(response.Status.Code, response)
 }

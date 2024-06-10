@@ -93,7 +93,7 @@ LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE rp.post_id IS NULL AND p.visibility = 'public'
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
+ORDER BY p.created_at DESC
 OFFSET $2
 LIMIT $3
 `
@@ -298,7 +298,7 @@ LEFT JOIN post_images pi ON p.id = pi.post_id
 WHERE f.user_id = $1 AND rp.post_id IS NULL
 GROUP BY 
     p.id, u.id, lp.user_id, rpp.user_id
-ORDER BY p.updated_at DESC
+ORDER BY p.created_at DESC
 OFFSET $2
 LIMIT $3
 `
