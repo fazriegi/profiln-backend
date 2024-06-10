@@ -281,3 +281,27 @@ SET reply_count = GREATEST(reply_count + @value::smallint, 0),
     updated_at = NOW()
 WHERE id = @id::bigint
 RETURNING id, reply_count;
+
+-- name: LockPostCommentReplyForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdatePostCommentRepliesLikeCount :one
+UPDATE post_comment_replies
+SET like_count = GREATEST(like_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, like_count;
+
+-- name: InsertLikedPostCommentReplies :one
+INSERT INTO liked_post_comment_replies (user_id, post_comment_reply_id)
+VALUES (@user_id::bigint, @post_comment_reply_id::bigint)
+ON CONFLICT (user_id, post_comment_reply_id) DO NOTHING
+RETURNING id;
+
+-- name: DeleteLikedPostCommentReplies :one
+DELETE FROM liked_post_comment_replies
+WHERE user_id = @user_id::bigint AND post_comment_reply_id = @post_comment_reply_id::bigint
+RETURNING id;

@@ -167,6 +167,24 @@ func (q *Queries) DeleteLikedPostComment(ctx context.Context, arg DeleteLikedPos
 	return id, err
 }
 
+const deleteLikedPostCommentReplies = `-- name: DeleteLikedPostCommentReplies :one
+DELETE FROM liked_post_comment_replies
+WHERE user_id = $1::bigint AND post_comment_reply_id = $2::bigint
+RETURNING id
+`
+
+type DeleteLikedPostCommentRepliesParams struct {
+	UserID             int64
+	PostCommentReplyID int64
+}
+
+func (q *Queries) DeleteLikedPostCommentReplies(ctx context.Context, arg DeleteLikedPostCommentRepliesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteLikedPostCommentReplies, arg.UserID, arg.PostCommentReplyID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deletePostById = `-- name: DeletePostById :exec
 DELETE FROM posts
 WHERE id = $1::bigint
@@ -494,6 +512,25 @@ type InsertLikedPostParams struct {
 
 func (q *Queries) InsertLikedPost(ctx context.Context, arg InsertLikedPostParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, insertLikedPost, arg.UserID, arg.PostID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertLikedPostCommentReplies = `-- name: InsertLikedPostCommentReplies :one
+INSERT INTO liked_post_comment_replies (user_id, post_comment_reply_id)
+VALUES ($1::bigint, $2::bigint)
+ON CONFLICT (user_id, post_comment_reply_id) DO NOTHING
+RETURNING id
+`
+
+type InsertLikedPostCommentRepliesParams struct {
+	UserID             int64
+	PostCommentReplyID int64
+}
+
+func (q *Queries) InsertLikedPostCommentReplies(ctx context.Context, arg InsertLikedPostCommentRepliesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertLikedPostCommentReplies, arg.UserID, arg.PostCommentReplyID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -1006,6 +1043,20 @@ func (q *Queries) LockPostCommentForUpdate(ctx context.Context, id int64) (int32
 	return column_1, err
 }
 
+const lockPostCommentReplyForUpdate = `-- name: LockPostCommentReplyForUpdate :one
+SELECT 1
+FROM posts
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockPostCommentReplyForUpdate(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, lockPostCommentReplyForUpdate, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const lockPostForUpdate = `-- name: LockPostForUpdate :one
 SELECT 1
 FROM posts
@@ -1070,6 +1121,31 @@ func (q *Queries) UpdatePostCommentCount(ctx context.Context, arg UpdatePostComm
 	row := q.db.QueryRowContext(ctx, updatePostCommentCount, arg.Value, arg.ID)
 	var i UpdatePostCommentCountRow
 	err := row.Scan(&i.ID, &i.CommentCount)
+	return i, err
+}
+
+const updatePostCommentRepliesLikeCount = `-- name: UpdatePostCommentRepliesLikeCount :one
+UPDATE post_comment_replies
+SET like_count = GREATEST(like_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, like_count
+`
+
+type UpdatePostCommentRepliesLikeCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentRepliesLikeCountRow struct {
+	ID        int64
+	LikeCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentRepliesLikeCount(ctx context.Context, arg UpdatePostCommentRepliesLikeCountParams) (UpdatePostCommentRepliesLikeCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentRepliesLikeCount, arg.Value, arg.ID)
+	var i UpdatePostCommentRepliesLikeCountRow
+	err := row.Scan(&i.ID, &i.LikeCount)
 	return i, err
 }
 

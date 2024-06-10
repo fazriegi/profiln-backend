@@ -33,6 +33,8 @@ type IPostsController interface {
 	LikePostComment(ctx *gin.Context)
 	UnlikePostComment(ctx *gin.Context)
 	InsertPostCommentReply(ctx *gin.Context)
+	LikePostCommentReply(ctx *gin.Context)
+	UnlikePostCommentReply(ctx *gin.Context)
 }
 
 type PostsController struct {
@@ -740,5 +742,43 @@ func (c *PostsController) InsertPostCommentReply(ctx *gin.Context) {
 
 	response = c.usecase.InsertPostCommentReply(fileNames, postId, &reqBody)
 
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) LikePostCommentReply(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentReplyId, err := strconv.ParseInt(ctx.Param("postCommentReplyId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.LikePostCommentReply(userId, postCommentReplyId)
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) UnlikePostCommentReply(ctx *gin.Context) {
+	var response model.Response
+
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postCommentReplyId, err := strconv.ParseInt(ctx.Param("postCommentReplyId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.UnlikePostCommentReply(userId, postCommentReplyId)
 	ctx.JSON(response.Status.Code, response)
 }

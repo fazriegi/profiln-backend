@@ -32,6 +32,8 @@ type IPostsUsecase interface {
 	LikePostComment(userId, postCommentId int64) model.Response
 	UnlikePostComment(userId, postCommentId int64) model.Response
 	InsertPostCommentReply(imageFileNames []string, postId int64, props *model.AddPostCommentReplyReq) model.Response
+	LikePostCommentReply(userId, postCommentReplyId int64) model.Response
+	UnlikePostCommentReply(userId, postCommentReplyId int64) model.Response
 }
 
 type PostsUsecase struct {
@@ -755,5 +757,49 @@ func (u *PostsUsecase) InsertPostCommentReply(imageFileNames []string, postId in
 	return model.Response{
 		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment reply"),
 		Data:   data,
+	}
+}
+
+func (u *PostsUsecase) LikePostCommentReply(userId, postCommentReplyId int64) model.Response {
+	data, err := u.repository.LikePostCommentReply(userId, postCommentReplyId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.LikePostCommentReply: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success like post comment reply"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
+	}
+}
+
+func (u *PostsUsecase) UnlikePostCommentReply(userId, postCommentReplyId int64) model.Response {
+	data, err := u.repository.UnlikePostCommentReply(userId, postCommentReplyId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	} else if err != nil {
+		u.log.Errorf("repository.UnlikePostCommentReply: %v", err)
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusOK, "Success unlike post comment reply"),
+		Data: map[string]any{
+			"id":         data.ID,
+			"like_count": data.LikeCount.Int32,
+		},
 	}
 }
