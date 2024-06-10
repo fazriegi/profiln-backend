@@ -518,6 +518,44 @@ func (q *Queries) InsertPost(ctx context.Context, arg InsertPostParams) (Post, e
 	return i, err
 }
 
+const insertPostComment = `-- name: InsertPostComment :one
+INSERT INTO post_comments (user_id, post_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES ($1::bigint, $2::bigint, $3::text, $4::text, $5::boolean, NOW(), NOW())
+RETURNING id, user_id, post_id, content, image_url, like_count, reply_count, is_post_author, created_at, updated_at
+`
+
+type InsertPostCommentParams struct {
+	UserID       int64
+	PostID       int64
+	Content      string
+	ImageUrl     string
+	IsPostAuthor bool
+}
+
+func (q *Queries) InsertPostComment(ctx context.Context, arg InsertPostCommentParams) (PostComment, error) {
+	row := q.db.QueryRowContext(ctx, insertPostComment,
+		arg.UserID,
+		arg.PostID,
+		arg.Content,
+		arg.ImageUrl,
+		arg.IsPostAuthor,
+	)
+	var i PostComment
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PostID,
+		&i.Content,
+		&i.ImageUrl,
+		&i.LikeCount,
+		&i.ReplyCount,
+		&i.IsPostAuthor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertReportedPost = `-- name: InsertReportedPost :one
 INSERT INTO reported_posts
 (user_id, post_id, reason, message)
@@ -920,6 +958,31 @@ func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) error {
 		arg.UserID,
 	)
 	return err
+}
+
+const updatePostCommentCount = `-- name: UpdatePostCommentCount :one
+UPDATE posts
+SET comment_count = GREATEST(comment_count + $1::smallint, 0),
+    updated_at = NOW()
+WHERE id = $2::bigint
+RETURNING id, comment_count
+`
+
+type UpdatePostCommentCountParams struct {
+	Value int16
+	ID    int64
+}
+
+type UpdatePostCommentCountRow struct {
+	ID           int64
+	CommentCount sql.NullInt32
+}
+
+func (q *Queries) UpdatePostCommentCount(ctx context.Context, arg UpdatePostCommentCountParams) (UpdatePostCommentCountRow, error) {
+	row := q.db.QueryRowContext(ctx, updatePostCommentCount, arg.Value, arg.ID)
+	var i UpdatePostCommentCountRow
+	err := row.Scan(&i.ID, &i.CommentCount)
+	return i, err
 }
 
 const updatePostLikeCount = `-- name: UpdatePostLikeCount :one

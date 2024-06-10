@@ -28,6 +28,7 @@ type IPostsUsecase interface {
 	UnrepostPost(userId, postId int64) model.Response
 	UploadFileForInsertPost(userId, postId int64, fileNames []string) model.Response
 	UploadFileForUpdatePost(userId, postId int64, fileNames []string) model.Response
+	InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response
 }
 
 type PostsUsecase struct {
@@ -593,5 +594,62 @@ func (u *PostsUsecase) UploadFileForUpdatePost(userId, postId int64, fileNames [
 			"post_id":    postId,
 			"image_urls": urls,
 		},
+	}
+}
+
+func (u *PostsUsecase) InsertPostComment(imageFileNames []string, props *model.AddPostCommentReq) model.Response {
+	post, err := u.repository.GetPostById(props.PostId)
+	if err != nil && err == sql.ErrNoRows {
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusNotFound, "Data not found"),
+		}
+	}
+
+	if post.User.ID == props.UserId {
+		props.IsPostAuthor = true
+	}
+
+	if len(imageFileNames) > 0 {
+		objectPath := fmt.Sprintf("users/%d/posts/comments", props.UserId)
+
+		defer func() {
+			filePath := fmt.Sprintf("./storage/temp/users/%d/files/%s", props.UserId, imageFileNames[0])
+
+			if err := u.fs.RemoveFile(filePath); err != nil {
+				u.log.Errorf("fileSystem.RemoveFile: %v", err)
+			}
+		}()
+
+		urls, err := u.googleBucket.HandleObjectUploads(props.UserId, objectPath, imageFileNames[0])
+		if err != nil {
+			u.log.Errorf("googleBucket.HandleObjectUploads: %v", err)
+
+			return model.Response{
+				Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured"),
+			}
+		}
+
+		props.ImageUrl = urls[0]
+	}
+
+	data, err := u.repository.InsertPostComment(props)
+
+	if err != nil {
+		u.log.Errorf("repository.InsertPostComment (user id %d): %v", props.UserId, err)
+
+		// Delete uploaded objects
+		errObjectDelete := u.googleBucket.HandleObjectDeletion(props.ImageUrl)
+		if errObjectDelete != nil {
+			u.log.Errorf("googleBucket.HandleObjectDeletion (user id: %d): %v", props.UserId, errObjectDelete)
+		}
+
+		return model.Response{
+			Status: libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occurred"),
+		}
+	}
+
+	return model.Response{
+		Status: libs.CustomResponse(http.StatusCreated, "Success create post comment"),
+		Data:   data,
 	}
 }

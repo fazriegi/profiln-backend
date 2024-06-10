@@ -31,6 +31,7 @@ type IPostsRepository interface {
 	UnrepostPost(userId, postId int64) (*db.UpdatePostRepostCountRow, error)
 	BatchInsertPostImages(postId int64, urls []string) ([]db.PostImage, error)
 	CountPostImages(postId int64) (int64, error)
+	InsertPostComment(props *model.AddPostCommentReq) (model.PostComment, error)
 }
 
 type PostsRepository struct {
@@ -458,18 +459,6 @@ func (r *PostsRepository) UpdatePostById(props *model.UpdatePostRequest) error {
 		return fmt.Errorf("could not update post: %w", err)
 	}
 
-	// _, err = qtx.BatchInsertPostImages(ctx, db.BatchInsertPostImagesParams{
-	// 	PostID: props.ID,
-	// 	Url:    props.ImageUrls,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("could not insert post images: %w", err)
-	// }
-
-	// if err := tx.Commit(); err != nil {
-	// 	return fmt.Errorf("could not commit transaction: %w", err)
-	// }
-
 	return nil
 }
 
@@ -727,4 +716,64 @@ func (r *PostsRepository) CountPostImages(postId int64) (int64, error) {
 	}
 
 	return count, nil
+}
+
+func (r *PostsRepository) InsertPostComment(props *model.AddPostCommentReq) (model.PostComment, error) {
+	ctx := context.Background()
+	tx, err := r.dbConn.Begin()
+	if err != nil {
+		return model.PostComment{}, fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	qtx := r.query.WithTx(tx)
+
+	arg := db.InsertPostCommentParams{
+		UserID:       props.UserId,
+		PostID:       props.PostId,
+		Content:      props.Content,
+		ImageUrl:     props.ImageUrl,
+		IsPostAuthor: props.IsPostAuthor,
+	}
+	createdData, err := qtx.InsertPostComment(ctx, arg)
+	if err != nil {
+		return model.PostComment{}, fmt.Errorf("could not insert post comment: %w", err)
+	}
+
+	_, err = qtx.UpdatePostCommentCount(ctx, db.UpdatePostCommentCountParams{
+		ID:    props.PostId,
+		Value: 1,
+	})
+	if err != nil {
+		return model.PostComment{}, fmt.Errorf("could not update post comment count: %w", err)
+	}
+
+	user, err := qtx.GetUserById(ctx, props.UserId)
+	if err != nil {
+		return model.PostComment{}, fmt.Errorf("could not get user: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return model.PostComment{}, fmt.Errorf("could not commit transaction: %w", err)
+	}
+
+	postComment := model.PostComment{
+		ID:     createdData.ID,
+		PostId: props.PostId,
+		User: model.User{
+			ID:         props.UserId,
+			Fullname:   user.FullName,
+			AvatarUrl:  user.AvatarUrl.String,
+			Bio:        user.Bio.String,
+			OpenToWork: user.OpenToWork.Bool,
+		},
+		Content:      createdData.Content.String,
+		ImageUrl:     createdData.ImageUrl.String,
+		LikeCount:    createdData.LikeCount.Int32,
+		ReplyCount:   createdData.ReplyCount.Int32,
+		IsPostAuthor: createdData.IsPostAuthor.Bool,
+		UpdatedAt:    createdData.UpdatedAt.Time,
+	}
+
+	return postComment, nil
 }

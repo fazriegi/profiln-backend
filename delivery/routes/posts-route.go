@@ -1,9 +1,10 @@
-package route
+package routes
 
 import (
 	"database/sql"
 	"profiln-be/delivery/http"
 	"profiln-be/delivery/http/middleware"
+	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/package/posts"
 	repository "profiln-be/package/posts/repository"
@@ -12,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
+func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger, wsHub *ws.Hub) {
 	twoMegaBytes := 2 * 1024 * 1024
 	imageFormats := []string{".png", ".jpg"}
 
@@ -20,7 +21,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	googleBucket := libs.NewGoogleBucket(log)
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket, fileSystem)
-	controller := http.NewPostsController(usecase)
+	controller := http.NewPostsController(usecase, wsHub)
 
 	app.Use(middleware.Authentication())
 
@@ -37,6 +38,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	posts.POST("/:postId/unlike", controller.UnlikePost)
 	posts.POST("/:postId/repost", controller.RepostPost)
 	posts.POST("/:postId/unrepost", controller.UnrepostPost)
+	posts.POST("/:postId/comments", middleware.ValidateFileUpload(int64(twoMegaBytes), 1, imageFormats, fileSystem, log), controller.InsertPostComment)
 
 	myPosts := app.Group("users/me/posts")
 	myPosts.POST("/", controller.InsertPost)

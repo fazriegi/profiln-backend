@@ -233,3 +233,15 @@ RETURNING id;
 SELECT COUNT(*) AS count
 FROM post_images
 WHERE post_id = @post_id::bigint;
+
+-- name: UpdatePostCommentCount :one
+UPDATE posts
+SET comment_count = GREATEST(comment_count + @value::smallint, 0),
+    updated_at = NOW()
+WHERE id = @id::bigint
+RETURNING id, comment_count;
+
+-- name: InsertPostComment :one
+INSERT INTO post_comments (user_id, post_id, content, image_url, is_post_author, created_at, updated_at)
+VALUES (@user_id::bigint, @post_id::bigint, @content::text, @image_url::text, @is_post_author::boolean, NOW(), NOW())
+RETURNING *;

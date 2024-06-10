@@ -61,3 +61,11 @@ type PostCommentReply struct {
 	IsPostAuthor  bool      `json:"is_post_author"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
+
+type AddPostCommentReq struct {
+	PostId       int64  `json:"post_id"`
+	UserId       int64  `json:"user_id"`
+	Content      string `json:"content" form:"content" validate:"required"`
+	ImageUrl     string `json:"image_url"`
+	IsPostAuthor bool   `json:"is_post_author"`
+}

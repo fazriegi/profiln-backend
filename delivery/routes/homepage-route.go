@@ -1,4 +1,4 @@
-package route
+package routes
 
 import (
 	"database/sql"

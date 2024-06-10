@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/model"
 	"profiln-be/package/posts"
@@ -28,15 +29,18 @@ type IPostsController interface {
 	UnrepostPost(ctx *gin.Context)
 	UploadFileForInsertPost(ctx *gin.Context)
 	UploadFileForUpdatePost(ctx *gin.Context)
+	InsertPostComment(ctx *gin.Context)
 }
 
 type PostsController struct {
 	usecase posts.IPostsUsecase
+	hub     *ws.Hub
 }
 
-func NewPostsController(usecase posts.IPostsUsecase) IPostsController {
+func NewPostsController(usecase posts.IPostsUsecase, hub *ws.Hub) IPostsController {
 	return &PostsController{
 		usecase,
+		hub,
 	}
 }
 
@@ -579,6 +583,63 @@ func (c *PostsController) UploadFileForUpdatePost(ctx *gin.Context) {
 	}
 
 	response = c.usecase.UploadFileForUpdatePost(userId, postId, fileNames)
+
+	ctx.JSON(response.Status.Code, response)
+}
+
+func (c *PostsController) InsertPostComment(ctx *gin.Context) {
+	var (
+		response model.Response
+		reqBody  model.AddPostCommentReq
+	)
+	fileNames := ctx.MustGet("fileNames").([]string)
+	userData := ctx.MustGet("userData").(jwt.MapClaims)
+	userId := int64(userData["id"].(float64))
+
+	postId, err := strconv.ParseInt(ctx.Param("postId"), 10, 64)
+	if err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	if err := ctx.ShouldBind(&reqBody); err != nil {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Error parsing request body")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	validationErr := libs.ValidateRequest(reqBody) // validate reqBody struct
+	// if there is an error
+	if len(validationErr) > 0 {
+		errResponse := map[string]any{
+			"errors": validationErr,
+		}
+
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = errResponse
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	reqBody.UserId = userId
+	reqBody.PostId = postId
+
+	response = c.usecase.InsertPostComment(fileNames, &reqBody)
+
+	if response.Status.IsSuccess {
+		comment := ws.Message{
+			PostId: postId,
+			Data:   response.Data,
+		}
+		c.hub.Broadcast(comment)
+	}
 
 	ctx.JSON(response.Status.Code, response)
 }
