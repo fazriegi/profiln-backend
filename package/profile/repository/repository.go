@@ -85,7 +85,7 @@ func (r *ProfileRepository) InsertUserWorkExperience(props *model.WorkExperience
 	// If the company doesn't exist, insert the company first
 	if props.Company.ID < 1 {
 		company, err := qtx.InsertCompany(ctx, props.Company.Name)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return model.WorkExperience{}, fmt.Errorf("could not insert company: %w", err)
 		}
 
@@ -171,7 +171,7 @@ func (r *ProfileRepository) InsertUserCertificate(props *model.Certificate) (mod
 		createdIssuingOrganization, err :=
 			qtx.InsertIssuingOrganization(ctx, props.IssuingOrganization.Name)
 
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return model.Certificate{}, fmt.Errorf("could not insert issuing organization: %w", err)
 		}
 
@@ -472,7 +472,7 @@ func (r *ProfileRepository) UpdateUserEducation(props *model.Education) error {
 	// If the school doesn't exist, insert the school first
 	if props.School.ID < 1 {
 		school, err := qtx.InsertSchool(ctx, props.School.Name)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("could not insert school: %w", err)
 		}
 
@@ -608,7 +608,7 @@ func (r *ProfileRepository) UpdateUserWorkExperience(props *model.WorkExperience
 	// If the company doesn't exist, insert the company first
 	if props.Company.ID < 1 {
 		company, err := qtx.InsertCompany(ctx, props.Company.Name)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("could not insert company: %w", err)
 		}
 
@@ -975,7 +975,7 @@ func (r *ProfileRepository) AddUserOpenToWork(props *model.OpenToWork) error {
 	for i, jobPosition := range props.JobPositions {
 		if jobPosition.ID < 1 {
 			createdJobPosition, err := qtx.InsertJobPosition(ctx, sql.NullString{String: jobPosition.Name, Valid: true})
-			if err != nil {
+			if err != nil && err != sql.ErrNoRows {
 				return fmt.Errorf("could not insert job position: %w", err)
 			}
 			props.JobPositions[i].ID = createdJobPosition.ID
@@ -1249,7 +1249,7 @@ func (r *ProfileRepository) InsertUserEducation(props *model.Education) (model.E
 	// If the school doesn't exist, insert the school first
 	if props.School.ID < 1 {
 		school, err := qtx.InsertSchool(ctx, props.School.Name)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return model.Education{}, fmt.Errorf("could not insert school: %w", err)
 		}
 
