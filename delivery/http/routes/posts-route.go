@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"profiln-be/delivery/http"
 	"profiln-be/delivery/http/middleware"
-	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/package/posts"
 	repository "profiln-be/package/posts/repository"
@@ -13,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger, wsHub *ws.Hub) {
+func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger) {
 	twoMegaBytes := 2 * 1024 * 1024
 	imageFormats := []string{".png", ".jpg"}
 
@@ -21,7 +20,7 @@ func NewPostsRoute(app *gin.RouterGroup, db *sql.DB, log *logrus.Logger, wsHub *
 	googleBucket := libs.NewGoogleBucket(log)
 	repository := repository.NewPostsRepository(db)
 	usecase := posts.NewPostsUsecase(repository, log, googleBucket, fileSystem)
-	controller := http.NewPostsController(usecase, wsHub)
+	controller := http.NewPostsController(usecase)
 
 	app.Use(middleware.Authentication())
 

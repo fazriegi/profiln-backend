@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"profiln-be/delivery/ws"
 	"profiln-be/libs"
 	"profiln-be/model"
 	"profiln-be/package/posts"
@@ -39,13 +38,11 @@ type IPostsController interface {
 
 type PostsController struct {
 	usecase posts.IPostsUsecase
-	hub     *ws.Hub
 }
 
-func NewPostsController(usecase posts.IPostsUsecase, hub *ws.Hub) IPostsController {
+func NewPostsController(usecase posts.IPostsUsecase) IPostsController {
 	return &PostsController{
 		usecase,
-		hub,
 	}
 }
 
@@ -637,14 +634,6 @@ func (c *PostsController) InsertPostComment(ctx *gin.Context) {
 	reqBody.PostId = postId
 
 	response = c.usecase.InsertPostComment(fileNames, &reqBody)
-
-	if response.Status.IsSuccess {
-		comment := ws.Message{
-			PostId: postId,
-			Data:   response.Data,
-		}
-		c.hub.Broadcast(comment)
-	}
 
 	ctx.JSON(response.Status.Code, response)
 }
