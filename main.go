@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"profiln-be/config"
-	"profiln-be/delivery/routes"
+	"profiln-be/delivery/http/routes"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
