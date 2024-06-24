@@ -22,7 +22,6 @@ type IAuthUsecase interface {
 	Register(props *model.RegisterRequest, oauth string) (resp model.Response)
 	UpdateVerifiedEmail(props *model.VerifiedEmailOTPRequest) (resp model.Response)
 	SendResetPasswordEmail(props *model.ResetPasswordEmailRequest) (resp model.Response)
-	GetUserOtpByEmail(email string) (resp model.Response)
 	SendOTPEmail(props *model.OTPEmailRequest) (resp model.Response)
 }
 
@@ -292,46 +291,6 @@ func (u *AuthUsecase) SendResetPasswordEmail(props *model.ResetPasswordEmailRequ
 		}
 	}()
 
-	return
-}
-
-func (u *AuthUsecase) GetUserOtpByEmail(email string) (resp model.Response) {
-	_, err := u.repository.GetUserByEmail(email)
-
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusNotFound, "Email not found")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-
-		u.log.Errorf("repository.GetUserByEmail: %v", err)
-		return
-	}
-
-	userOtpByEmail, err := u.repository.GetUserOtpByEmail(email)
-
-	if err != nil && err == sql.ErrNoRows {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "OTP doesnt exist")
-
-		return
-	} else if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusInternalServerError, "Unexpected error occured")
-		u.log.Errorf("repository.GetUserOtpByOtp %v", err)
-		return
-	}
-
-	userOtpByEmailResp := model.UserOTPByEmailResponse{
-		ID:            int(userOtpByEmail.ID),
-		Email:         userOtpByEmail.Email,
-		Fullname:      userOtpByEmail.FullName,
-		VerifiedEmail: userOtpByEmail.VerifiedEmail.Bool,
-		UserID:        int(userOtpByEmail.ID_2),
-		Otp:           userOtpByEmail.Otp.String,
-	}
-
-	resp.Status = libs.CustomResponse(http.StatusOK, "Success get user otp by email")
-	resp.Data = userOtpByEmailResp
 	return
 }
 

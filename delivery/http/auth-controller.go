@@ -16,7 +16,6 @@ type IAuthController interface {
 	Register(ctx *gin.Context)
 	VerifiedEmail(ctx *gin.Context)
 	SendResetPasswordEmail(ctx *gin.Context)
-	GetUserOtpByEmail(ctx *gin.Context)
 	SendOTPEmail(ctx *gin.Context)
 }
 
@@ -208,16 +207,6 @@ func (c *AuthController) SendResetPasswordEmail(ctx *gin.Context) {
 	}
 
 	response = c.usecase.SendResetPasswordEmail(&reqBody)
-
-	ctx.JSON(response.Status.Code, response)
-}
-
-func (c *AuthController) GetUserOtpByEmail(ctx *gin.Context) {
-	var response model.Response
-
-	email := ctx.Param("email")
-
-	response = c.usecase.GetUserOtpByEmail(email)
 
 	ctx.JSON(response.Status.Code, response)
 }
