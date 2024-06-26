@@ -119,7 +119,14 @@ func (c *AuthController) Register(ctx *gin.Context) {
 		return
 	}
 
-	isOAuth := ctx.Query("oauth")
+	oauth := ctx.Query("oauth")
+	if oauth != "true" && oauth != "false" {
+		response.Status =
+			libs.CustomResponse(http.StatusBadRequest, "Invalid request param")
+
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
 
 	validationErr := libs.ValidateRequest(reqBody)
 
@@ -136,7 +143,17 @@ func (c *AuthController) Register(ctx *gin.Context) {
 		return
 	}
 
-	response = c.usecase.Register(&reqBody, isOAuth)
+	if oauth == "false" && reqBody.Password == "" {
+		response.Status =
+			libs.CustomResponse(http.StatusUnprocessableEntity, "Validation error")
+		response.Data = map[string]string{
+			"errors": "password can't be empty",
+		}
+		ctx.JSON(response.Status.Code, response)
+		return
+	}
+
+	response = c.usecase.Register(&reqBody, oauth)
 
 	ctx.JSON(response.Status.Code, response)
 }
