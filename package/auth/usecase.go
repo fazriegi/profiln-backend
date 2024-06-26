@@ -110,6 +110,12 @@ func (u *AuthUsecase) ResetPassword(props *model.ResetPasswordRequest) (resp mod
 }
 
 func (u *AuthUsecase) Register(props *model.RegisterRequest, oauth string) (resp model.Response) {
+	var (
+		hashedPassword string
+		err            error
+		verifiedEmail  bool = true
+	)
+
 	subject := "OTP Regristation Profiln"
 	user, _ := u.repository.GetUserByEmail(props.Email)
 
@@ -118,18 +124,14 @@ func (u *AuthUsecase) Register(props *model.RegisterRequest, oauth string) (resp
 		return resp
 	}
 
-	hashedPassword, err := libs.HashPassword(props.Password)
-	if err != nil {
-		resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
-		u.log.Errorf("libs.HashPassword : %v", err)
-		return resp
-	}
+	if oauth != "true" {
+		hashedPassword, err = libs.HashPassword(props.Password)
+		if err != nil {
+			resp.Status = libs.CustomResponse(http.StatusBadRequest, "Something went wrong")
+			u.log.Errorf("libs.HashPassword : %v", err)
+			return resp
+		}
 
-	var verifiedEmail bool
-
-	if oauth == "true" {
-		verifiedEmail = true
-	} else {
 		verifiedEmail = false
 	}
 

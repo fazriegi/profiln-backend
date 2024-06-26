@@ -16,7 +16,7 @@ type ResetPasswordEmailRequest struct {
 
 type RegisterRequest struct {
 	Email    string `validate:"required,email"`
-	Password string `validate:"required,min=8,password"`
+	Password string `validate:"password"`
 	Fullname string `validate:"required"`
 }
 
