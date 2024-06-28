@@ -20,7 +20,10 @@ func main() {
 	log, file := config.NewLogger()
 	defer file.Close()
 
-	app := gin.Default()
+	app := gin.New()
+	app.RedirectTrailingSlash = false
+	app.Use(gin.Logger())
+
 	routes.NewRoute(app, db, log)
 	port := os.Getenv("PORT")
 
