@@ -2755,7 +2755,7 @@
 									]
 								},
 								"url": {
-									"raw": "{{host}}/api/v1/users/me/posts",
+									"raw": "{{host}}/api/v1/users/me/posts/",
 									"host": [
 										"{{host}}"
 									],
@@ -2764,7 +2764,8 @@
 										"v1",
 										"users",
 										"me",
-										"posts"
+										"posts",
+										""
 									]
 								}
 							},
@@ -5728,7 +5729,7 @@
 					"name": "all users",
 					"item": [
 						{
-							"name": "Get All post",
+							"name": "Get All post (homepage)",
 							"request": {
 								"auth": {
 									"type": "bearer",
@@ -6921,7 +6922,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{host}}/api/v1/users/me",
+									"raw": "{{host}}/api/v1/users/me/",
 									"host": [
 										"{{host}}"
 									],
@@ -6929,7 +6930,8 @@
 										"api",
 										"v1",
 										"users",
-										"me"
+										"me",
+										""
 									]
 								}
 							},
