@@ -16,6 +16,9 @@ Profiln is an innovative, user-friendly, and versatile career profiling platform
 ## Database Design
 ![ERD](ERD_Profiln.png)
 
+## Documentation
+**API Documentation** : [API Docs](Profiln.postman_collection.json)
+
 ## Installation
 1. Install golang migrate package
 2. Clone the repository
