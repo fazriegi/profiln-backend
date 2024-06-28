@@ -249,6 +249,15 @@
 					"request": {
 						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"test@example.com\",\r\n    \"fullname\":\"test\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
 							"raw": "{{host}}/api/v1/register?oauth=true",
 							"host": [
@@ -434,7 +443,6 @@
 								{
 									"key": "Content-Type",
 									"value": "application/json",
-									"name": "Content-Type",
 									"description": "",
 									"type": "text"
 								}
@@ -798,89 +806,6 @@
 							],
 							"cookie": [],
 							"body": "{\n    \"status\": {\n        \"code\": 200,\n        \"status\": \"success\",\n        \"message\": \"Success send otp\",\n        \"is_success\": true\n    },\n    \"data\": null\n}"
-						}
-					]
-				},
-				{
-					"name": "user otp",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{host}}/api/v1/user-otp/fazri.egi@binar.co.id",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"user-otp",
-								"fazri.egi@binar.co.id"
-							]
-						}
-					},
-					"response": [
-						{
-							"name": "success",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{host}}/api/v1/user-otp/fazri.egi@binar.co.id",
-									"host": [
-										"{{host}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"user-otp",
-										"fazri.egi@binar.co.id"
-									]
-								}
-							},
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json",
-									"name": "Content-Type",
-									"description": "",
-									"type": "text"
-								}
-							],
-							"cookie": [],
-							"body": "{\r\n  \"status\": {\r\n    \"code\": 200,\r\n    \"status\": \"success\",\r\n    \"message\": \"Success get user otp by email\",\r\n    \"is_success\": true\r\n  },\r\n  \"data\": {\r\n    \"id\": 1,\r\n    \"email\": \"vicky.try17@gmail.com\",\r\n    \"fullname\": \"Vicky Malindo\",\r\n    \"verified_email\": false,\r\n    \"user_id\": 1,\r\n    \"otp\": \"221765\"\r\n  }\r\n}"
-						},
-						{
-							"name": "failed",
-							"originalRequest": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{host}}/api/v1/user-otp/email@email.com",
-									"host": [
-										"{{host}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"user-otp",
-										"email@email.com"
-									]
-								}
-							},
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json",
-									"name": "Content-Type",
-									"description": "",
-									"type": "text"
-								}
-							],
-							"cookie": [],
-							"body": "{\n    \"status\": {\n        \"code\": 404,\n        \"status\": \"not found\",\n        \"message\": \"Email not found\",\n        \"is_success\": false\n    },\n    \"data\": null\n}"
 						}
 					]
 				}
@@ -3404,7 +3329,7 @@
 										"method": "DELETE",
 										"header": [],
 										"url": {
-											"raw": "{{host}}/api/v1/users/me/posts/{postId}",
+											"raw": "{{host}}/api/v1/users/me/posts/24",
 											"host": [
 												"{{host}}"
 											],
@@ -3414,12 +3339,12 @@
 												"users",
 												"me",
 												"posts",
-												"{postId}"
+												"24"
 											]
 										}
 									},
-									"status": "No Content",
-									"code": 204,
+									"status": "OK",
+									"code": 200,
 									"_postman_previewlanguage": "json",
 									"header": [
 										{
@@ -3428,11 +3353,15 @@
 										},
 										{
 											"key": "Date",
-											"value": "Wed, 29 May 2024 06:44:39 GMT"
+											"value": "Thu, 27 Jun 2024 11:28:23 GMT"
+										},
+										{
+											"key": "Content-Length",
+											"value": "104"
 										}
 									],
 									"cookie": [],
-									"body": null
+									"body": "{\n    \"status\": {\n        \"code\": 200,\n        \"status\": \"success\",\n        \"message\": \"Success delete post\",\n        \"is_success\": true\n    },\n    \"data\": null\n}"
 								}
 							]
 						},
@@ -5799,7 +5728,7 @@
 					"name": "all users",
 					"item": [
 						{
-							"name": "Get All",
+							"name": "Get All post",
 							"request": {
 								"auth": {
 									"type": "bearer",
