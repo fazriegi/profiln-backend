@@ -10,8 +10,9 @@ import (
 
 func NewRoute(app *gin.Engine, db *sql.DB, log *logrus.Logger) {
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"*"}
+	config.AllowAllOrigins = true
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
 	app.Use(cors.New(config))
 
 	v1 := app.Group("/api/v1")
