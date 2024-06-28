@@ -27,12 +27,5 @@ func main() {
 	routes.NewRoute(app, db, log)
 	port := os.Getenv("PORT")
 
-	certFile := os.Getenv("TLS_CERT_FILE")
-	keyFile := os.Getenv("TLS_KEY_FILE")
-
-	if certFile == "" || keyFile == "" {
-		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must be set")
-	}
-
-	log.Fatal(app.RunTLS(fmt.Sprintf(":%s", port), certFile, keyFile))
+	log.Fatal(app.Run(fmt.Sprintf(":%s", port)))
 }
